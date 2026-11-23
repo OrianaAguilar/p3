@@ -1,0 +1,468 @@
+\input{preambulo}
+\setlength{\emergencystretch}{2em}
+
+\newcommand{\IS}{\textsc{Independent Set}}
+\newcommand{\VC}{\textsc{Vertex Cover}}
+\newcommand{\DS}{\textsc{Dominating Set}}
+\newcommand{\Cl}{\textsc{Clique}}
+\newcommand{\IntS}{\textsc{Interval Scheduling}}
+\newcommand{\leP}{\le_P}
+\newcommand{\SI}{S\'I}
+
+\title{Práctico 11 --- Reducciones en tiempo polinomial}
+\author{Programación 3 -- FING, UdelaR}
+\date{}
+
+\begin{document}
+\maketitle
+
+\section*{Recordatorio}
+
+Sean $Y$ y $X$ problemas de decisión. Decimos que $Y \leP X$ si toda instancia de $Y$ se puede resolver
+con una cantidad polinomial de pasos de cómputo más una cantidad polinomial de llamadas a una caja negra
+que resuelve $X$. En todos los ejercicios de este práctico usamos la forma más común (y la que piden las
+soluciones oficiales de los parciales): una \emph{transformación} $f$ que, dada una instancia $s$ de $Y$,
+construye en tiempo polinomial en $|s|$ una instancia $f(s)$ de $X$ tal que
+\[
+  s \text{ es instancia \SI{} de } Y \iff f(s) \text{ es instancia \SI{} de } X .
+\]
+Entonces, para resolver $s$ basta construir $f(s)$ y hacer \emph{una} llamada a la caja negra de $X$.
+Para probar la equivalencia demostramos siempre las dos direcciones:
+\begin{enumerate}[label=(\roman*)]
+  \item si $s$ es \SI{} entonces $f(s)$ es \SI{} (a partir de una solución de $s$ construimos una de $f(s)$);
+  \item si $f(s)$ es \SI{} entonces $s$ es \SI{} (a partir de una solución de $f(s)$ construimos una de $s$).
+\end{enumerate}
+Recordemos además que $\leP$ es transitiva, y que si $Y \leP X$ y $X \in \Pclass$ entonces $Y \in \Pclass$.
+
+%======================================================================
+\section{Ejercicio 1}
+
+\begin{enunciado}
+\begin{enumerate}[label=(\alph*)]
+  \item Consideramos la versión de decisión del problema de planificación de intervalos (\emph{Interval
+  Scheduling}, Capítulo 4 de K\&T): dado un conjunto de intervalos en una línea de tiempo, representados
+  mediante una lista de pares de enteros, y un entero $k$, ¿existe un subconjunto de al menos $k$
+  intervalos que no se solapan entre sí? Determine si \emph{Interval Scheduling} $\leP$ \emph{Vertex Cover}.
+  \item Consideramos el problema \emph{Clique}: dado un grafo $G=(V,E)$ representado mediante una matriz
+  de adyacencias y un entero $k$, ¿existe $S\subset V$, con al menos $k$ vértices, tal que para todo par de
+  vértices $u,v\in S$ existe una arista entre ellos en $G$? Muestre que \emph{Independent Set} $\leP$ \emph{Clique}.
+\end{enumerate}
+\end{enunciado}
+
+\examref{La parte (a) es exactamente el Segundo parcial 2017, Ej.~4(a) (``¿Es verdad que Programación de
+Intervalos $\le_P$ Cubrimiento de Vértices?''), también recopilado en ``Práctica segundo parcial --
+soluciones'' (Parcial-2017). La solución oficial responde \emph{Sí}, porque \IntS{} se resuelve en tiempo
+polinomial (llamando 0 veces a la caja negra), o alternativamente porque $\IntS\in\NP$ y \VC{} es
+NP-completo. La parte (b) del mismo parcial pregunta si $\IS\leP\IntS$: eso es equivalente a $\Pclass=\NP$.}
+
+\subsection*{(a) \IntS{} $\leP$ \VC: \textbf{Sí}}
+
+La respuesta es afirmativa, y no depende de ninguna propiedad particular de \VC: \IntS{} pertenece a
+$\Pclass$, y todo problema de $\Pclass$ se reduce polinomialmente a cualquier problema.
+
+\paragraph{\IntS{} está en $\Pclass$.} En el Capítulo~4 se vio que el algoritmo greedy que ordena los
+intervalos por tiempo de finalización creciente y elige cada intervalo compatible con el último elegido
+obtiene un conjunto de intervalos no solapados de \emph{cardinal máximo}, $\mathrm{OPT}$, en tiempo
+$\Oh(n\log n)$. La instancia $(\mathcal I, k)$ es \SI{} si y solo si $\mathrm{OPT}\ge k$.
+
+\paragraph{Reducción.} Damos dos argumentos equivalentes.
+
+\begin{itemize}
+  \item \textbf{Como reducción de Cook (caja negra).} Para resolver $(\mathcal I,k)$ ejecutamos el greedy y
+  comparamos $\mathrm{OPT}$ con $k$. Esto usa una cantidad polinomial de pasos y \emph{cero} llamadas a la
+  caja negra de \VC, lo cual está permitido por la definición de $\leP$.
+  \item \textbf{Como transformación de instancias.} Fijamos de antemano dos instancias de \VC:
+  \[
+    s_{\SI} = (G_1, 0),\ G_1=(\{a\},\emptyset) \qquad\qquad s_{\mathrm{NO}} = (G_2, 0),\ G_2=(\{a,b\},\{(a,b)\}).
+  \]
+  $s_{\SI}$ es \SI{} (el conjunto vacío cubre las cero aristas de $G_1$) y $s_{\mathrm{NO}}$ es NO (con 0
+  vértices no se cubre la arista $(a,b)$). La transformación $f$ ejecuta el greedy sobre $\mathcal I$ y
+  devuelve $s_{\SI}$ si $\mathrm{OPT}\ge k$ y $s_{\mathrm{NO}}$ en caso contrario. Es polinomial
+  ($\Oh(n\log n)$ más tiempo constante) y, por construcción, $(\mathcal I,k)$ es \SI{} $\iff$ $f(\mathcal I,k)$ es \SI.
+\end{itemize}
+
+Otra justificación (también aceptada en la solución oficial): $\IntS\in\Pclass\subseteq\NP$ y \VC{} es
+NP-completo, por lo que todo problema de $\NP$, en particular \IntS, se reduce polinomialmente a \VC.
+
+\begin{observacion}
+La reducción \emph{inversa}, $\VC\leP\IntS$, no se sabe si vale: si valiera, como $\IntS\in\Pclass$
+tendríamos $\VC\in\Pclass$ y, por ser \VC{} NP-completo, $\Pclass=\NP$. Recíprocamente, si $\Pclass=\NP$
+la reducción vale con el mismo truco de arriba. Es decir, ``$\VC\leP\IntS$'' es equivalente a
+``$\Pclass=\NP$'' (esa es la parte (b) del parcial 2017, con \IS{} en lugar de \VC).
+\end{observacion}
+
+\subsection*{(b) \IS{} $\leP$ \Cl}
+
+Recordemos que \IS{} es: dado $G=(V,E)$ y un entero $k$, ¿existe $S\subseteq V$ con $|S|\ge k$ tal que
+ningún par de vértices de $S$ es adyacente?
+
+\paragraph{Transformación.} Dada una instancia $(G,k)$ de \IS{} con $G=(V,E)$ y $|V|=n$, construimos la
+instancia $(\overline G, k)$ de \Cl, donde $\overline G = (V,\overline E)$ es el \emph{grafo complemento}:
+\[
+  \overline E = \{(u,v) : u,v\in V,\ u\neq v,\ (u,v)\notin E\}.
+\]
+El entero $k$ no cambia.
+
+\paragraph{Tiempo polinomial.} Si $M$ es la matriz de adyacencia de $G$ ($n\times n$), la matriz
+$\overline M$ de $\overline G$ se obtiene con $\overline M[u][v] = 1 - M[u][v]$ para $u\neq v$ y
+$\overline M[u][u]=0$. Esto recorre la matriz una vez: tiempo $\Oh(n^2)$, lineal en el tamaño de la
+representación de la instancia. Copiar $k$ es $\Oh(1)$ (o lineal en su cantidad de bits).
+
+\paragraph{Lema clave.} Para todo $S\subseteq V$: $S$ es independiente en $G$ $\iff$ $S$ es un clique en
+$\overline G$. En efecto, para $u\ne v$ en $S$, $(u,v)\notin E \iff (u,v)\in\overline E$ por definición de
+$\overline E$; la condición ``para todo par'' es la misma en ambos lados.
+
+\paragraph{Equivalencia.}
+\begin{enumerate}[label=(\roman*)]
+  \item Si $(G,k)$ es \SI{}, existe $S$ independiente en $G$ con $|S|\ge k$. Por el lema, $S$ es un clique
+  de $\overline G$ con $|S|\ge k$, así que $(\overline G,k)$ es \SI{} de \Cl.
+  \item Si $(\overline G,k)$ es \SI{}, existe un clique $S$ de $\overline G$ con $|S|\ge k$. Por el lema, $S$
+  es independiente en $G$, así que $(G,k)$ es \SI{} de \IS.
+\end{enumerate}
+
+Por lo tanto, resolvemos \IS{} construyendo $\overline G$ en tiempo $\Oh(n^2)$ y llamando una vez a la caja
+negra de \Cl: $\IS\leP\Cl$.
+
+\begin{center}
+\begin{tikzpicture}[v/.style={circle,draw,inner sep=1.5pt,minimum size=5mm}, sel/.style={v,fill=blue!20}]
+  \begin{scope}
+    \node[sel] (a) at (0,1.5) {$a$};
+    \node[v] (b) at (1.5,1.5) {$b$};
+    \node[sel] (c) at (1.5,0) {$c$};
+    \node[v] (d) at (0,0) {$d$};
+    \draw (a)--(b)--(c)--(d)--(a);
+    \node at (0.75,-0.7) {$G$: $\{a,c\}$ independiente};
+  \end{scope}
+  \begin{scope}[xshift=5cm]
+    \node[sel] (a) at (0,1.5) {$a$};
+    \node[v] (b) at (1.5,1.5) {$b$};
+    \node[sel] (c) at (1.5,0) {$c$};
+    \node[v] (d) at (0,0) {$d$};
+    \draw[very thick,blue] (a)--(c);
+    \draw (b)--(d);
+    \node at (0.75,-0.7) {$\overline G$: $\{a,c\}$ clique};
+  \end{scope}
+\end{tikzpicture}
+\end{center}
+
+\begin{observacion}
+Como $\Cl\in\NP$ (certificado: el conjunto $S$; se verifica en $\Oh(n^2)$ que $|S|\ge k$ y que todos los
+pares son adyacentes) y \IS{} es NP-completo, esta reducción prueba que \Cl{} es NP-completo. La misma
+transformación sirve en el sentido opuesto ($\Cl\leP\IS$), ya que $\overline{\overline G}=G$.
+\end{observacion}
+
+%======================================================================
+\section{Ejercicio 2}
+
+\begin{enunciado}
+Sea $C=\{C_1,\dots,C_k\}$ un conjunto de cláusulas sobre un conjunto de variables booleanas
+$X=\{x_1,\dots,x_n\}$, representados mediante listas, donde cada cláusula $C_i$ cumple las siguientes
+propiedades:
+\begin{itemize}
+  \item Es la disyunción de \textbf{a lo sumo} 3 términos (cada término es una variable $x_i$ o su complemento $\overline{x_i}$).
+  \item Una misma variable puede aparecer más de una vez en una misma cláusula.
+\end{itemize}
+Definimos el problema \emph{Al Menos 2-SAT} de la siguiente manera: ¿existen \textbf{al menos 2}
+asignaciones de verdad distintas para $X$ que satisfacen $C$? Muestre que \emph{3-SAT} $\leP$ \emph{Al Menos 2-SAT}.
+\end{enunciado}
+
+\examref{Misma técnica (agregar una variable nueva ``libre'' o cláusulas auxiliares sobre una variable
+nueva) que en el Segundo parcial 2020, Ej.~3 (casiSAT: $\text{SAT}\leP\text{casiSAT}$ agregando $z$ y las
+cláusulas $z$ y $\overline z$) y en el Segundo parcial 2024, Ej.~2 ($\text{3-SAT}\leP\text{4-SAT}$
+agregando una variable nueva $z$).}
+
+\paragraph{Idea.} Una instancia satisfacible de 3-SAT puede tener una única asignación que la satisface,
+así que no basta con copiarla. Agregamos una variable nueva $y$ que no restringe nada: cada asignación
+que satisface la instancia original da lugar a \emph{dos} asignaciones distintas de la nueva instancia
+(con $y=0$ y con $y=1$).
+
+\paragraph{Transformación.} Sea $(X,C)$ una instancia de 3-SAT, con $X=\{x_1,\dots,x_n\}$ y
+$C=\{C_1,\dots,C_k\}$ (cada cláusula con 3 términos). Construimos la instancia $(X',C')$ de Al Menos 2-SAT:
+\begin{itemize}
+  \item $X' = X\cup\{y\}$, donde $y$ es una variable nueva ($y=x_{n+1}$).
+  \item $C' = C\cup\{C_{k+1}\}$ con $C_{k+1} = (y\vee\overline y)$.
+\end{itemize}
+Las cláusulas de $C$ tienen 3 términos y $C_{k+1}$ tiene 2, de modo que todas cumplen la restricción de
+``a lo sumo 3 términos'': $(X',C')$ es una instancia válida. La cláusula $C_{k+1}$ es una tautología (la
+satisface cualquier asignación); la agregamos solo para que $y$ aparezca efectivamente en la instancia (en
+caso de que las variables se deduzcan de las cláusulas). Si $X$ se da explícitamente como lista, bastaría con
+agregar $y$ a esa lista.
+
+\paragraph{Tiempo polinomial.} Copiar las listas de $X$ y $C$ e incorporar una variable y una cláusula de dos
+términos lleva tiempo $\Oh(n+k)$, lineal en el tamaño de la instancia de 3-SAT.
+
+\paragraph{Equivalencia.} Para una asignación $\sigma'$ de $X'$ denotamos $\sigma'|_X$ su restricción a $X$.
+Observemos que, como las cláusulas $C_1,\dots,C_k$ no mencionan a $y$ y $C_{k+1}$ siempre se satisface,
+\begin{equation}\label{eq:restr}
+  \sigma' \text{ satisface } C' \iff \sigma'|_X \text{ satisface } C. \tag{$*$}
+\end{equation}
+
+\begin{enumerate}[label=(\roman*)]
+  \item \emph{Si $(X,C)$ es \SI{} de 3-SAT, entonces $(X',C')$ es \SI{} de Al Menos 2-SAT.} Sea $\sigma$
+  una asignación de $X$ que satisface $C$. Definimos $\sigma_0 = \sigma\cup\{y\mapsto 0\}$ y
+  $\sigma_1=\sigma\cup\{y\mapsto 1\}$. Ambas son asignaciones de $X'$, son distintas (difieren en $y$) y, por
+  \eqref{eq:restr}, ambas satisfacen $C'$ porque su restricción a $X$ es $\sigma$. Hay al menos 2
+  asignaciones distintas que satisfacen $C'$.
+  \item \emph{Si $(X',C')$ es \SI{} de Al Menos 2-SAT, entonces $(X,C)$ es \SI{} de 3-SAT.} Existen al menos
+  dos asignaciones de $X'$ que satisfacen $C'$; en particular existe al menos una, $\sigma'$. Por
+  \eqref{eq:restr}, $\sigma'|_X$ satisface $C$, así que $(X,C)$ es satisfacible.
+\end{enumerate}
+
+Concluimos que 3-SAT se resuelve construyendo $(X',C')$ en tiempo lineal y haciendo una sola llamada a la
+caja negra de Al Menos 2-SAT, o sea $\text{3-SAT}\leP\text{Al Menos 2-SAT}$.
+
+\begin{observacion}
+Al Menos 2-SAT está en $\NP$: un certificado son dos asignaciones $\sigma_1,\sigma_2$ (dos tiras de $n$
+bits); el certificador comprueba que difieren en algún bit y que cada una satisface las $k$ cláusulas, en
+tiempo $\Oh(n+k)$. Junto con la reducción anterior y el hecho de que 3-SAT es NP-completo, se concluye que
+Al Menos 2-SAT es NP-completo.
+\end{observacion}
+
+%======================================================================
+\section{Ejercicio 3}
+
+\begin{enunciado}
+(Kleinberg \& Tardos, Ex.~8.2.) Una tienda que trata de analizar el comportamiento de sus clientes a
+menudo mantiene una tabla bidimensional $A$, donde las filas corresponden a sus clientes y las columnas
+a los productos que vende. La entrada $A[i,j]$ especifica la cantidad del producto $j$ que ha sido comprada
+por el cliente $i$. Un ejemplo de tabla se muestra a continuación.
+\begin{center}
+\begin{tabular}{lcccc}
+\toprule
+Cliente & Detergente & Cerveza & Pañales & Arena para gatos\\
+\midrule
+Raj & 0 & 6 & 0 & 3\\
+Alanis & 2 & 3 & 0 & 0\\
+Chelsea & 0 & 0 & 0 & 7\\
+\bottomrule
+\end{tabular}
+\end{center}
+Decimos que un subconjunto $S$ de clientes es \emph{diverso} si ningún par de clientes en $S$ ha comprado
+nunca el mismo producto, es decir que para cada producto, a lo sumo un cliente de $S$ lo ha comprado
+alguna vez. Un conjunto diverso de clientes resulta útil por ejemplo como grupo objetivo para los estudios
+de mercado.
+
+Definimos el problema de \emph{Conjunto Diverso} como sigue: dada una tabla $A$ del tipo definido
+anteriormente, de dimensiones $m\times n$, y un número $k\le m$, ¿existe un subconjunto de al menos $k$
+clientes que es diverso?
+
+Muestre que \emph{Independent Set} $\leP$ \emph{Conjunto Diverso}.
+\end{enunciado}
+
+\examref{No aparece literalmente en los parciales relevados. La reducción es del mismo tipo que la del
+Segundo parcial 2018, Ej.~3 (UOPI: $\text{INDSET}\leP\text{UOPI}$, copiando el grafo y fijando pesos 1), y que
+la de $\VC\leP\text{CONTRATAR}$ del Segundo parcial 2022, Ej.~3 (vértices $\mapsto$ personas,
+aristas $\mapsto$ tareas/productos).}
+
+\paragraph{Idea.} Clientes = vértices, productos = aristas. Cada producto lo compran exactamente los
+dos extremos de la arista correspondiente. Dos clientes ``chocan'' (compraron un mismo producto) si y solo si
+los vértices son adyacentes.
+
+\paragraph{Transformación.} Sea $(G,k)$ una instancia de \IS{} con $G=(V,E)$, $V=\{v_1,\dots,v_p\}$ y
+$E=\{e_1,\dots,e_q\}$.
+\begin{itemize}
+  \item Si $k>p$, la instancia de \IS{} es trivialmente NO (no hay $k$ vértices). Devolvemos una instancia
+  NO fija de Conjunto Diverso que respete $k\le m$, por ejemplo la tabla $2\times 1$ con
+  $A=\begin{pmatrix}1\\1\end{pmatrix}$ y $k=2$ (los dos clientes compraron el producto 1, así que no son un
+  conjunto diverso). Si $k\le 0$, ambas instancias son trivialmente \SI{} (el conjunto vacío) y la
+  transformación de abajo funciona igual (o se devuelve cualquier instancia \SI{} fija).
+  \item Si $k\le p$, construimos la tabla $A$ de dimensiones $m\times n$ con $m=p$ (un cliente $c_i$ por
+  cada vértice $v_i$) y $n=q$ (un producto $j$ por cada arista $e_j$), definida por
+  \[
+    A[i,j]=\begin{cases} 1 & \text{si } v_i \text{ es un extremo de } e_j,\\ 0 & \text{en otro caso,}\end{cases}
+  \]
+  y conservamos el mismo $k$ (que cumple $k\le m$). Si $E=\emptyset$ se puede agregar una columna de ceros para
+  no tener una tabla sin columnas; no cambia nada.
+\end{itemize}
+En otras palabras, $A$ es la matriz de incidencia vértice--arista de $G$.
+
+\paragraph{Tiempo polinomial.} La tabla tiene $p\cdot q$ entradas; se inicializa en 0 en $\Oh(pq)$ y luego,
+recorriendo cada arista $e_j=(v_a,v_b)$, se ponen en 1 las entradas $A[a,j]$ y $A[b,j]$. Tiempo total
+$\Oh(pq)=\Oh(p^3)$, polinomial en el tamaño de $G$.
+
+\paragraph{Lema clave.} Para $S\subseteq V$, sea $S_c=\{c_i : v_i\in S\}$. Entonces $S$ es independiente en
+$G$ $\iff$ $S_c$ es diverso.
+
+\emph{Prueba.} $S_c$ no es diverso $\iff$ existen $c_a\ne c_b$ en $S_c$ y un producto $j$ con
+$A[a,j]>0$ y $A[b,j]>0$ $\iff$ (por construcción, la columna $j$ tiene exactamente dos entradas no nulas, en
+las filas de los extremos de $e_j$) $e_j=(v_a,v_b)$ $\iff$ existen $v_a\ne v_b$ en $S$ adyacentes $\iff$ $S$
+no es independiente. \qed
+
+\paragraph{Equivalencia.} La correspondencia $S\mapsto S_c$ es una biyección entre subconjuntos de vértices y
+de clientes que preserva el cardinal.
+\begin{enumerate}[label=(\roman*)]
+  \item Si $(G,k)$ es \SI{}, existe $S$ independiente con $|S|\ge k$; por el lema, $S_c$ es diverso y
+  $|S_c|=|S|\ge k$: la instancia $(A,k)$ es \SI.
+  \item Si $(A,k)$ es \SI{}, existe un conjunto diverso $T$ de al menos $k$ clientes; $T=S_c$ para
+  $S=\{v_i: c_i\in T\}$, que por el lema es independiente y tiene $|S|=|T|\ge k$: $(G,k)$ es \SI.
+\end{enumerate}
+(En el caso $k>p$ ambas instancias son NO por construcción.) Por lo tanto $\IS\leP$ Conjunto Diverso.
+
+\paragraph{Ejemplo.} Para el camino $v_1 - v_2 - v_3$ ($e_1=(v_1,v_2)$, $e_2=(v_2,v_3)$) la tabla es
+\begin{center}
+\begin{tabular}{lcc}
+\toprule
+Cliente & Producto $e_1$ & Producto $e_2$\\
+\midrule
+$c_1$ & 1 & 0\\
+$c_2$ & 1 & 1\\
+$c_3$ & 0 & 1\\
+\bottomrule
+\end{tabular}
+\end{center}
+y $\{c_1,c_3\}$ es diverso, como $\{v_1,v_3\}$ es independiente.
+
+\begin{observacion}
+Conjunto Diverso está en $\NP$ (certificado: el subconjunto de clientes; se verifica en $\Oh(mn)$ que tiene
+al menos $k$ clientes y que cada columna tiene a lo sumo una entrada positiva en esas filas). Con la
+reducción anterior, Conjunto Diverso es NP-completo.
+\end{observacion}
+
+%======================================================================
+\section{Ejercicio 4}
+
+\begin{enunciado}
+Sea $G=(V,E)$ un grafo (no dirigido). Decimos que un conjunto de vértices, $S$, es un \emph{conjunto
+dominante}, si todo vértice de $V\setminus S$ es adyacente a algún vértice de $S$. Definimos el problema de
+decisión \emph{Dominating Set} como: dado un grafo $G$ y un entero $k$, ¿tiene $G$ un conjunto dominante
+con a lo sumo $k$ nodos?
+
+\textbf{Observación:} Para $G$ conexo, el hecho de que un conjunto de vértices sea recubridor implica que
+es también un conjunto dominante, pero el recíproco no es cierto.
+
+\textbf{Sugerencia:} Dada una instancia $(G,k)$ de \emph{Vertex Cover}, considere la siguiente reducción a
+una instancia $(G',k')$ de \emph{Dominating Set}:
+\begin{itemize}
+  \item $G'$ mantiene todos los nodos y aristas de $G$. Adicionalmente, por cada arista $(u,v)$ de $G$ se
+  agrega en $G'$ un nuevo nodo $X_{uv}$ y las dos aristas $(u,X_{uv})$ y $(v,X_{uv})$.
+  \item $k'=k+m$, donde $m$ la cantidad de nodos \emph{aislados} de $G$ (nodos de grado 0).
+\end{itemize}
+\begin{enumerate}[label=(\alph*)]
+  \item Muestre que existe una transformación de tiempo polinómico de $G$ en $G'$.
+  \item Muestre que si $G$ tiene un VC de a lo sumo $k$ nodos, entonces $G'$ tiene un DS $D$ con
+  $|D|\le k+m$ (de a lo sumo $k+m$ nodos).
+  \item Muestre que si $G'$ tiene un DS $D$ con $|D|\le k+m$, entonces $G$ tiene un VC de a lo sumo $k$ nodos.
+
+  \textbf{Sugerencia:} Muestre que si $\exists x\in D \mid x\notin G \implies D$ puede transformarse en otro
+  DS $D' \mid x'\in G,\ \forall x'\in D' \wedge |D'|\le|D|$.
+  \item Muestre que \emph{Vertex Cover} $\leP$ \emph{Dominating Set}.
+\end{enumerate}
+\end{enunciado}
+
+\examref{No aparece literalmente en los parciales relevados. Es una reducción desde \VC{} con la misma
+estructura de prueba que la del Segundo parcial 2022, Ej.~3 ($\VC\leP\text{CONTRATAR}$), cuya redacción
+seguimos.}
+
+Notación: $G=(V,E)$, $n=|V|$, $q=|E|$, $I\subseteq V$ el conjunto de vértices aislados de $G$, $m=|I|$.
+Llamamos \emph{nodos de arista} a los nodos nuevos $X_{uv}$, y $V'=V\cup\{X_{uv}:(u,v)\in E\}$,
+$E'=E\cup\{(u,X_{uv}),(v,X_{uv}) : (u,v)\in E\}$, $G'=(V',E')$.
+
+\begin{center}
+\begin{tikzpicture}[v/.style={circle,draw,inner sep=1pt,minimum size=6mm}, xn/.style={rectangle,draw,fill=orange!20,inner sep=2pt,minimum size=5mm}]
+  \begin{scope}
+    \node[v] (u) at (0,0) {$u$};
+    \node[v] (v) at (2,0) {$v$};
+    \node[v] (w) at (4,0) {$w$};
+    \node[v] (z) at (5.5,0) {$z$};
+    \draw (u)--(v)--(w);
+    \node at (2.7,-1) {$G$ ($z$ aislado, $m=1$)};
+  \end{scope}
+  \begin{scope}[xshift=7.5cm]
+    \node[v] (u) at (0,0) {$u$};
+    \node[v] (v) at (2,0) {$v$};
+    \node[v] (w) at (4,0) {$w$};
+    \node[v] (z) at (5.5,0) {$z$};
+    \node[xn] (xuv) at (1,1.2) {$X_{uv}$};
+    \node[xn] (xvw) at (3,1.2) {$X_{vw}$};
+    \draw (u)--(v)--(w);
+    \draw[orange!70!black] (u)--(xuv)--(v) (v)--(xvw)--(w);
+    \node at (2.7,-1) {$G'$};
+  \end{scope}
+\end{tikzpicture}
+\end{center}
+
+Una observación que usaremos varias veces: \emph{todo conjunto dominante de $G'$ contiene a todos los vértices
+aislados}, porque un vértice aislado de $G$ sigue aislado en $G'$ (no se agrega ningún $X_{uv}$ adyacente a él)
+y por lo tanto, si no estuviera en $D$, no sería adyacente a nadie de $D$. Esto explica el término $+m$ en $k'$:
+un VC nunca necesita vértices aislados, pero un DS sí.
+
+\subsection*{(a) La transformación es polinomial}
+
+La construcción de $(G',k')$ consiste en:
+\begin{enumerate}
+  \item copiar $V$ y $E$: $\Oh(n+q)$;
+  \item recorrer $E$ y, por cada arista $(u,v)$, crear el nodo $X_{uv}$ y las aristas $(u,X_{uv})$, $(v,X_{uv})$:
+  $\Oh(q)$;
+  \item contar los vértices de grado 0 para obtener $m$ (recorriendo las listas de adyacencia, o las filas de la
+  matriz): $\Oh(n+q)$ (resp.\ $\Oh(n^2)$), y calcular $k'=k+m$.
+\end{enumerate}
+$G'$ tiene $n+q$ vértices y $3q$ aristas, de modo que su tamaño es polinomial en el de $G$, y el tiempo total
+es $\Oh(n+q)$ con listas de adyacencia, u $\Oh((n+q)^2)$ si se construye la matriz de adyacencia de $G'$. En
+cualquier caso, polinomial en el tamaño de la instancia de \VC.
+
+\subsection*{(b) VC de tamaño $\le k$ en $G$ $\Rightarrow$ DS de tamaño $\le k+m$ en $G'$}
+
+Sea $C\subseteq V$ un vertex cover de $G$ con $|C|\le k$. Definimos $D=C\cup I$. Entonces
+$|D|\le|C|+|I|\le k+m=k'$. Veamos que $D$ es dominante en $G'$: sea $x\in V'\setminus D$.
+\begin{itemize}
+  \item Si $x=X_{uv}$ es un nodo de arista: como $C$ cubre la arista $(u,v)$, $u\in C$ o $v\in C$, y ambos son
+  adyacentes a $X_{uv}$ en $G'$. Luego $x$ es adyacente a un nodo de $D$.
+  \item Si $x\in V$: como $x\notin D\supseteq I$, $x$ no es aislado, así que tiene alguna arista $(x,y)\in E$.
+  Como $x\notin C$ y $C$ cubre $(x,y)$, necesariamente $y\in C\subseteq D$, y $(x,y)\in E\subseteq E'$. Luego
+  $x$ es adyacente a un nodo de $D$.
+\end{itemize}
+Así, $D$ es un conjunto dominante de $G'$ con a lo sumo $k+m$ nodos.
+
+\subsection*{(c) DS de tamaño $\le k+m$ en $G'$ $\Rightarrow$ VC de tamaño $\le k$ en $G$}
+
+\begin{lema}[Sugerencia]
+Si $D$ es un conjunto dominante de $G'$ que contiene algún nodo de arista, existe un conjunto dominante $D'$
+de $G'$ con $D'\subseteq V$ (todos sus nodos están en $G$) y $|D'|\le|D|$.
+\end{lema}
+\begin{proof}
+Tomamos un nodo de arista $X_{uv}\in D$ y definimos $D_1=(D\setminus\{X_{uv}\})\cup\{u\}$. Claramente
+$|D_1|\le|D|$ (igual si $u\notin D$, uno menos si ya estaba). Veamos que $D_1$ sigue siendo dominante: los
+únicos nodos que podrían haber quedado sin dominar son los que estaban dominados \emph{solo} por $X_{uv}$, o el
+propio $X_{uv}$. Los vecinos de $X_{uv}$ en $G'$ son exactamente $u$ y $v$:
+\begin{itemize}
+  \item $u\in D_1$;
+  \item $v$ es adyacente a $u$ en $G'$, pues $(u,v)\in E\subseteq E'$, y $u\in D_1$;
+  \item $X_{uv}$ es adyacente a $u\in D_1$.
+\end{itemize}
+Todo otro nodo no adyacente a $X_{uv}$ sigue dominado por el mismo nodo de $D$ que antes (que sigue en $D_1$).
+Luego $D_1$ es dominante y tiene un nodo de arista menos que $D$. Repitiendo el paso para cada nodo de arista
+de $D$ (son finitos) se obtiene $D'\subseteq V$ dominante con $|D'|\le|D|$.
+\end{proof}
+
+Sea ahora $D$ un conjunto dominante de $G'$ con $|D|\le k+m$. Por el lema podemos suponer (pasando a $D'$)
+que $D\subseteq V$, manteniendo $|D|\le k+m$. Por la observación inicial, $I\subseteq D$. Definimos
+$C=D\setminus I$. Entonces $|C| = |D|-m\le k$.
+
+Veamos que $C$ es un vertex cover de $G$. Sea $(u,v)\in E$ una arista cualquiera. El nodo $X_{uv}$ no está en
+$D$ (porque $D\subseteq V$), así que debe ser adyacente a algún nodo de $D$; sus únicos vecinos son $u$ y $v$,
+luego $u\in D$ o $v\in D$. Como $u$ y $v$ tienen grado $\ge1$, no son aislados, así que el que esté en $D$ está
+en $C$. Es decir, $C$ cubre $(u,v)$. Como la arista era arbitraria, $C$ es un VC de $G$ con a lo sumo $k$ nodos.
+
+\subsection*{(d) \VC{} $\leP$ \DS}
+
+Dada una instancia $(G,k)$ de \VC, construimos $(G',k')$ como en la sugerencia, en tiempo polinomial por (a).
+Por (b), si $(G,k)$ es \SI{} de \VC{} entonces $(G',k')$ es \SI{} de \DS; por (c), si $(G',k')$ es \SI{} de
+\DS{} entonces $(G,k)$ es \SI{} de \VC. Por lo tanto
+\[
+  (G,k) \text{ es \SI{} de \VC} \iff (G',k') \text{ es \SI{} de \DS},
+\]
+y \VC{} se resuelve con una transformación polinomial más una única llamada a la caja negra de \DS:
+$\VC\leP\DS$.
+
+\begin{observacion}
+\DS{} está en $\NP$: el certificado es el conjunto $D$ (tira de $|V|$ bits) y el certificador comprueba que
+$|D|\le k$ y que cada vértice fuera de $D$ tiene un vecino en $D$, en tiempo $\Oh(|V|+|E|)$. Junto con (d) y
+el hecho de que \VC{} es NP-completo, se concluye que \DS{} es NP-completo.
+
+¿Por qué no alcanza con $G'=G$? Porque, como dice la observación del enunciado, un DS no tiene por qué ser
+VC: en el triángulo $u,v,w$ el conjunto $\{u\}$ es dominante pero no cubre $(v,w)$. Los nodos $X_{uv}$ obligan
+a que cada arista tenga un extremo en el dominante (salvo que se use el propio $X_{uv}$, caso que el lema
+elimina).
+\end{observacion}
+
+\end{document}

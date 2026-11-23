@@ -1,0 +1,505 @@
+\input{preambulo}
+
+\newcommand{\OPT}{\mathrm{OPT}}
+\newcommand{\True}{\textsc{verdadero}}
+\newcommand{\False}{\textsc{falso}}
+
+\title{Práctico 9 --- Programación Dinámica II}
+\author{Programación 3 --- FING, UdelaR}
+\date{}
+
+\begin{document}
+\maketitle
+
+%======================================================================
+\section{Ejercicio 1}
+
+\begin{enunciado}
+\textbf{(Kleinberg \& Tardos, Ex.~6.19).} Usted es consultor de un grupo secreto de personas cuyo trabajo
+consiste en monitorear y analizar señales eléctricas de barcos en la costa Atlántica. Ellos quieren un
+algoritmo eficiente para el siguiente problema: desenredar un entrelazado de dos señales conocidas.
+
+Sean $s$, $x$, $y$ cadenas binarias del mismo largo. Decimos que $s$ es un \emph{entrelazado} de $x$ e $y$
+si sus símbolos se pueden particionar en dos secuencias (no necesariamente contiguas), $s'$ y $s''$, tales
+que $s'$ es un prefijo de $x$ y $s''$ es un prefijo de $y$. Por ejemplo, si $x = 10110110110$ e
+$y = 00100010011$, entonces $s = 10010000111$ es un entrelazado de $x$ e $y$, ya que la concatenación de los
+caracteres subrayados es un prefijo de $y$, y la concatenación de los restantes es un prefijo de $x$.
+
+\begin{enumerate}[label=(\alph*)]
+\item Presente un algoritmo de programación dinámica que, dadas tres cadenas de largo $n$, $x$, $y$, $s$,
+  determina si $s$ es un entrelazado de $x$ e $y$.
+
+  \emph{Sugerencia:} Observe que si $s$ es un entrelazado de $x$ e $y$, cada carácter $c$ de $s$ proviene o
+  bien de $x$ o de $y$. Defina una recurrencia para una función $M$ tal que, para cada par de naturales
+  $i, j$, $i + j \le n$, el valor de $M(i, j)$ determina si $s_1 \dots s_{i+j}$ es un entrelazado de
+  $x_1 \dots x_i$ y $y_1 \dots y_j$.
+\item Presente un algoritmo que, si efectivamente $s$ es un entrelazado de $x$ e $y$, devuelve un conjunto
+  de posiciones de $s$ que provienen de $x$ (el complemento necesariamente proviene de $y$).
+\end{enumerate}
+\end{enunciado}
+
+\examref{No aparece tal cual en los parciales/exámenes revisados. La técnica (subproblemas indexados por un
+par de prefijos y tabla bidimensional) es la misma del alineamiento de secuencias / distancia de edición,
+que sí aparece, por ejemplo, en el Examen de febrero de 2019 (problema de distancia de edición con
+$\OPT(i,j)$ sobre los prefijos $x_1\dots x_i$ e $y_1\dots y_j$).}
+
+\subsection*{Parte (a)}
+
+\paragraph{Subproblemas.} Para $i,j \ge 0$ con $i+j\le n$ definimos
+\[
+M(i,j) = \begin{cases}
+\True & \text{si } s_1\dots s_{i+j} \text{ es un entrelazado de } x_1\dots x_i \text{ y } y_1\dots y_j,\\
+\False & \text{en otro caso.}
+\end{cases}
+\]
+Es decir, $M(i,j)$ es verdadero si y sólo si las posiciones $1,\dots,i+j$ de $s$ se pueden particionar en
+dos subsecuencias, una igual a $x_1\dots x_i$ y la otra igual a $y_1\dots y_j$ (ambas leídas en el orden de
+$s$).
+
+Como $s'$ y $s''$ particionan las $n$ posiciones de $s$, si $s'$ tiene largo $i$ entonces $s''$ tiene largo
+$n-i$, y por lo tanto
+\[
+s \text{ es entrelazado de } x \text{ e } y \iff \bigvee_{i=0}^{n} M(i,\,n-i).
+\]
+
+\paragraph{Recurrencia.}
+\begin{itemize}
+\item Caso base: $M(0,0)=\True$ (la cadena vacía es entrelazado de dos cadenas vacías).
+\item Para $i+j\ge 1$:
+\[
+M(i,j) \;=\; \bigl(i>0 \;\wedge\; s_{i+j}=x_i \;\wedge\; M(i-1,j)\bigr)
+\;\vee\;
+\bigl(j>0 \;\wedge\; s_{i+j}=y_j \;\wedge\; M(i,j-1)\bigr).
+\]
+\end{itemize}
+
+\paragraph{Justificación.} Supongamos $i+j\ge 1$ y que $s_1\dots s_{i+j}$ es entrelazado de
+$x_1\dots x_i$ e $y_1\dots y_j$. El último símbolo $s_{i+j}$ pertenece a una de las dos subsecuencias, y
+como es el último de $s_1\dots s_{i+j}$, es el último símbolo de esa subsecuencia:
+\begin{itemize}
+\item si pertenece a la que forma $x_1\dots x_i$, entonces $i>0$, $s_{i+j}=x_i$, y quitándolo queda una
+  partición de $s_1\dots s_{i+j-1}$ en $x_1\dots x_{i-1}$ e $y_1\dots y_j$, o sea $M(i-1,j)$;
+\item si pertenece a la que forma $y_1\dots y_j$, análogamente $j>0$, $s_{i+j}=y_j$ y $M(i,j-1)$.
+\end{itemize}
+Recíprocamente, si por ejemplo $i>0$, $s_{i+j}=x_i$ y $M(i-1,j)$, tomando la partición de
+$s_1\dots s_{i+j-1}$ que testimonia $M(i-1,j)$ y agregando la posición $i+j$ a la subsecuencia de $x$ se
+obtiene una partición válida de $s_1\dots s_{i+j}$; lo mismo para el otro caso. Por lo tanto la
+recurrencia es correcta.
+
+\paragraph{Algoritmo iterativo.} Cada $M(i,j)$ depende sólo de $M(i-1,j)$ y $M(i,j-1)$, por lo que alcanza
+con recorrer la tabla por filas crecientes en $i$ y, dentro de cada fila, por $j$ creciente (o, de manera
+equivalente, por valores crecientes de $i+j$).
+
+\begin{algorithm}[H]
+\caption{Entrelazado$(x,y,s)$}
+\begin{algorithmic}[1]
+\Require cadenas $x,y,s$ de largo $n$
+\Ensure \True{} si $s$ es entrelazado de $x$ e $y$ (y la tabla $M$)
+\State $M[0,0] \gets \True$
+\For{$i \gets 0$ \textbf{to} $n$}
+  \For{$j \gets 0$ \textbf{to} $n-i$}
+    \If{$(i,j)\neq(0,0)$}
+      \State $M[i,j] \gets (i>0 \wedge s_{i+j}=x_i \wedge M[i-1,j]) \vee (j>0 \wedge s_{i+j}=y_j \wedge M[i,j-1])$
+    \EndIf
+  \EndFor
+\EndFor
+\For{$i \gets 0$ \textbf{to} $n$}
+  \If{$M[i,n-i]$} \Return \True \EndIf
+\EndFor
+\State \Return \False
+\end{algorithmic}
+\end{algorithm}
+
+\paragraph{Orden.} La tabla tiene $\sum_{i=0}^n (n-i+1) = \frac{(n+1)(n+2)}{2}$ celdas y cada una se calcula
+en $\Oh(1)$; la recorrida final es $\Oh(n)$. El tiempo total es $\Oh(n^2)$ y el espacio $\Oh(n^2)$ (si sólo
+se quiere la respuesta sí/no basta con guardar la fila anterior: espacio $\Oh(n)$).
+
+\subsection*{Parte (b)}
+
+Si $s$ es entrelazado, existe $i_0$ con $M(i_0,n-i_0)=\True$. Partimos de $(i,j)=(i_0,n-i_0)$ y
+retrocedemos usando la recurrencia: en cada paso, $M(i,j)=\True$ con $i+j\ge1$, así que al menos uno de los
+dos disyuntos es verdadero. Si es el primero, la posición $i+j$ de $s$ proviene de $x$ y pasamos a
+$(i-1,j)$; si no, proviene de $y$ y pasamos a $(i,j-1)$. Se mantiene el invariante $M(i,j)=\True$, por lo
+que el proceso termina en $(0,0)$ tras exactamente $n$ pasos y, por la justificación de la recurrencia, las
+posiciones marcadas forman una partición válida: las asignadas a $x$ forman $x_1\dots x_{i_0}$ y las
+restantes $y_1\dots y_{n-i_0}$.
+
+\begin{algorithm}[H]
+\caption{PosicionesDeX$(x,y,s)$}
+\begin{algorithmic}[1]
+\State calcular la tabla $M$ con el Algoritmo Entrelazado
+\State sea $i_0$ tal que $M[i_0,n-i_0]=\True$ \Comment{si no existe, $s$ no es entrelazado}
+\State $P \gets \emptyset$; \ $i\gets i_0$; \ $j \gets n-i_0$
+\While{$i+j>0$}
+  \If{$i>0 \wedge s_{i+j}=x_i \wedge M[i-1,j]$}
+    \State $P \gets P\cup\{i+j\}$; \ $i\gets i-1$
+  \Else \Comment{necesariamente $j>0$, $s_{i+j}=y_j$ y $M[i,j-1]$}
+    \State $j\gets j-1$
+  \EndIf
+\EndWhile
+\State \Return $P$
+\end{algorithmic}
+\end{algorithm}
+
+La reconstrucción hace $n$ iteraciones de costo $\Oh(1)$, así que el total sigue siendo $\Oh(n^2)$ (dominado
+por el cálculo de la tabla).
+
+\paragraph{Ejemplo.} Para $x = 10110110110$, $y = 00100010011$, $s = 10010000111$ ($n=11$), la tabla queda
+como sigue (T $=\True$, $\cdot=\False$; fila $i$, columna $j$, sólo $i+j\le 11$):
+
+\begin{center}
+\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{c|cccccccccccc}
+$i\backslash j$ & 0 & 1 & 2 & 3 & 4 & 5 & 6 & 7 & 8 & 9 & 10 & 11\\ \hline
+0  & T & $\cdot$ & $\cdot$ & $\cdot$ & $\cdot$ & $\cdot$ & $\cdot$ & $\cdot$ & $\cdot$ & $\cdot$ & $\cdot$ & $\cdot$\\
+1  & T & T & T & T & T & T & T & $\cdot$ & $\cdot$ & $\cdot$ & $\cdot$ & \\
+2  & T & T & $\cdot$ & T & T & T & T & T & $\cdot$ & $\cdot$ & & \\
+3  & $\cdot$ & T & T & $\cdot$ & $\cdot$ & $\cdot$ & T & T & $\cdot$ & & & \\
+4  & $\cdot$ & $\cdot$ & $\cdot$ & $\cdot$ & $\cdot$ & $\cdot$ & T & \textbf{T} & & & & \\
+5  & $\cdot$ & $\cdot$ & $\cdot$ & $\cdot$ & $\cdot$ & $\cdot$ & $\cdot$ & & & & & \\
+6  & $\cdot$ & $\cdot$ & $\cdot$ & $\cdot$ & $\cdot$ & $\cdot$ & & & & & & \\
+7  & $\cdot$ & $\cdot$ & $\cdot$ & $\cdot$ & $\cdot$ & & & & & & & \\
+8  & $\cdot$ & $\cdot$ & $\cdot$ & $\cdot$ & & & & & & & & \\
+9  & $\cdot$ & $\cdot$ & $\cdot$ & & & & & & & & & \\
+10 & $\cdot$ & $\cdot$ & & & & & & & & & & \\
+11 & $\cdot$ & & & & & & & & & & & \\
+\end{tabular}
+\end{center}
+
+En la antidiagonal $i+j=11$ la única celda verdadera es $M(4,7)$, así que $s$ es entrelazado (con 4
+símbolos tomados de $x$ y 7 de $y$). Retrocediendo desde $(4,7)$ el algoritmo devuelve
+$P=\{1,8,10,11\}$: en efecto $s_1s_8s_{10}s_{11} = 1011 = x_1\dots x_4$ y las posiciones restantes
+$2,\dots,7,9$ dan $0010001 = y_1\dots y_7$.
+
+%======================================================================
+\section{Ejercicio 2}
+
+\begin{enunciado}
+\textbf{(Kleinberg \& Tardos, Ex.~6.21).} Una compañía de inversiones está analizando el valor de las
+acciones de una empresa que cotiza en bolsa a lo largo de $n$ días consecutivos. Los días considerados están
+numerados de $1$ a $n$; para cada día $i$, $1\le i\le n$, cada acción tiene un precio $p(i)$.
+
+Para algunos valores, posiblemente grandes, de un parámetro $k$, quieren estudiar lo que llaman
+\emph{estrategias de $k$-disparos}. Una estrategia de $k$-disparos es una colección de $m$ pares de días
+$(c_1,v_1),\dots,(c_m,v_m)$ donde $0\le m\le k$ y
+\[ 1\le c_1<v_1<c_2<v_2<\dots<c_m<v_m\le n. \]
+Podemos interpretar esta secuencia como un conjunto de $m$ intervalos disjuntos, durante los que los
+inversores compran 1000 acciones del stock (en el día $c_i$) y luego las venden (en el día $v_i$). Definimos
+entonces la ganancia de una estrategia de $k$-disparos como
+\[ \mathrm{ganancia}(E) = 1000\cdot\sum_{i=1}^{m}\bigl(p(v_i)-p(c_i)\bigr), \]
+donde $E$ es una estrategia de $k$-disparos para un stock de una acción dada.
+\begin{enumerate}[label=(\alph*)]
+\item Diseñe un algoritmo eficiente que, dada una secuencia de precios, determina una estrategia de
+  $k$-disparos con la mayor ganancia posible para una acción dada. Asuma que siempre se cuenta con stock
+  suficiente para comprar 1000 acciones en un día $i$. El tiempo de ejecución de su algoritmo debe ser
+  polinomial en $n$ y $k$, es decir que no debe contener a $k$ en el exponente.
+\item Analice el tiempo de ejecución de su algoritmo en función de $n$ y $k$.
+\end{enumerate}
+\emph{Sugerencia:} Para cada $i$, $0\le i\le n$, calcule la mayor ganancia que es posible obtener mediante
+una estrategia de $d$-disparos, con $0\le d\le k$, a lo largo de los días $1$ hasta $i$. Para ello evalúe la
+conveniencia de vender las acciones del último disparo en el día $i$ o no hacerlo.
+\end{enunciado}
+
+\examref{No encontramos este problema en los parciales/exámenes revisados. Es un problema de
+programación dinámica en dos parámetros del estilo de mochila (\emph{subset sum}): un parámetro recorre
+los días y el otro la cantidad de disparos todavía disponibles.}
+
+Como el factor $1000$ multiplica a todas las estrategias, maximizar $\mathrm{ganancia}(E)$ equivale a maximizar
+$g(E)=\sum_{t=1}^m (p(v_t)-p(c_t))$; trabajamos con $g$ y al final multiplicamos por 1000.
+
+\subsection*{Parte (a)}
+
+\paragraph{Subproblemas.} Para $0\le d\le k$ y $0\le i\le n$ sea
+\[
+\OPT(d,i) = \max\{\, g(E) : E \text{ estrategia de } d\text{-disparos con } v_m\le i\,\},
+\]
+o sea, la mayor ganancia con a lo sumo $d$ pares de compra-venta usando sólo los días $1,\dots,i$. El valor
+buscado es $1000\cdot\OPT(k,n)$. Notar que la estrategia vacía ($m=0$) siempre es válida, así que
+$\OPT(d,i)\ge 0$.
+
+\paragraph{Recurrencia.}
+\begin{itemize}
+\item $\OPT(0,i)=0$ para todo $i$ (sin disparos sólo está la estrategia vacía).
+\item $\OPT(d,0)=0$ para todo $d$ (no hay días).
+\item Para $d\ge1$, $i\ge1$:
+\[
+\OPT(d,i) = \max\Bigl\{\; \OPT(d,i-1),\;\; \max_{1\le c<i}\bigl(\OPT(d-1,c-1) + p(i)-p(c)\bigr) \Bigr\},
+\]
+donde el máximo interno vale $-\infty$ si $i=1$ (no hay día de compra posible).
+\end{itemize}
+
+\paragraph{Justificación.} Sea $E$ una estrategia óptima para $(d,i)$ con $d,i\ge 1$. Hay dos casos,
+según si se vende en el día $i$ o no:
+\begin{itemize}
+\item \emph{No hay venta en el día $i$} (en particular si $m=0$): entonces $v_m\le i-1$ y $E$ es una
+  estrategia de $d$-disparos sobre los días $1,\dots,i-1$, por lo que $g(E)\le \OPT(d,i-1)$.
+\item \emph{El último disparo vende en el día $i$}: $v_m=i$ y sea $c=c_m$, con $1\le c<i$. Los $m-1\le d-1$
+  pares restantes cumplen $v_{m-1}<c$, o sea, forman una estrategia de $(d-1)$-disparos sobre los días
+  $1,\dots,c-1$. Luego $g(E) = g(E\setminus\{(c,i)\}) + p(i)-p(c) \le \OPT(d-1,c-1)+p(i)-p(c)$.
+\end{itemize}
+Recíprocamente, cada término del máximo es la ganancia de una estrategia válida para $(d,i)$: una óptima
+para $(d,i-1)$ es válida para $(d,i)$, y a una óptima para $(d-1,c-1)$ (todas sus ventas son $\le c-1<c$) se le
+puede agregar el par $(c,i)$ respetando el orden estricto y sin superar los $d$ pares. Por lo tanto
+$\OPT(d,i)$ es exactamente el máximo de la recurrencia.
+
+\paragraph{Mejora a $\Oh(1)$ por celda.} Calcular directamente el máximo interno cuesta $\Oh(i)$ por celda.
+Definimos
+\[
+B(d,i)=\max_{1\le c<i}\bigl(\OPT(d-1,c-1)-p(c)\bigr) \qquad(B(d,1)=-\infty),
+\]
+que es el mejor ``saldo'' tras haber comprado por última vez antes del día $i$. Se cumple
+$B(d,i+1)=\max\{B(d,i),\ \OPT(d-1,i-1)-p(i)\}$, y la recurrencia queda
+\[
+\OPT(d,i)=\max\{\OPT(d,i-1),\ B(d,i)+p(i)\}.
+\]
+Guardamos también en $C[d,i]$ el día de compra $c$ que realiza $B(d,i)$, para reconstruir la estrategia.
+
+\paragraph{Algoritmo iterativo.} $\OPT(d,i)$ depende de $\OPT(d,i-1)$ (misma fila) y de valores de la fila
+$d-1$; por lo tanto llenamos la tabla por filas $d=0,1,\dots,k$ y en cada fila por $i$ creciente.
+
+\begin{algorithm}[H]
+\caption{KDisparos$(p(1..n),k)$}
+\begin{algorithmic}[1]
+\State $k \gets \min(k,\lfloor n/2\rfloor)$ \Comment{nunca se usan más de $\lfloor n/2\rfloor$ pares}
+\For{$i\gets 0$ \textbf{to} $n$} $\OPT[0,i]\gets 0$ \EndFor
+\For{$d\gets 1$ \textbf{to} $k$}
+  \State $\OPT[d,0]\gets 0$; \ $best\gets -\infty$; \ $bc \gets \textsc{nil}$
+  \For{$i \gets 1$ \textbf{to} $n$}
+    \If{$i\ge 2$ \textbf{and} $\OPT[d-1,i-2]-p(i-1) > best$} \Comment{nuevo candidato $c=i-1$}
+      \State $best \gets \OPT[d-1,i-2]-p(i-1)$; \ $bc\gets i-1$
+    \EndIf
+    \State $C[d,i]\gets bc$ \Comment{ahora $best = B(d,i)$}
+    \If{$best + p(i) > \OPT[d,i-1]$}
+      \State $\OPT[d,i]\gets best+p(i)$; \ $V[d,i]\gets \True$ \Comment{se vende en el día $i$}
+    \Else
+      \State $\OPT[d,i]\gets \OPT[d,i-1]$; \ $V[d,i]\gets\False$
+    \EndIf
+  \EndFor
+\EndFor
+\State \Comment{Reconstrucción}
+\State $E\gets\emptyset$; \ $d\gets k$; \ $i\gets n$
+\While{$d>0$ \textbf{and} $i>0$}
+  \If{$V[d,i]$}
+    \State $c\gets C[d,i]$; \ $E\gets E\cup\{(c,i)\}$; \ $i\gets c-1$; \ $d\gets d-1$
+  \Else
+    \State $i\gets i-1$
+  \EndIf
+\EndWhile
+\State \Return $E$ \ (con ganancia $1000\cdot\OPT[k,n]$)
+\end{algorithmic}
+\end{algorithm}
+
+Si $k=0$ el algoritmo devuelve la estrategia vacía, con ganancia $0$. La reconstrucción es correcta porque
+en cada paso sigue la opción que realizó el máximo: si $V[d,i]$, el valor $\OPT(d,i)$ se obtuvo como
+$\OPT(d-1,c-1)+p(i)-p(c)$ con $c=C[d,i]$, y continuamos con el subproblema $(d-1,c-1)$; si no, con $(d,i-1)$.
+Los pares se agregan en orden decreciente de días y cumplen $c<i$ y la venta siguiente es $\le c-1$, de modo
+que $E$ respeta el orden estricto requerido.
+
+\paragraph{Ejemplo.} Precios $p=(5,2,6,1,4,3,8)$ ($n=7$), $k=3$. La tabla $\OPT(d,i)$ (en miles) queda:
+
+\begin{center}
+\begin{tabular}{c|cccccccc}
+$d\backslash i$ & 0 & 1 & 2 & 3 & 4 & 5 & 6 & 7\\ \hline
+0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0\\
+1 & 0 & 0 & 0 & 4 & 4 & 4 & 4 & 7\\
+2 & 0 & 0 & 0 & 4 & 4 & 7 & 7 & 11\\
+3 & 0 & 0 & 0 & 4 & 4 & 7 & 7 & 12\\
+\end{tabular}
+\end{center}
+
+Por ejemplo, $\OPT(2,7)=\OPT(1,3)+p(7)-p(4)=4+8-1=11$. Con $k=3$ la reconstrucción da
+$E=\{(2,3),(4,5),(6,7)\}$, con ganancia $1000\cdot(4+3+5)=12000$.
+
+\subsection*{Parte (b)}
+
+La tabla tiene $(k+1)(n+1)$ celdas, y gracias a la variable $best$ cada una se calcula en $\Oh(1)$; la
+reconstrucción hace a lo sumo $n$ iteraciones. El tiempo total es $\Oh(nk)$ y el espacio $\Oh(nk)$ (para
+reconstruir hacen falta $V$ y $C$; si sólo se quiere el valor alcanza con dos filas, $\Oh(n)$).
+
+Si se usara la recurrencia sin la variable auxiliar $B$, cada celda costaría $\Oh(n)$ y el total sería
+$\Oh(n^2k)$, que también es polinomial en $n$ y $k$. Además, como una estrategia tiene a lo sumo
+$\lfloor n/2\rfloor$ pares (usa $2m$ días distintos), el algoritmo reemplaza $k$ por
+$\min(k,\lfloor n/2\rfloor)$, de modo que el tiempo es en realidad $\Oh(n\cdot\min(k,n))\subseteq\Oh(n^2)$:
+aunque $k$ sea ``muy grande'', el tiempo no depende de él.
+
+%======================================================================
+\section{Ejercicio 3}
+
+\begin{enunciado}
+\textbf{(Kleinberg \& Tardos, Ex.~6.22).} Consideramos un grafo dirigido $G=(V,E)$ con aristas ponderadas.
+Los costos en las aristas pueden ser negativos o positivos, pero todo ciclo en $G$ tiene costo positivo.
+Para medir la robustez en la conectividad de $G$ queremos contar la cantidad de caminos de costo mínimo entre
+dos vértices. El objetivo de este ejercicio es construir un algoritmo que resuelva el problema en tiempo
+polinomial utilizando programación dinámica. El algoritmo toma como entrada un par de vértices de $G$, $s$ y
+$t$, y da como resultado un número natural que es la cantidad de caminos de costo mínimo de $s$ a $t$.
+
+Definimos $\OPT(i,v)$ como el costo de los caminos de costo mínimo de $s$ a $v$ compuestos por exactamente
+$i$ aristas. Definimos también $N(i,v)$ como la cantidad de esos caminos de costo mínimo.
+\begin{enumerate}[label=(\alph*)]
+\item Teniendo en cuenta que un camino desde $s$ hasta $v$ de $i$ aristas, $i>0$, contiene un camino desde
+  $s$ hasta un nodo adyacente a $v$ de $i-1$ aristas, escriba una relación de recurrencia que defina
+  $\OPT(i,v)$ en función de los valores de $\OPT(i-1,w)$, $w\in V$.
+\item Asumiendo conocidos los valores de $\OPT$, escriba una relación de recurrencia para $N(i,v)$, $i>0$,
+  $v\in V$, en función de los valores $N(i-1,w)$, $w\in V$, y la función $\OPT$.
+\item Observe que el costo de los caminos de costo mínimo de $s$ a $t$ viene dado por
+  \[ \OPT(t)=\min_i\{\OPT(i,t)\},\qquad \OPT(s)=0. \]
+  Defina de forma análoga cómo se calcula la cantidad de caminos de costo mínimo, $N(t)$, en función de los
+  $N(i,t)$.
+\item Escriba un algoritmo que devuelve la cantidad de caminos de costo mínimo. Para ello inicialice los
+  valores de $\OPT(0,v)$ y $N(0,v)$ como crea conveniente. Luego compute las recurrencias de las partes
+  anteriores y devuelva el resultado.
+\end{enumerate}
+\end{enunciado}
+
+\examref{Es una generalización del algoritmo de Bellman--Ford (sección 6.8 del libro; aquí $\OPT(i,v)$ se
+mide desde el origen $s$ y con \emph{exactamente} $i$ aristas). La idea de contar caminos mínimos sumando las
+cantidades de los predecesores que realizan el mínimo aparece, para grafos sin pesos (con BFS), en el Examen
+de julio de 2019, Ej.~2 (cantidad de historias de largo mínimo, $N(v)$ en función de los $N(u)$ del nivel
+anterior) y en el Examen de julio de 2014 (cantidad de caminos de longitud mínima desde $u$). En el Examen
+de febrero de 2026 se pide además la tabla de $\OPT(i,v)$ de Bellman--Ford.}
+
+\paragraph{Notación y una observación previa.} Llamamos $c(w,v)$ al costo de la arista $(w,v)$, $n=|V|$,
+$m=|E|$. En las definiciones de $\OPT(i,v)$ y $N(i,v)$ entendemos ``camino'' en sentido amplio
+(\emph{recorrido}, que puede repetir vértices): con $i$ fijo, el recorrido más barato de exactamente $i$
+aristas puede no ser simple, y es justamente para recorridos que vale la subestructura óptima de la parte (a)
+(el prefijo de un recorrido es un recorrido cualquiera, sin restricción de no pasar por $v$). Si no existe
+ningún recorrido de $s$ a $v$ con $i$ aristas, $\OPT(i,v)=\infty$ y $N(i,v)=0$. Para el problema original
+(caminos simples) usamos el siguiente lema.
+
+\begin{lema}\label{lema:simple}
+Si todo ciclo de $G$ tiene costo positivo, todo recorrido de costo mínimo entre los recorridos de $s$ a $t$
+es un camino simple. En consecuencia el costo mínimo de un recorrido de $s$ a $t$ existe, coincide con el
+costo mínimo de un camino simple, y se alcanza con a lo sumo $n-1$ aristas.
+\end{lema}
+\begin{proof}
+Si un recorrido $P$ de $s$ a $t$ repite un vértice, contiene un ciclo $Z$ (el tramo entre dos apariciones
+del mismo vértice); quitándolo se obtiene otro recorrido de $s$ a $t$ de costo $c(P)-c(Z)<c(P)$. Repitiendo,
+todo recorrido tiene costo mayor o igual que el de algún camino simple, y si no es simple tiene costo
+estrictamente mayor. Como hay finitos caminos simples, el mínimo existe, sólo lo alcanzan caminos simples, y
+éstos tienen a lo sumo $n-1$ aristas.
+\end{proof}
+
+\subsection*{Parte (a)}
+
+\begin{itemize}
+\item Caso base: $\OPT(0,s)=0$ y $\OPT(0,v)=\infty$ para $v\neq s$ (el único recorrido con 0 aristas que
+  sale de $s$ es el trivial, que termina en $s$).
+\item Para $i\ge1$:
+\[
+\OPT(i,v) = \min_{w\,:\,(w,v)\in E}\bigl\{\OPT(i-1,w)+c(w,v)\bigr\},
+\]
+con $\min\emptyset=\infty$ e $\infty+c=\infty$.
+\end{itemize}
+
+\emph{Justificación.} Un recorrido $P$ de $s$ a $v$ con $i\ge1$ aristas termina con una arista $(w,v)$ y su
+prefijo $P'$ es un recorrido de $s$ a $w$ con $i-1$ aristas; así $c(P)=c(P')+c(w,v)\ge
+\OPT(i-1,w)+c(w,v)$. Recíprocamente, para cada $(w,v)\in E$, agregando la arista $(w,v)$ a un recorrido
+óptimo de $i-1$ aristas hasta $w$ se obtiene un recorrido de $i$ aristas hasta $v$ de costo
+$\OPT(i-1,w)+c(w,v)$. Luego el mínimo coincide.
+
+\subsection*{Parte (b)}
+
+\begin{itemize}
+\item Caso base: $N(0,s)=1$ y $N(0,v)=0$ para $v\neq s$.
+\item Para $i\ge1$: si $\OPT(i,v)=\infty$ entonces $N(i,v)=0$; si no,
+\[
+N(i,v) = \sum_{\substack{w\,:\,(w,v)\in E\\ \OPT(i-1,w)+c(w,v)=\OPT(i,v)}} N(i-1,w).
+\]
+\end{itemize}
+
+\emph{Justificación.} Sea $P$ un recorrido de $s$ a $v$ de $i$ aristas de costo $\OPT(i,v)<\infty$, con
+última arista $(w,v)$ y prefijo $P'$. Por la parte (a), $\OPT(i,v)\le\OPT(i-1,w)+c(w,v)$, de donde
+$c(P')=\OPT(i,v)-c(w,v)\le\OPT(i-1,w)$; como también $c(P')\ge\OPT(i-1,w)$, resulta $c(P')=\OPT(i-1,w)$
+y $\OPT(i-1,w)+c(w,v)=\OPT(i,v)$. O sea: $P'$ es un recorrido óptimo de $i-1$ aristas hasta un predecesor
+$w$ que realiza el mínimo. Recíprocamente, todo recorrido óptimo hasta un tal $w$, extendido con $(w,v)$, es
+un recorrido óptimo hasta $v$. Esto da una biyección entre los recorridos óptimos hasta $v$ con $i$ aristas y
+los pares ($w$ que realiza el mínimo, recorrido óptimo de $i-1$ aristas hasta $w$); recorridos con distinto
+$w$ o distinto prefijo son distintos. Por lo tanto la cantidad es la suma indicada.
+
+\subsection*{Parte (c)}
+
+Por el Lema~\ref{lema:simple} basta considerar $0\le i\le n-1$:
+\[
+\OPT(t)=\min_{0\le i\le n-1}\OPT(i,t),
+\qquad
+N(t)=\sum_{\substack{0\le i\le n-1\\ \OPT(i,t)=\OPT(t)}} N(i,t),
+\]
+y si $\OPT(t)=\infty$ ($t$ no es alcanzable desde $s$) entonces $N(t)=0$.
+
+\emph{Justificación.} Todo camino de costo mínimo de $s$ a $t$ tiene una cantidad $i\le n-1$ de aristas y su
+costo es $\OPT(t)$, por lo que necesariamente $\OPT(i,t)=\OPT(t)$ (no puede haber recorridos más baratos con
+$i$ aristas) y está contado en $N(i,t)$. Recíprocamente, si $\OPT(i,t)=\OPT(t)$, cada recorrido contado en
+$N(i,t)$ tiene costo mínimo global y, por el lema, es un camino simple; así que no contamos recorridos con
+ciclos. Además los conjuntos contados para distintos $i$ son disjuntos (tienen distinta cantidad de aristas),
+de modo que la suma no cuenta nada dos veces.
+
+Para $t=s$: el camino trivial tiene costo $0$ y todo recorrido cerrado de $s$ a $s$ con $i\ge1$ aristas se
+descompone en ciclos de costo positivo, así que $\OPT(s)=0$ y $N(s)=N(0,s)=1$, consistente con el enunciado.
+
+\subsection*{Parte (d)}
+
+Inicializamos como en las partes (a) y (b) y llenamos la tabla por $i$ creciente: la fila $i$ sólo depende
+de la fila $i-1$. En cada fila recorremos las aristas una vez.
+
+\begin{algorithm}[H]
+\caption{CantCaminosMinimos$(G=(V,E),c,s,t)$}
+\begin{algorithmic}[1]
+\Require grafo dirigido $G$ con costos $c$ y todo ciclo de costo positivo; $s,t\in V$
+\Ensure cantidad de caminos de costo mínimo de $s$ a $t$
+\ForAll{$v\in V$}
+  \State $\OPT[0,v]\gets\infty$; \ $N[0,v]\gets 0$
+\EndFor
+\State $\OPT[0,s]\gets 0$; \ $N[0,s]\gets 1$
+\For{$i\gets 1$ \textbf{to} $n-1$}
+  \ForAll{$v\in V$}
+    \State $\OPT[i,v]\gets\infty$; \ $N[i,v]\gets 0$
+  \EndFor
+  \ForAll{$(w,v)\in E$} \Comment{cálculo de $\OPT(i,\cdot)$, parte (a)}
+    \If{$\OPT[i-1,w]<\infty$ \textbf{and} $\OPT[i-1,w]+c(w,v)<\OPT[i,v]$}
+      \State $\OPT[i,v]\gets\OPT[i-1,w]+c(w,v)$
+    \EndIf
+  \EndFor
+  \ForAll{$(w,v)\in E$} \Comment{cálculo de $N(i,\cdot)$, parte (b)}
+    \If{$\OPT[i-1,w]<\infty$ \textbf{and} $\OPT[i-1,w]+c(w,v)=\OPT[i,v]$}
+      \State $N[i,v]\gets N[i,v]+N[i-1,w]$
+    \EndIf
+  \EndFor
+\EndFor
+\State $best\gets\min_{0\le i\le n-1}\OPT[i,t]$ \Comment{parte (c)}
+\If{$best=\infty$} \Return $0$ \EndIf
+\State $total\gets 0$
+\For{$i\gets 0$ \textbf{to} $n-1$}
+  \If{$\OPT[i,t]=best$} $total\gets total+N[i,t]$ \EndIf
+\EndFor
+\State \Return $total$
+\end{algorithmic}
+\end{algorithm}
+
+\paragraph{Orden.} Hay $n-1$ iteraciones del ciclo principal, cada una de costo $\Oh(n+m)$ (inicializar la
+fila y recorrer dos veces las aristas). El tiempo total es $\Oh(n(n+m))$, es decir $\Oh(nm)$ si $m\ge n$,
+igual que Bellman--Ford. El espacio es $\Oh(n^2)$, o bien $\Oh(n)$ si se guardan sólo las filas $i-1$ e $i$
+y se van acumulando $best$ y $total$ a medida que se calcula $\OPT[i,t]$ (reiniciando $total$ cada vez que
+$best$ mejora). Observación: la cantidad de caminos puede ser exponencial en $n$, pero se representa con
+$\Oh(n\log n)$ bits, así que las sumas siguen siendo de costo polinomial.
+
+\paragraph{Ejemplo.} Sea $V=\{s,a,b,t\}$ con aristas $(s,a)$ de costo $1$, $(s,b)$ de costo $0$, $(a,b)$ de
+costo $-1$, $(a,t)$ de costo $2$, $(b,t)$ de costo $3$, $(s,t)$ de costo $3$ y $(t,a)$ de costo $1$ (los
+ciclos $a\,t\,a$ y $a\,b\,t\,a$ cuestan $3$). La tabla de pares $\OPT(i,v)\,/\,N(i,v)$ es:
+
+\begin{center}
+\begin{tabular}{c|cccc}
+$i\backslash v$ & $s$ & $a$ & $b$ & $t$\\ \hline
+0 & $0\,/\,1$ & $\infty\,/\,0$ & $\infty\,/\,0$ & $\infty\,/\,0$\\
+1 & $\infty\,/\,0$ & $1\,/\,1$ & $0\,/\,1$ & $3\,/\,1$\\
+2 & $\infty\,/\,0$ & $4\,/\,1$ & $0\,/\,1$ & $3\,/\,2$\\
+3 & $\infty\,/\,0$ & $4\,/\,2$ & $3\,/\,1$ & $3\,/\,1$\\
+\end{tabular}
+\end{center}
+
+Por ejemplo $\OPT(3,a)=4$ se alcanza por $s\,a\,t\,a$ y $s\,b\,t\,a$ (recorridos no simples, de ahí
+$N(3,a)=2$), y $N(2,t)=2$ porque tanto $w=a$ ($1+2$) como $w=b$ ($0+3$) realizan el mínimo $3$. Luego
+$\OPT(t)=3$ y $N(t)=N(1,t)+N(2,t)+N(3,t)=1+2+1=4$: los caminos $s\,t$, $s\,a\,t$, $s\,b\,t$ y
+$s\,a\,b\,t$, todos de costo $3$.
+
+\end{document}

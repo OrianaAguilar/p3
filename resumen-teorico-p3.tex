@@ -1,0 +1,1297 @@
+% Programación 3 --- Resumen teórico
+% Contenido: Kleinberg & Tardos, "Algorithm Design", capítulos 1, 2, 3 y 4.1--4.2
+% Compilar con:  pdflatex resumen-teorico-p3.tex   (dos veces, por el índice)
+
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish,es-noquoting,es-nolists,es-noshorthands]{babel}
+\usepackage[margin=2.3cm]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage[colorlinks=true,linkcolor=blue!55!black,urlcolor=blue!55!black]{hyperref}
+
+\theoremstyle{plain}
+\newtheorem{teorema}{Teorema}[section]
+\newtheorem{lema}[teorema]{Lema}
+\newtheorem{corolario}[teorema]{Corolario}
+\newtheorem{proposicion}[teorema]{Proposición}
+
+\theoremstyle{definition}
+\newtheorem{definicion}[teorema]{Definición}
+\newtheorem{ejemplo}[teorema]{Ejemplo}
+
+\theoremstyle{remark}
+\newtheorem*{observacion}{Observación}
+\newtheorem*{idea}{Idea de la prueba}
+\newtheorem*{receta}{Receta}
+
+\renewcommand{\qedsymbol}{$\blacksquare$}
+
+% Bloque de pseudocódigo
+\newcommand{\codigoinicio}{\begin{center}\begin{minipage}{0.93\textwidth}%
+  \hrule\vspace{3pt}}
+\newcommand{\codigofin}{\vspace{-4pt}\hrule\end{minipage}\end{center}}
+
+\setlist[itemize]{itemsep=1pt,topsep=3pt}
+\setlist[enumerate]{itemsep=1pt,topsep=3pt}
+
+% Pasos numerados dentro de una demostración
+\newlist{pasos}{enumerate}{1}
+\setlist[pasos]{label=\textbf{Paso~\arabic*.},leftmargin=*,itemsep=2.5pt,topsep=3pt}
+
+% Plantilla de demostración
+\newenvironment{plantilla}[1]{\par\medskip\noindent
+  \begin{minipage}{\textwidth}\hrule\vspace{3pt}
+  \noindent\textbf{Plantilla: #1}\par\smallskip}
+  {\vspace{2pt}\hrule\end{minipage}\par\medskip}
+
+\title{\textbf{Programación 3 --- Resumen teórico}\\[2pt]
+       \large Kleinberg \& Tardos, \emph{Algorithm Design}: caps.\ 1, 2, 3 y 4.1--4.2}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+\vspace{-3.5em}
+
+\begin{center}\small
+\fbox{\begin{minipage}{0.9\textwidth}\small
+\textbf{Qué se espera en el parcial.} Casi todos los ejercicios tienen la misma forma:
+(i)~\emph{modelar} el problema (típicamente como un grafo o como una instancia de
+\emph{scheduling}), (ii)~\emph{dar un algoritmo} en pseudocódigo, reescribiendo los
+algoritmos del curso que se usen, (iii)~\emph{probar que es correcto} y
+(iv)~\emph{acotar el tiempo de ejecución}. Las tres últimas partes valen tanto o más
+que la primera: un algoritmo correcto sin justificación ni análisis no alcanza.
+\end{minipage}}
+\end{center}
+
+\tableofcontents
+\bigskip\hrule
+
+%=======================================================================
+\part*{Parte I --- Capítulo 1: Introducción}
+\addcontentsline{toc}{section}{Parte I --- Cap.\ 1: Introducción}
+\setcounter{section}{0}
+
+\section{El problema del matrimonio estable}
+
+\begin{definicion}[Instancia]
+Un conjunto $H=\{h_1,\dots,h_n\}$ y otro $M=\{m_1,\dots,m_n\}$. Cada elemento de $H$
+tiene una lista de preferencias que ordena \emph{totalmente} a $M$, y viceversa.
+\end{definicion}
+
+\begin{definicion}[Matching]
+Un \textbf{matching} $S$ es un conjunto de pares $(h,m)\in H\times M$ tal que cada
+elemento aparece en a lo sumo un par. Es \textbf{perfecto} si cada elemento aparece en
+exactamente un par (o sea $|S|=n$).
+\end{definicion}
+
+\begin{definicion}[Inestabilidad]
+Dado un matching perfecto $S$, un par $(h,m)\notin S$ es una \textbf{inestabilidad} si
+$h$ prefiere $m$ a su pareja actual \textbf{y} $m$ prefiere $h$ a la suya. Un matching
+perfecto es \textbf{estable} si no tiene inestabilidades.
+\end{definicion}
+
+\subsection{Algoritmo de Gale--Shapley}
+
+\codigoinicio
+\begin{verbatim}
+Gale-Shapley:
+  Inicialmente todos los h en H y todas las m en M estan libres
+  Mientras exista h libre que todavia no le propuso a toda mujer:
+      m <- la mujer de mayor preferencia en la lista de h
+           a la que h todavia no le propuso
+      Si m esta libre:
+          (h, m) quedan comprometidos
+      Si no, sea h' la pareja actual de m:
+          Si m prefiere h' a h:  h sigue libre
+          Si no:                 (h, m) se comprometen y h' queda libre
+  Retornar el conjunto S de pares comprometidos
+\end{verbatim}
+\codigofin
+
+\subsection{Propiedades y demostraciones paso a paso}
+
+\begin{proposicion}[Monotonía]\label{p:gs-mono}
+Una vez comprometida, una mujer nunca vuelve a estar libre y la calidad de su pareja
+solo \emph{mejora}. Un hombre, en cambio, solo \emph{empeora}.
+\end{proposicion}
+\begin{proof}
+\begin{pasos}
+\item Mirar los tres casos del \texttt{Mientras}: si $m$ está libre se compromete; si
+está comprometida, o rechaza al nuevo (sigue con el actual) o lo acepta (cambia de
+pareja). En ningún caso $m$ queda libre. Luego, una vez comprometida, lo sigue estando.
+\item $m$ solo cambia de pareja cuando \emph{prefiere} al nuevo pretendiente, así que la
+sucesión de parejas de $m$ es creciente en su orden de preferencia.
+\item $h$ recorre su lista en orden decreciente de preferencia y nunca propone dos veces
+a la misma mujer; por lo tanto cada compromiso nuevo de $h$ es con una mujer peor que la
+anterior. \qedhere
+\end{pasos}
+\end{proof}
+
+\begin{proposicion}[Terminación]
+El algoritmo termina después de a lo sumo $n^2$ iteraciones del \texttt{Mientras}.
+\end{proposicion}
+\begin{proof}
+\begin{pasos}
+\item Elegir la cantidad que decrece: sea $P$ el conjunto de pares $(h,m)$ tales que $h$
+ya le propuso a $m$.
+\item Cada iteración agrega exactamente un par nuevo a $P$: un hombre le propone a una
+mujer a la que \emph{todavía no} le había propuesto. Luego $|P|$ crece en $1$ por
+iteración.
+\item Acotar: $P\subseteq H\times M$, o sea $|P|\le n^2$. Después de $n^2$ iteraciones
+no queda ninguna propuesta posible y la guarda del \texttt{Mientras} es falsa. \qedhere
+\end{pasos}
+\end{proof}
+
+\begin{teorema}[El matching devuelto es perfecto]
+Al terminar, $S$ empareja a todos los hombres con todas las mujeres.
+\end{teorema}
+\begin{proof}[Por el absurdo]
+\begin{pasos}
+\item Suponer que al terminar existe un hombre $h$ libre.
+\item Como el algoritmo terminó, la guarda es falsa para $h$: $h$ ya le propuso a las
+$n$ mujeres.
+\item Por el Paso 1 de la Prop.~\ref{p:gs-mono}, toda mujer que recibió una propuesta
+está comprometida. Luego las $n$ mujeres están comprometidas.
+\item Cada mujer comprometida lo está con un hombre distinto, así que hay $n$ hombres
+comprometidos; como hay exactamente $n$ hombres, $h$ también lo está.
+\item Contradicción con el Paso 1. Luego no hay hombres libres y $|S|=n$. \qedhere
+\end{pasos}
+\end{proof}
+
+\begin{teorema}[El matching devuelto es estable]
+$S$ no tiene inestabilidades.
+\end{teorema}
+\begin{proof}[Por el absurdo]
+\begin{pasos}
+\item Suponer que $(h,m)$ es una inestabilidad: $h$ está con $m'$, $m$ está con $h'$,
+$h$ prefiere $m$ a $m'$ y $m$ prefiere $h$ a $h'$.
+\item Como $h$ prefiere $m$ a su pareja final $m'$ y propone en orden decreciente, en
+algún momento $h$ le propuso a $m$ (antes de proponerle a $m'$).
+\item Esa propuesta terminó en rechazo o en un compromiso posterior roto; en cualquiera
+de los dos casos, $m$ quedó comprometida con alguien que prefiere a $h$.
+\item Por la Prop.~\ref{p:gs-mono} (las mujeres solo mejoran), su pareja final $h'$ es
+al menos tan buena: $m$ prefiere $h'$ a $h$.
+\item Contradicción con el Paso 1. \qedhere
+\end{pasos}
+\end{proof}
+
+\begin{observacion}[Implementación en $O(n^2)$]
+Tres estructuras: (i) una lista/pila de hombres libres, para conseguir uno en $O(1)$;
+(ii) un puntero \texttt{prox}$[h]$ a la próxima mujer de la lista de $h$, para elegir a
+quién proponerle en $O(1)$; (iii) para cada mujer, un arreglo invertido
+\texttt{ranking}$[m][h]$ que da la posición de $h$ en la lista de $m$, para comparar dos
+pretendientes en $O(1)$. Construir los rankings cuesta $O(n^2)$, que es justamente el
+tamaño de la entrada; con $O(n^2)$ iteraciones de costo $O(1)$, el total es $O(n^2)$.
+\end{observacion}
+
+\begin{observacion}[Unicidad y optimalidad]
+Todas las ejecuciones devuelven el \emph{mismo} matching: cada hombre obtiene su
+\emph{mejor} pareja válida (óptimo para quien propone) y cada mujer, su \emph{peor}
+pareja válida. ($m$ es \emph{válida} para $h$ si existe algún matching estable que los
+empareje.) La prueba es otro argumento por el absurdo: se toma la \emph{primera} vez en
+la ejecución en que algún hombre es rechazado por una pareja válida y se construye una
+inestabilidad en el matching estable que los emparejaba.
+\end{observacion}
+
+\begin{observacion}
+La lección metodológica del capítulo: definir el problema con precisión, dar un
+algoritmo, probar terminación $+$ correctitud $+$ cota de tiempo, y recién después
+discutir la implementación con estructuras de datos concretas.
+\end{observacion}
+
+\section{Cinco problemas representativos}
+
+Sirven como mapa de todo el curso: casi cualquier ejercicio se parece a uno de ellos.
+
+\begin{center}\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Problema} & \textbf{Técnica} & \textbf{Estado} \\
+\midrule
+Interval scheduling (intervalos disjuntos, máx.\ cantidad) & greedy & $O(n\log n)$ \\
+Weighted interval scheduling (máx.\ peso) & programación dinámica & $O(n\log n)$ \\
+Bipartite matching & flujo en redes / caminos aumentantes & polinomial \\
+Independent set & --- & NP-completo \\
+Competitive facility location (juego de 2 jugadores) & --- & PSPACE-completo \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\noindent Idea a retener: cambios chicos en el enunciado (agregar pesos, agregar un
+adversario) pueden cambiar radicalmente la dificultad.
+
+%=======================================================================
+\part*{Parte II --- Capítulo 2: Fundamentos del análisis de algoritmos}
+\addcontentsline{toc}{section}{Parte II --- Cap.\ 2: Análisis de algoritmos}
+
+\section{Eficiencia computacional}
+
+\begin{definicion}[Eficiencia]
+Un algoritmo es \textbf{eficiente} si corre en tiempo polinomial: existen
+constantes $c,d>0$ tales que sobre toda entrada de tamaño $N$ termina en
+$\le c\,N^d$ pasos.
+\end{definicion}
+
+Modelo: RAM con operaciones elementales de costo $O(1)$; se cuenta el
+\textbf{peor caso} en función del \emph{tamaño de la entrada} (para un grafo,
+$n$ y $m$; para un arreglo, $n$; para un tablero $n\times n$, $n^2$).
+
+\section{Notación asintótica}
+
+\begin{definicion}
+Sean $T,f:\mathbb{N}\to\mathbb{R}^{+}$.
+\begin{itemize}
+\item $T(n)=O(f(n))$ si $\exists\,c>0,\ n_0$ tales que $T(n)\le c\,f(n)$ para todo
+$n\ge n_0$ \quad(cota superior).
+\item $T(n)=\Omega(f(n))$ si $\exists\,\varepsilon>0,\ n_0$ tales que
+$T(n)\ge \varepsilon f(n)$ para todo $n\ge n_0$ \quad(cota inferior).
+\item $T(n)=\Theta(f(n))$ si es $O(f(n))$ y $\Omega(f(n))$ a la vez \quad(cota ajustada).
+\end{itemize}
+\end{definicion}
+
+\subsection{Propiedades que se usan sin demostrar}
+
+\begin{itemize}
+\item \textbf{Transitividad:} $f=O(g)$ y $g=O(h)$ $\Rightarrow$ $f=O(h)$ (ídem
+$\Omega$, $\Theta$).
+\item \textbf{Suma:} $f=O(h)$ y $g=O(h)$ $\Rightarrow$ $f+g=O(h)$. En general, una
+suma de $k$ términos es $\Theta$ del término dominante.
+\item \textbf{Polinomios:} si $f$ es un polinomio de grado $d$ con coeficiente
+principal positivo, entonces $f=\Theta(n^d)$.
+\item \textbf{Logaritmos:} $\log_a n=\Theta(\log_b n)$ para cualesquiera bases
+$a,b>1$ (la base es irrelevante dentro de un $\Theta$); $\log n = O(n^x)$ para todo
+$x>0$.
+\item \textbf{Exponenciales:} $n^d = O(r^n)$ para todo $d>0$ y $r>1$. Toda exponencial
+le gana a todo polinomio.
+\end{itemize}
+
+\begin{observacion}
+$O$ es una cota superior, no una descripción exacta: decir ``el algoritmo es
+$O(n^3)$'' es correcto aunque en realidad sea $\Theta(n)$. Para afirmar que un
+análisis es \emph{ajustado} hay que dar una instancia que fuerce ese costo.
+\end{observacion}
+
+\section{Tiempos de ejecución típicos y de dónde salen}
+
+\begin{center}\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Orden} & \textbf{Patrón} & \textbf{Ejemplo} \\
+\midrule
+$O(\log n)$   & descartar la mitad en cada paso     & búsqueda binaria \\
+$O(n)$        & un paso $O(1)$ por elemento         & máximo, \emph{merge} de dos listas ordenadas \\
+$O(n\log n)$  & dividir y conquistar; \emph{ordenar} & Mergesort, ordenar por un criterio \\
+$O(n^2)$      & todos los pares                     & par de puntos más cercano (fuerza bruta) \\
+$O(n^3)$      & todas las ternas / $n$ veces $n^2$  & ¿conjunto disjunto entre $n$ conjuntos? \\
+$O(n^k)$      & todos los subconjuntos de tamaño $k$& independent set de tamaño $k$ fijo \\
+$O(2^n)$      & todos los subconjuntos              & independent set de tamaño máximo \\
+$O(n!)$       & todas las permutaciones/matchings   & TSP por fuerza bruta \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\noindent\textbf{Regla práctica:} si un algoritmo ordena la entrada y después hace una
+pasada lineal, es $O(n\log n)$; casi todos los greedy del capítulo 4 tienen esa forma.
+
+\section{Estructuras de datos}
+
+\subsection{Arreglos vs.\ listas enlazadas}
+\begin{center}\small
+\begin{tabular}{@{}lccc@{}}
+\toprule
+& \textbf{Acceso al $i$-ésimo} & \textbf{Insertar/borrar dado el nodo} & \textbf{Recorrer} \\
+\midrule
+Arreglo        & $O(1)$ & $O(n)$ & $O(n)$ \\
+Lista enlazada & $O(n)$ & $O(1)$ & $O(n)$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+Se puede convertir de una a otra en $O(n)$, así que conviene elegir la que le sirva a
+cada fase del algoritmo.
+
+\subsection{Colas de prioridad (heaps)}
+
+Una \textbf{cola de prioridad} mantiene un conjunto de elementos con claves y soporta
+\texttt{Insertar}, \texttt{EncontrarMin}, \texttt{ExtraerMin}, \texttt{Borrar(i)} y
+\texttt{CambiarClave}.
+
+\begin{itemize}
+\item Implementación: \textbf{heap} = arreglo que representa un árbol binario casi
+completo con la \emph{propiedad de heap} $\;\text{clave}(padre)\le\text{clave}(hijo)$;
+los hijos de $i$ están en $2i$ y $2i+1$.
+\item \texttt{Heapify-up} y \texttt{Heapify-down} restauran la propiedad en
+$O(\log n)$, porque la altura es $\lfloor\log_2 n\rfloor$.
+\item Todas las operaciones son $O(\log n)$; \texttt{EncontrarMin} es $O(1)$. Para
+\texttt{Borrar} y \texttt{CambiarClave} hace falta un arreglo \texttt{Posicion}$[v]$
+que diga dónde está cada elemento dentro del heap.
+\item \textbf{Consecuencia:} $n$ \texttt{Insertar} $+$ $n$ \texttt{ExtraerMin}
+ordenan en $O(n\log n)$ (heapsort).
+\end{itemize}
+
+%=======================================================================
+\part*{Parte III --- Capítulo 3: Grafos}
+\addcontentsline{toc}{section}{Parte III --- Cap.\ 3: Grafos}
+
+\section{Definiciones básicas}
+
+\begin{itemize}
+\item $G=(V,E)$, $n=|V|$, $m=|E|$. \textbf{No dirigido}: las aristas son pares no
+ordenados $\{u,v\}$. \textbf{Dirigido}: pares ordenados $(u,v)$, con $u$ la cola y
+$v$ la cabeza.
+\item \textbf{Camino}: secuencia $v_1,\dots,v_k$ con $\{v_i,v_{i+1}\}\in E$. Es
+\textbf{simple} si no repite vértices. Un \textbf{recorrido} (\emph{walk}) sí puede
+repetir.
+\item \textbf{Ciclo}: camino $v_1,\dots,v_k,v_1$ con $k\ge 3$ y $v_1,\dots,v_k$
+distintos (en dígrafos alcanza $k\ge 2$).
+\item $G$ es \textbf{conexo} si hay camino entre todo par de vértices.
+\item \textbf{Distancia} $\mathrm{dist}(u,v)$: longitud del camino más corto.
+\item \textbf{Componente conexa} de $s$: el conjunto de vértices alcanzables desde $s$.
+Las componentes \emph{particionan} $V$: dos componentes son iguales o disjuntas.
+\item \textbf{Árbol}: grafo conexo sin ciclos. \textbf{Árbol con raíz}: se fija $r$ y
+se orientan las aristas alejándose de $r$ (padre/hijo/ancestro/descendiente).
+\end{itemize}
+
+\begin{teorema}[Propiedad fundamental de los árboles]
+Todo árbol con $n$ vértices tiene exactamente $n-1$ aristas. Más aún, de estas tres
+propiedades: \emph{(i)} $G$ es conexo, \emph{(ii)} $G$ no tiene ciclos,
+\emph{(iii)} $G$ tiene $n-1$ aristas, dos cualesquiera implican la tercera.
+\end{teorema}
+
+\begin{observacion}[Cotas útiles para el análisis]
+En un grafo simple no dirigido, $m\le \binom{n}{2}=O(n^2)$; si $G$ es conexo,
+$m\ge n-1$, por lo que $O(n+m)=O(m)$. Además $\sum_{v}\deg(v)=2m$.
+\end{observacion}
+
+\section{Representación de grafos}
+
+\begin{center}\small
+\begin{tabular}{@{}lccc@{}}
+\toprule
+& \textbf{Espacio} & \textbf{¿Hay arista $(u,v)$?} & \textbf{Recorrer vecinos de $v$} \\
+\midrule
+Matriz de adyacencia & $\Theta(n^2)$ & $O(1)$ & $O(n)$ \\
+Listas de adyacencia & $\Theta(n+m)$ & $O(\deg(v))$ & $O(\deg(v))$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\noindent Para algoritmos de recorrido se usan \textbf{listas de adyacencia}: recorrer
+todas las listas cuesta $\sum_v \deg(v)=2m=O(m)$, que es lo que da el famoso $O(n+m)$.
+
+\section{BFS: búsqueda en anchura}
+
+Explora por \textbf{capas} desde $s$: $L_0=\{s\}$, y $L_{i+1}$ son los vecinos de
+$L_i$ no descubiertos aún.
+
+\codigoinicio
+\begin{verbatim}
+BFS(s):
+  Descubierto[v] <- false para todo v;  Descubierto[s] <- true
+  Q <- cola vacia;  encolar(Q, s)
+  Mientras Q no este vacia:
+      u <- desencolar(Q)
+      Para cada v en Ady[u]:
+          Si no Descubierto[v]:
+              Descubierto[v] <- true
+              dist[v] <- dist[u] + 1;   padre[v] <- u
+              encolar(Q, v)
+\end{verbatim}
+\codigofin
+
+\begin{teorema}\label{t:bfs-capas}
+Para cada $i$, la capa $L_i$ es exactamente el conjunto de vértices a distancia $i$
+de $s$. Existe camino de $s$ a $v$ sii $v$ aparece en alguna capa.
+\end{teorema}
+\begin{proof}[Inducción en $i$]
+\begin{pasos}
+\item \textbf{Caso base.} $L_0=\{s\}$ y el único vértice a distancia $0$ de $s$ es $s$.
+\item \textbf{Hipótesis inductiva.} Suponer que $L_0,\dots,L_i$ son exactamente los
+vértices a distancia $0,\dots,i$.
+\item \textbf{($\subseteq$) Todo $v\in L_{i+1}$ está a distancia $\le i+1$.} Por
+construcción $v$ es vecino de algún $u\in L_i$, que por H.I.\ está a distancia $i$;
+concatenando el camino mínimo hasta $u$ con la arista $\{u,v\}$ se obtiene un camino de
+largo $i+1$.
+\item \textbf{No puede estar más cerca.} Si $\mathrm{dist}(s,v)\le i$, por H.I.\ $v$
+estaría en alguna capa $L_j$ con $j\le i$ y ya habría sido descubierto, así que no se
+lo habría agregado a $L_{i+1}$. Luego $\mathrm{dist}(s,v)=i+1$.
+\item \textbf{($\supseteq$) Todo $v$ a distancia $i+1$ está en $L_{i+1}$.} Sea
+$s,\dots,u,v$ un camino mínimo; entonces $\mathrm{dist}(s,u)=i$ y por H.I.\ $u\in L_i$.
+Al procesar $u$, o bien $v$ ya estaba descubierto (imposible: por H.I.\ estaría en una
+capa $\le i$ y su distancia sería $\le i$), o bien se agrega $v$ a $L_{i+1}$.
+\item \textbf{Conclusión.} Un vértice aparece en alguna capa sii tiene distancia finita,
+o sea sii hay un camino desde $s$. \qedhere
+\end{pasos}
+\end{proof}
+
+\begin{teorema}[Propiedad de las capas]
+Sea $T$ el árbol BFS. Toda arista de $G$ une dos vértices de la \emph{misma} capa o de
+capas \emph{consecutivas}: nunca ``salta'' dos o más capas.
+\end{teorema}
+\begin{proof}[Por el absurdo]
+\begin{pasos}
+\item Suponer que existe $\{x,y\}\in E$ con $x\in L_i$, $y\in L_j$ y $j>i+1$
+(sin pérdida de generalidad, $i<j$).
+\item Por el Teorema~\ref{t:bfs-capas}, $\mathrm{dist}(s,x)=i$.
+\item El camino mínimo de $s$ a $x$ seguido de la arista $\{x,y\}$ es un camino de $s$ a
+$y$ de largo $i+1$, luego $\mathrm{dist}(s,y)\le i+1$.
+\item Pero $y\in L_j$ implica $\mathrm{dist}(s,y)=j>i+1$: contradicción.
+\end{pasos}
+\emph{En términos del algoritmo:} cuando se procesa $x$ se mira a todos sus vecinos, así
+que $y$ no puede quedar sin descubrir más allá de la capa $i+1$.
+\end{proof}
+
+\section{DFS: búsqueda en profundidad}
+
+\codigoinicio
+\begin{verbatim}
+DFS(u):
+  Explorado[u] <- true
+  Para cada v en Ady[u]:
+      Si no Explorado[v]:
+          padre[v] <- u
+          DFS(v)
+\end{verbatim}
+\codigofin
+
+\begin{teorema}
+Sea $T$ el árbol DFS. Si $\{x,y\}\in E$ y $\{x,y\}\notin T$, entonces uno de los dos es
+\emph{ancestro} del otro en $T$. (No hay ``aristas cruzadas'' en grafos no dirigidos.)
+\end{teorema}
+\begin{proof}
+\begin{pasos}
+\item Sin pérdida de generalidad, supongamos que $x$ se alcanza \emph{antes} que $y$ en
+el DFS, es decir que se llamó a \texttt{DFS($x$)} antes que a \texttt{DFS($y$)}.
+\item Cuando se examina la arista $\{x,y\}$ dentro de \texttt{DFS($x$)}, hay dos casos:
+o $y$ todavía no fue explorado, o ya lo fue.
+\item \emph{Si no fue explorado:} el algoritmo llama a \texttt{DFS($y$)} desde $x$,
+la arista $\{x,y\}$ entra en $T$ y no hay nada que probar (queda fuera del enunciado).
+\item \emph{Si ya fue explorado:} $y$ fue descubierto entre la invocación de
+\texttt{DFS($x$)} y su retorno, porque antes de invocar a \texttt{DFS($x$)} el vértice
+$y$ no estaba explorado (Paso 1). Todo vértice descubierto durante la ejecución de
+\texttt{DFS($x$)} es un descendiente de $x$ en $T$.
+\item Luego $y$ es descendiente de $x$, o sea $x$ es ancestro de $y$. \qedhere
+\end{pasos}
+\end{proof}
+
+\begin{observacion}
+BFS y DFS visitan \emph{el mismo} conjunto de vértices (la componente conexa de $s$),
+pero generan árboles distintos: el de BFS es ``ancho y bajo'' y da caminos mínimos; el
+de DFS es ``angosto y alto'' y sirve para detectar ciclos y ancestros.
+\end{observacion}
+
+\section{Componentes conexas y costo de los recorridos}
+
+\begin{teorema}\label{t:componente}
+Sea $R$ el conjunto de vértices descubiertos por BFS (o DFS) desde $s$ y sea $C$ la
+componente conexa de $s$. Entonces $R=C$.
+\end{teorema}
+\begin{proof}[Doble inclusión]
+\begin{pasos}
+\item \textbf{($R\subseteq C$).} Invariante: todo vértice que se marca como descubierto
+se marca al examinar una arista desde un vértice ya descubierto. Por inducción en el
+orden de descubrimiento, cada $v\in R$ tiene un camino desde $s$ (el que se obtiene
+siguiendo los \texttt{padre}), luego $v\in C$.
+\item \textbf{($C\subseteq R$), por el absurdo.} Suponer que existe $v\in C\setminus R$.
+\item Como $v\in C$, hay un camino $s=v_0,v_1,\dots,v_k=v$.
+\item Sea $v_i$ el \emph{primer} vértice del camino que no está en $R$ (existe porque
+$v_k\notin R$, y $i\ge 1$ porque $v_0=s\in R$). Entonces $v_{i-1}\in R$.
+\item El algoritmo, al procesar $v_{i-1}$, recorre toda su lista de adyacencia, que
+contiene a $v_i$; luego $v_i$ habría sido descubierto y estaría en $R$.
+\item Contradicción. Por lo tanto $C\subseteq R$. \qedhere
+\end{pasos}
+\end{proof}
+
+\begin{teorema}
+Con listas de adyacencia, BFS y DFS corren en $O(n+m)$.
+\end{teorema}
+\begin{proof}[Conteo por partes]
+\begin{pasos}
+\item \textbf{Inicialización.} Poner \texttt{Descubierto[v]} en \texttt{false} para todo
+$v$ cuesta $O(n)$.
+\item \textbf{Vértices.} Cada vértice se marca a lo sumo una vez (se chequea
+\texttt{Descubierto} antes de marcarlo), así que entra y sale de la cola/pila a lo sumo
+una vez. Con cola o pila, encolar y desencolar son $O(1)$: total $O(n)$.
+\item \textbf{Aristas.} La lista $\mathrm{Ady}[v]$ se recorre solo cuando se desencola
+$v$, o sea a lo sumo una vez, con costo $O(\deg(v))$.
+\item \textbf{Sumar.} $\sum_{v\in V}\deg(v)=2m$, luego todo el trabajo sobre aristas es
+$O(m)$.
+\item \textbf{Total.} $O(n)+O(n)+O(m)=O(n+m)$. \qedhere
+\end{pasos}
+\end{proof}
+
+\noindent \textbf{Todas} las componentes conexas se calculan en $O(n+m)$ total: se
+itera sobre los vértices y se lanza un BFS desde cada vértice todavía no descubierto.
+
+\section{Bipartición (2-coloreo)}
+
+\begin{definicion}
+$G$ es \textbf{bipartito} si $V$ se puede partir en $X\cup Y$ de modo que toda arista
+tenga un extremo en $X$ y otro en $Y$ (equivalentemente: se puede colorear con 2
+colores sin que dos vecinos compartan color).
+\end{definicion}
+
+\begin{teorema}
+$G$ es bipartito $\iff$ $G$ no contiene ningún ciclo de longitud impar.
+\end{teorema}
+\begin{proof}[Doble implicación]
+\begin{pasos}
+\item \textbf{($\Rightarrow$)} Sea $G$ bipartito con partes $X$ e $Y$, y sea
+$v_1,v_2,\dots,v_k,v_1$ un ciclo con $v_1\in X$.
+\item Toda arista cruza de una parte a la otra, así que los $v_i$ con $i$ impar están en
+$X$ y los de $i$ par en $Y$ (inducción trivial sobre $i$).
+\item Para cerrar el ciclo, la arista $\{v_k,v_1\}$ exige $v_k\in Y$, o sea $k$ par: el
+ciclo tiene longitud par. Luego no hay ciclos impares.
+\item \textbf{($\Leftarrow$)} Se prueba por el contrarrecíproco, y de paso sale el
+algoritmo: si la coloración por paridad de capas del BFS \emph{falla}, se exhibe un
+ciclo impar (ver el teorema siguiente, Pasos 4--6). \qedhere
+\end{pasos}
+\end{proof}
+
+\begin{teorema}[Algoritmo]
+Correr BFS y colorear cada vértice según la paridad de su capa. Si no hay ninguna
+arista dentro de una misma capa, la coloración es válida y $G$ es bipartito. Si existe
+una arista $\{x,y\}$ con $x,y\in L_i$, entonces $G$ contiene un ciclo impar (de
+longitud $2(i-j)+1$, donde $z$ es el ancestro común de $x$ e $y$ en $L_j$) y no es
+bipartito. Costo: $O(n+m)$.
+\end{teorema}
+\begin{proof}
+\begin{pasos}
+\item Correr BFS desde un vértice cualquiera y pintar de rojo las capas pares y de azul
+las impares.
+\item \textbf{Caso 1: ninguna arista queda dentro de una capa.} Por la propiedad de las
+capas, toda arista une capas consecutivas, que tienen paridades distintas y por lo tanto
+colores distintos: la coloración es válida y $G$ es bipartito.
+\item \textbf{Caso 2: existe una arista $\{x,y\}$ con $x,y\in L_i$.} Hay que construir
+un ciclo impar.
+\item Sea $z$ el ancestro común más profundo de $x$ e $y$ en el árbol BFS, digamos
+$z\in L_j$ con $j\le i$.
+\item Los caminos del árbol de $z$ a $x$ y de $z$ a $y$ tienen ambos longitud $i-j$
+(el árbol BFS baja exactamente una capa por arista) y solo comparten a $z$.
+\item El ciclo formado por esos dos caminos más la arista $\{x,y\}$ tiene longitud
+$(i-j)+(i-j)+1=2(i-j)+1$, que es \emph{impar}. Por el teorema anterior, $G$ no es
+bipartito.
+\item \textbf{Costo.} Es un BFS ($O(n+m)$) más una pasada por todas las aristas
+comparando capas ($O(m)$): total $O(n+m)$. \qedhere
+\end{pasos}
+\end{proof}
+
+\section{Conectividad en grafos dirigidos}
+
+\begin{itemize}
+\item BFS/DFS dirigido desde $s$ (siguiendo solo aristas salientes) calcula el conjunto
+de vértices \textbf{alcanzables} desde $s$, en $O(n+m)$.
+\item Para saber quién alcanza a $s$, se corre el mismo BFS sobre $G^{\mathrm{rev}}$
+(el grafo con todas las aristas invertidas).
+\item $G$ es \textbf{fuertemente conexo} si para todo par $u,v$ hay camino de $u$ a $v$
+y de $v$ a $u$.
+\end{itemize}
+
+\begin{teorema}
+$G$ es fuertemente conexo $\iff$ existe $s$ tal que todo vértice es alcanzable desde
+$s$ en $G$ \textbf{y} todo vértice alcanza a $s$ (es decir, es alcanzable desde $s$ en
+$G^{\mathrm{rev}}$). Esto da un test en $O(n+m)$ con dos BFS.
+\end{teorema}
+\begin{proof}[Doble implicación]
+\begin{pasos}
+\item \textbf{($\Rightarrow$)} Si $G$ es fuertemente conexo, la condición vale para
+\emph{cualquier} $s$, directamente por la definición.
+\item \textbf{($\Leftarrow$)} Suponer que desde $s$ se alcanza todo en $G$ y todo en
+$G^{\mathrm{rev}}$. Hay que ver que dos vértices cualesquiera $u,v$ son mutuamente
+alcanzables.
+\item Como $u$ es alcanzable desde $s$ en $G^{\mathrm{rev}}$, existe un camino de $u$ a
+$s$ en $G$ (invertir un camino de $G^{\mathrm{rev}}$ da un camino de $G$).
+\item Como $v$ es alcanzable desde $s$ en $G$, existe un camino de $s$ a $v$.
+\item Concatenando ambos se obtiene un recorrido de $u$ a $v$; simetrizando el argumento
+($v\to s\to u$) se obtiene el de $v$ a $u$. Luego $G$ es fuertemente conexo.
+\item \textbf{Costo.} Un BFS dirigido en $G$ y otro en $G^{\mathrm{rev}}$, más construir
+$G^{\mathrm{rev}}$ (una pasada por las listas de adyacencia): $O(n+m)$. \qedhere
+\end{pasos}
+\end{proof}
+
+\begin{teorema}
+La relación ``$u$ y $v$ son mutuamente alcanzables'' es de equivalencia; sus clases son
+las \textbf{componentes fuertemente conexas} y particionan $V$.
+\end{teorema}
+
+\section{DAGs y orden topológico}
+
+\begin{definicion}
+Un \textbf{DAG} es un grafo dirigido sin ciclos dirigidos. Un \textbf{orden
+topológico} de $G$ es una numeración $v_1,\dots,v_n$ de $V$ tal que toda arista
+$(v_i,v_j)\in E$ cumple $i<j$.
+\end{definicion}
+
+\begin{teorema}
+Si $G$ tiene un orden topológico, entonces $G$ es un DAG.
+\end{teorema}
+\begin{proof}[Por el absurdo]
+\begin{pasos}
+\item Suponer que $G$ tiene un orden topológico $v_1,\dots,v_n$ y además un ciclo
+dirigido $C$.
+\item Entre los vértices de $C$, tomar el de \emph{índice mínimo} en el orden; llamarlo
+$v_i$.
+\item Todo vértice de un ciclo tiene una arista entrante dentro del ciclo: sea
+$(v_j,v_i)$ esa arista, con $v_j\in C$.
+\item Por la minimalidad del Paso 2, $j>i$.
+\item Pero entonces la arista $(v_j,v_i)$ va \emph{hacia atrás} ($j>i$), contradiciendo
+la definición de orden topológico. \qedhere
+\end{pasos}
+\end{proof}
+
+\begin{teorema}
+Todo DAG tiene un vértice sin aristas entrantes (una ``fuente'').
+\end{teorema}
+\begin{proof}[Por el absurdo]
+\begin{pasos}
+\item Suponer que todo vértice de $G$ tiene al menos una arista entrante.
+\item Empezar en un vértice cualquiera $u_0$ y caminar \emph{hacia atrás}: elegir
+$u_1$ con $(u_1,u_0)\in E$, después $u_2$ con $(u_2,u_1)\in E$, y así siguiendo. Por el
+Paso 1 la elección siempre es posible, así que el paseo nunca se traba.
+\item Después de $n+1$ vértices, por el principio del palomar algún vértice se repite:
+$u_a=u_b$ con $a<b$.
+\item El tramo $u_b,u_{b-1},\dots,u_a$ recorrido en el sentido de las aristas es un
+ciclo dirigido.
+\item Contradicción con que $G$ es un DAG. \qedhere
+\end{pasos}
+\end{proof}
+
+\begin{teorema}
+Todo DAG tiene un orden topológico.
+\end{teorema}
+\begin{proof}[Inducción en $n$]
+\begin{pasos}
+\item \textbf{Caso base.} Si $n=1$, el único orden posible es topológico (no hay
+aristas, porque un lazo sería un ciclo).
+\item \textbf{Hipótesis inductiva.} Todo DAG con $n-1$ vértices tiene un orden
+topológico.
+\item \textbf{Elegir el primero.} Por el teorema anterior, $G$ tiene una fuente $v$
+(sin aristas entrantes); ponerla en la primera posición.
+\item \textbf{El resto sigue siendo un DAG.} $G-\{v\}$ es un subgrafo de $G$, y todo
+ciclo de $G-\{v\}$ sería un ciclo de $G$; como $G$ no tiene, $G-\{v\}$ tampoco.
+\item \textbf{Aplicar la H.I.} $G-\{v\}$ tiene $n-1$ vértices, luego tiene un orden
+topológico $v_2,\dots,v_n$.
+\item \textbf{Pegar.} En $v,v_2,\dots,v_n$ las aristas internas de $G-\{v\}$ van hacia
+adelante por el Paso 5, y las aristas que tocan a $v$ solo pueden \emph{salir} de $v$
+(Paso 3), o sea que también van hacia adelante. \qedhere
+\end{pasos}
+\end{proof}
+
+\subsection{Algoritmo en $O(n+m)$}
+
+La versión directa (buscar una fuente, borrarla, repetir) cuesta $O(n^2)$. Para llegar
+a $O(n+m)$ se mantienen contadores de grado de entrada:
+
+\codigoinicio
+\begin{verbatim}
+OrdenTopologico(G):
+  gradoEnt[v] <- cantidad de aristas entrantes de v,  para todo v   // O(n+m)
+  S <- conjunto (cola o pila) con todos los v tales que gradoEnt[v] = 0
+  orden <- lista vacia
+  Mientras S no este vacio:
+      v <- sacar un elemento de S
+      agregar v al final de orden
+      Para cada w en Ady[v]:                    // borrar la arista (v,w)
+          gradoEnt[w] <- gradoEnt[w] - 1
+          Si gradoEnt[w] = 0: agregar w a S
+  Si |orden| < n: retornar "G tiene un ciclo"   // no existe orden topologico
+  Si no:          retornar orden
+\end{verbatim}
+\codigofin
+
+\begin{proposicion}[Correctitud y costo]
+El algoritmo devuelve un orden topológico si $G$ es un DAG, y detecta un ciclo en caso
+contrario, en tiempo $O(n+m)$.
+\end{proposicion}
+\begin{proof}
+\begin{pasos}
+\item \textbf{Invariante.} En todo momento vale: \texttt{gradoEnt[w]} $=$ cantidad de
+aristas entrantes a $w$ \emph{desde vértices todavía no agregados a} \texttt{orden}.
+Es cierto al inicio (nadie fue agregado) y se preserva, porque cada vez que se agrega
+$v$ se decrementa el contador de exactamente sus sucesores.
+\item \textbf{Cuándo se agrega un vértice.} $v$ entra en $S$ solo cuando
+\texttt{gradoEnt[v]}$=0$, o sea (por el invariante) cuando \emph{todos} sus
+predecesores ya están en \texttt{orden}.
+\item \textbf{Las aristas van hacia adelante.} Sea $(u,v)\in E$. Por el Paso 2, $u$ ya
+estaba en \texttt{orden} cuando se agregó $v$, luego $u$ aparece antes que $v$. Esto
+vale para toda arista, así que la salida es un orden topológico.
+\item \textbf{Si sobran vértices, hay un ciclo.} Si al terminar $|\texttt{orden}|<n$,
+todos los vértices restantes tienen \texttt{gradoEnt}$>0$, o sea que en el subgrafo
+inducido por ellos todos tienen una arista entrante; por el teorema de la fuente, ese
+subgrafo contiene un ciclo, que también es un ciclo de $G$.
+\item \textbf{Si $G$ es un DAG, no sobran vértices.} Por el mismo teorema, mientras
+queden vértices el subgrafo restante tiene una fuente, cuyo contador vale $0$; luego
+$S$ nunca se vacía antes de tiempo.
+\item \textbf{Costo.} Calcular los grados de entrada recorre todas las listas: $O(n+m)$.
+Cada vértice entra y sale de $S$ a lo sumo una vez ($O(n)$, con operaciones $O(1)$) y
+cada arista $(v,w)$ se procesa una sola vez, al sacar $v$. Total $O(n+m)$. \qedhere
+\end{pasos}
+\end{proof}
+
+\begin{observacion}[Variante con DFS]
+El orden topológico también es el \emph{inverso} del orden de finalización de un DFS;
+un vértice ``gris'' (en la pila de recursión) alcanzado por una arista delata un ciclo.
+Ambas versiones son $O(n+m)$: usar la que se haya visto en clase.
+\end{observacion}
+
+\begin{receta}[Modelado con grafos: los cuatro moldes del parcial]
+\begin{enumerate}[label=\arabic*.]
+\item ``¿Se puede llegar de todos lados a todos lados / recorrer todo?'' $\to$
+\textbf{conectividad}, un BFS y comparar la cantidad de visitados con $|V|$.
+\item ``¿Se puede partir en dos grupos sin conflictos internos?'' $\to$
+\textbf{bipartición}, BFS por capas.
+\item ``Hay dependencias / precedencias, ¿en qué orden hacerlo?'' $\to$
+\textbf{orden topológico} sobre un DAG.
+\item ``¿Desde $x$ se puede llegar a $y$?'' $\to$ \textbf{alcanzabilidad}, BFS dirigido
+(y $G^{\mathrm{rev}}$ si se pregunta por el sentido inverso).
+\end{enumerate}
+Siempre hay que decir explícitamente \emph{quiénes son los vértices, quiénes las
+aristas y por qué la respuesta al problema original equivale a la propiedad del grafo}
+(una doble implicación), y acotar $n$ y $m$ en términos de la entrada para traducir
+$O(n+m)$ al costo real.
+\end{receta}
+
+%=======================================================================
+\part*{Parte IV --- Capítulo 4.1--4.2: Algoritmos greedy}
+\addcontentsline{toc}{section}{Parte IV --- Cap.\ 4.1--4.2: Greedy}
+
+\section{Qué es un algoritmo greedy}
+
+Un algoritmo \textbf{greedy} construye la solución en pasos, tomando en cada uno la
+decisión que parece mejor \emph{localmente} según una regla simple, sin volver atrás.
+Lo difícil nunca es el algoritmo, sino \emph{probar que la regla local da un óptimo
+global}. Hay dos técnicas de demostración:
+
+\begin{description}[leftmargin=1.6em,style=nextline]
+\item[Greedy stays ahead (``el greedy va adelante'').] Se mide la solución parcial
+greedy y la de un óptimo cualquiera con algún parámetro, y se prueba por inducción que
+después de cada paso el greedy está \emph{al menos tan bien} como el óptimo. Se usa en
+interval scheduling.
+\item[Exchange argument (argumento de intercambio).] Se parte de una solución óptima
+arbitraria y se la transforma, paso a paso, en la solución greedy, mostrando que ningún
+paso empeora el valor objetivo. Se usa en minimizar el retraso máximo.
+\end{description}
+
+\noindent Una tercera idea, complementaria: encontrar una \textbf{cota inferior
+estructural} del problema y mostrar que el greedy la alcanza (es lo que se hace con la
+\emph{profundidad} en interval partitioning).
+
+\section{Interval scheduling (4.1)}
+
+\begin{definicion}
+Se dan $n$ pedidos; el pedido $i$ tiene inicio $s(i)$ y fin $f(i)$. Dos pedidos son
+\textbf{compatibles} si sus intervalos no se solapan. Se busca un subconjunto
+compatible de \textbf{cardinal máximo}.
+\end{definicion}
+
+\subsection{La regla correcta y las que fallan}
+
+\begin{center}\small
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Regla} & \textbf{¿Funciona?} \\
+\midrule
+Menor tiempo de \textbf{finalización} $f(i)$ & \textbf{Sí}, es óptima \\
+Menor tiempo de inicio $s(i)$ & No (un intervalo larguísimo que empieza primero) \\
+Menor duración $f(i)-s(i)$ & No (un intervalo corto que pisa a otros dos) \\
+Menor cantidad de conflictos & No (contraejemplo más elaborado) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\codigoinicio
+\begin{verbatim}
+IntervalScheduling(s[], f[]):
+  Ordenar los pedidos por f(i) creciente        // O(n log n)
+  A <- vacio;   ultimoFin <- -infinito
+  Para i = 1..n en ese orden:                   // O(n)
+      Si s(i) >= ultimoFin:
+          A <- A union {i}
+          ultimoFin <- f(i)
+  Retornar A
+\end{verbatim}
+\codigofin
+
+\begin{teorema}
+El algoritmo devuelve un conjunto compatible de tamaño máximo. Costo: $O(n\log n)$
+(dominado por el ordenamiento; la pasada es $O(n)$).
+\end{teorema}
+\begin{proof}[Greedy stays ahead]
+\begin{pasos}
+\item \textbf{Nombrar las dos soluciones.} Sean $i_1,\dots,i_k$ los pedidos elegidos por
+el greedy, listados en el orden en que los elige, y $j_1,\dots,j_m$ los de una solución
+óptima $\mathcal{O}$ cualquiera, ordenados por tiempo de inicio. Hay que probar $k=m$.
+\item \textbf{Elegir la medida de ``ir adelante''.} El parámetro es el tiempo de
+finalización: se va a probar por inducción que
+\[ f(i_r)\;\le\; f(j_r) \qquad \text{para todo } r\le k. \]
+\item \textbf{Caso base ($r=1$).} El greedy elige, entre \emph{todos} los pedidos, el de
+$f$ mínimo; en particular $f(i_1)\le f(j_1)$.
+\item \textbf{Hipótesis inductiva.} Suponer $f(i_{r-1})\le f(j_{r-1})$.
+\item \textbf{Paso inductivo.} Como $\mathcal{O}$ es compatible,
+$f(j_{r-1})\le s(j_r)$; combinando con la H.I.:
+\[ f(i_{r-1})\;\le\; f(j_{r-1})\;\le\; s(j_r). \]
+Entonces $j_r$ \emph{seguía disponible} para el greedy en su paso $r$ (no choca con lo
+ya elegido). Como el greedy elige el de menor $f$ entre los disponibles, resulta
+$f(i_r)\le f(j_r)$.
+\item \textbf{Cerrar por el absurdo.} Suponer $m>k$, es decir que $\mathcal{O}$ tiene
+al menos un pedido más. Considerar $j_{k+1}$: por compatibilidad y por el Paso 5,
+\[ s(j_{k+1})\;\ge\; f(j_k)\;\ge\; f(i_k). \]
+\item \textbf{Contradicción.} Eso dice que $j_{k+1}$ era compatible con todo lo elegido
+por el greedy cuando este se detuvo. Pero el greedy solo se detiene cuando \emph{no
+queda ningún} pedido compatible. Absurdo, luego $m\le k$; y como $\mathcal{O}$ es
+óptima, $m\ge k$. Por lo tanto $m=k$ y el greedy es óptimo. \qedhere
+\end{pasos}
+\end{proof}
+
+\subsection{Interval partitioning (coloreo de intervalos)}
+
+\begin{definicion}
+Dados $n$ intervalos, asignarles \textbf{recursos} (aulas, salas, máquinas) de modo que
+dos intervalos que se solapan reciban recursos distintos, minimizando la cantidad de
+recursos.
+\end{definicion}
+
+\begin{definicion}[Profundidad]
+La \textbf{profundidad} $d$ de un conjunto de intervalos es la máxima cantidad de
+intervalos que contienen un mismo punto del tiempo.
+\end{definicion}
+
+\begin{lema}[Cota inferior]
+Todo particionamiento válido usa al menos $d$ recursos.
+\end{lema}
+\begin{proof}
+\begin{pasos}
+\item Sea $t^\ast$ un instante contenido en $d$ intervalos simultáneos
+$I_1,\dots,I_d$ (existe, por definición de profundidad).
+\item Esos $d$ intervalos se solapan de a pares: todos contienen a $t^\ast$.
+\item Por la restricción del problema, dos intervalos que se solapan reciben recursos
+distintos, así que los $d$ intervalos usan $d$ recursos distintos.
+\item Luego toda solución válida usa $\ge d$ recursos. \qedhere
+\end{pasos}
+\end{proof}
+
+\codigoinicio
+\begin{verbatim}
+IntervalPartitioning:
+  Ordenar los intervalos por s(i) creciente
+  Para j = 1..n en ese orden:
+      Si existe un recurso k que no fue asignado a ningun
+         intervalo anterior que se solape con j:
+            asignar el recurso k al intervalo j
+      Si no:
+            crear un recurso nuevo y asignarselo a j
+\end{verbatim}
+\codigofin
+
+\begin{teorema}
+El algoritmo usa exactamente $d$ recursos y por lo tanto es óptimo.
+\end{teorema}
+\begin{proof}
+\begin{pasos}
+\item \textbf{La solución es válida.} Por construcción, el algoritmo nunca le da a $j$
+un recurso ya usado por un intervalo anterior que se solape con $j$; y los intervalos
+posteriores se chequean contra $j$. Luego dos intervalos solapados nunca comparten
+recurso.
+\item \textbf{Acotar la cantidad de recursos usados.} Supongamos que en algún momento el
+algoritmo le asigna a un intervalo $j$ el recurso número $k$ (o sea que usó $k$
+recursos en total).
+\item Eso ocurre porque los $k-1$ recursos anteriores estaban ocupados: existen $k-1$
+intervalos anteriores a $j$ en el orden, todos solapados con $j$.
+\item Como los intervalos se procesan por $s(i)$ creciente, esos $k-1$ intervalos
+empezaron \emph{antes} que $j$ y se solapan con $j$: por lo tanto todos contienen el
+instante $s(j)$.
+\item Sumando $j$, hay $k$ intervalos que contienen a $s(j)$, luego $d\ge k$: el
+algoritmo nunca usa más de $d$ recursos.
+\item \textbf{Cerrar con la cota inferior.} Por el lema, toda solución usa $\ge d$; el
+algoritmo usa $\le d$. Luego usa exactamente $d$ y es óptimo. \qedhere
+\end{pasos}
+\end{proof}
+
+\noindent Implementación: con una cola de prioridad sobre los recursos (clave $=$ su
+último tiempo de fin) queda $O(n\log n)$.
+
+\section{Minimizar el retraso máximo (4.2)}
+
+\begin{definicion}[Problema]
+Un único recurso disponible a partir del instante $s$. Cada tarea $i$ requiere un
+intervalo \emph{contiguo} de duración $t_i$ y tiene una fecha límite $d_i$. Un
+\emph{schedule} asigna a cada tarea un inicio $s(i)$ y un fin $f(i)=s(i)+t_i$, sin
+solaparse. El \textbf{retraso} de $i$ es $l_i=\max\{0,\;f(i)-d_i\}$ y el objetivo es
+minimizar el \textbf{retraso máximo} $L=\max_i l_i$.
+\end{definicion}
+
+\subsection{Reglas que fallan}
+\begin{itemize}
+\item Ordenar por duración $t_i$ creciente: falla ($t_1=1,d_1=100$; $t_2=10,d_2=10$).
+\item Ordenar por ``holgura'' $d_i-t_i$ creciente: también falla.
+\item \textbf{Ordenar por fecha límite $d_i$ creciente (Earliest Deadline First):}
+\emph{óptimo}. Notar que ignora por completo las duraciones $t_i$.
+\end{itemize}
+
+\codigoinicio
+\begin{verbatim}
+EDF(t[], d[], s):
+  Ordenar las tareas por d(i) creciente:  d(1) <= d(2) <= ... <= d(n)
+  f <- s
+  Para i = 1..n en ese orden:
+      s(i) <- f
+      f(i) <- s(i) + t(i)
+      f <- f(i)
+  Retornar los intervalos [s(i), f(i))
+\end{verbatim}
+\codigofin
+
+\subsection{Demostración de optimalidad (argumento de intercambio)}
+
+\begin{definicion}
+Un schedule tiene \textbf{tiempo ocioso} (\emph{idle time}) si el recurso está libre en
+un instante en el que todavía quedan tareas sin ejecutar. Un schedule tiene una
+\textbf{inversión} si existen tareas $i,j$ con $d_i<d_j$ pero $j$ programada
+inmediatamente antes que $i$.
+\end{definicion}
+
+\begin{proposicion}\label{p:ocio}
+Existe un schedule óptimo sin tiempo ocioso.
+\end{proposicion}
+\begin{proof}
+\begin{pasos}
+\item Tomar un schedule óptimo cualquiera $\mathcal{O}$ y suponer que tiene un hueco.
+\item Adelantar todas las tareas posteriores al hueco hasta cerrarlo, sin cambiar el
+orden.
+\item Ninguna tarea termina más tarde que antes: todos los $f(i)$ o quedan igual o
+disminuyen.
+\item Entonces ningún $l_i=\max\{0,f(i)-d_i\}$ aumenta, y por lo tanto
+$L=\max_i l_i$ tampoco.
+\item Repitiendo mientras queden huecos (son finitos) se llega a un schedule sin ocio
+cuyo retraso máximo es $\le$ el de $\mathcal{O}$; como $\mathcal{O}$ era óptimo, es
+también óptimo. \qedhere
+\end{pasos}
+\end{proof}
+
+\begin{proposicion}
+El schedule producido por EDF no tiene inversiones ni tiempo ocioso.
+\end{proposicion}
+\begin{proof}
+\begin{pasos}
+\item \textbf{Sin ocio:} el algoritmo asigna $s(i)\leftarrow f$ y $f\leftarrow f(i)$,
+o sea que cada tarea empieza exactamente cuando termina la anterior.
+\item \textbf{Sin inversiones:} las tareas se ejecutan en el orden $d(1)\le d(2)\le
+\dots\le d(n)$. Si $j$ se ejecuta antes que $i$, entonces $d_j\le d_i$, que es
+justamente la negación de la definición de inversión ($d_i<d_j$ con $j$ antes). \qedhere
+\end{pasos}
+\end{proof}
+
+\begin{proposicion}\label{p:iguales}
+Todos los schedules sin inversiones ni tiempo ocioso tienen el \emph{mismo} retraso
+máximo.
+\end{proposicion}
+\begin{proof}
+\begin{pasos}
+\item Si dos schedules no tienen inversiones, ambos ordenan las tareas por $d_i$
+creciente; solo pueden diferir en el orden \emph{interno} de un bloque de tareas con la
+\emph{misma} fecha límite $d$.
+\item Como no hay ocio y el bloque contiene las mismas tareas en ambos, el bloque ocupa
+exactamente el mismo intervalo de tiempo, y en particular termina en el mismo instante
+$f$ en los dos schedules.
+\item Dentro del bloque, todas las tareas comparten $d$, así que la que define el
+retraso del bloque es la \emph{última}, con retraso $\max\{0,f-d\}$.
+\item Ese valor no depende del orden interno; luego el máximo sobre todos los bloques
+—es decir $L$— es el mismo en ambos schedules. \qedhere
+\end{pasos}
+\end{proof}
+
+\begin{proposicion}\label{p:intercambio}
+Existe un schedule óptimo sin inversiones ni tiempo ocioso.
+\end{proposicion}
+\begin{proof}[Exchange argument]
+\begin{pasos}
+\item \textbf{Punto de partida.} Por la Prop.~\ref{p:ocio}, tomar un schedule óptimo
+$\mathcal{O}$ sin tiempo ocioso. Si no tiene inversiones, ya está.
+\item \textbf{Si hay una inversión, hay una consecutiva.} Si $\mathcal{O}$ tiene alguna
+inversión, entonces tiene un par de tareas \emph{consecutivas} $j,i$ (en ese orden) con
+$d_i<d_j$. (Si no, recorriendo el schedule las fechas límite serían no decrecientes de a
+pares consecutivos y por transitividad no habría ninguna inversión.)
+\item \textbf{El intercambio.} Intercambiar $i$ y $j$, dejando a todas las demás tareas
+exactamente donde están. El bloque $\{i,j\}$ sigue ocupando el mismo intervalo, así que
+el schedule sigue siendo válido y sin ocio.
+\item \textbf{Solo cambian $i$ y $j$.} Ninguna otra tarea se movió, luego los demás
+$l_k$ quedan idénticos. Basta ver que $\max\{l_i,l_j\}$ no aumenta.
+\item \textbf{La tarea $i$ mejora.} Ahora $i$ se ejecuta \emph{antes}, así que su nuevo
+$f(i)$ es menor y su retraso no crece.
+\item \textbf{La tarea $j$ no rompe el máximo.} Sea $f$ el instante en que terminaba el
+bloque antes del intercambio (o sea, cuando terminaba $i$). Después del intercambio, $j$
+termina en $f$ y su nuevo retraso es $\max\{0,f-d_j\}$. Como $d_i<d_j$,
+\[ f-d_j \;<\; f-d_i \;\le\; \text{retraso de } i \text{ \emph{antes} del intercambio}. \]
+Luego el nuevo retraso de $j$ está acotado por un retraso que ya existía en
+$\mathcal{O}$: el máximo no aumenta.
+\item \textbf{Terminación.} Cada intercambio reduce en exactamente $1$ la cantidad de
+inversiones, que al inicio es a lo sumo $\binom{n}{2}$. Repitiendo, se llega en una
+cantidad finita de pasos a un schedule sin inversiones ni ocio, cuyo retraso máximo
+sigue siendo $\le$ el de $\mathcal{O}$ y por lo tanto es óptimo. \qedhere
+\end{pasos}
+\end{proof}
+
+\begin{teorema}
+EDF produce un schedule con retraso máximo $L$ mínimo, en tiempo $O(n\log n)$.
+\end{teorema}
+\begin{proof}
+Por la Prop.~\ref{p:intercambio} hay un óptimo sin inversiones ni ocio; el schedule de
+EDF tampoco las tiene; por la Prop.~\ref{p:iguales} ambos tienen el mismo retraso
+máximo. Luego EDF es óptimo. El costo lo domina el ordenamiento, $O(n\log n)$.
+\end{proof}
+
+%=======================================================================
+\part*{Parte V --- Cómo demostrar: plantillas paso a paso}
+\addcontentsline{toc}{section}{Parte V --- Plantillas de demostración}
+
+\section{Qué plantilla usar en cada caso}
+
+\begin{center}\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Si hay que probar\dots} & \textbf{Plantilla} & \textbf{Ejemplo del curso} \\
+\midrule
+un greedy es óptimo (maximizar cantidad) & A: greedy stays ahead & interval scheduling \\
+un greedy es óptimo (minimizar un máximo) & B: exchange argument & EDF (retraso máximo) \\
+un greedy alcanza una cota & E: cota inferior & interval partitioning \\
+un algoritmo iterativo hace lo que dice & C: invariante & orden topológico, Gale--Shapley \\
+una equivalencia del modelado & D: doble implicación & reducir a conectividad \\
+una propiedad de todo grafo de un tipo & F: inducción estructural & todo DAG tiene orden top. \\
+que una regla propuesta \emph{no} sirve & G: contraejemplo & reglas de 4.1 y 4.2 que fallan \\
+una cota de tiempo & H: conteo por fases & $O(n+m)$ de BFS \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{Plantilla A --- Greedy stays ahead}
+
+\begin{plantilla}{el greedy va siempre adelante}
+\begin{pasos}
+\item \textbf{Nombrar.} Sea $G=g_1,\dots,g_k$ la salida del greedy en el orden en que la
+construye, y $\mathcal{O}=o_1,\dots,o_m$ una solución óptima \emph{cualquiera}, ordenada
+con el mismo criterio. El objetivo es probar $k\ge m$ (o $k=m$).
+\item \textbf{Elegir la medida.} Definir un parámetro que mida ``qué tan bien'' va cada
+solución después de $r$ pasos (en interval scheduling: el tiempo de finalización
+$f(g_r)$; en general, el recurso consumido hasta el paso $r$).
+\item \textbf{Enunciar el lema de ``ir adelante''.} ``Para todo $r\le k$ vale
+$\mathrm{medida}(g_r)\le \mathrm{medida}(o_r)$''.
+\item \textbf{Probarlo por inducción en $r$.}
+  \begin{itemize}
+  \item \emph{Base:} el greedy elige el mejor elemento según su regla entre \emph{todos},
+        así que gana o empata en el primer paso.
+  \item \emph{Paso:} usar la H.I.\ para mostrar que el elemento $o_r$ del óptimo
+        \textbf{seguía siendo elegible} para el greedy en su paso $r$; como el greedy
+        toma el mejor elegible, su elección no es peor.
+  \end{itemize}
+\item \textbf{Cerrar por el absurdo.} Suponer $m>k$ y mirar el elemento $o_{k+1}$:
+usando el lema, mostrar que $o_{k+1}$ todavía era compatible/elegible cuando el greedy
+se detuvo, contradiciendo que el greedy solo para cuando no queda nada elegible.
+\item \textbf{Concluir.} $m=k$, luego el greedy es óptimo.
+\end{pasos}
+\end{plantilla}
+
+\noindent\textbf{Error típico:} probar el lema del Paso 3 pero olvidar el Paso 5. El
+lema solo dice que el greedy no va \emph{atrás}; hace falta el argumento final para
+concluir que tampoco tiene \emph{menos} elementos.
+
+\section{Plantilla B --- Exchange argument (argumento de intercambio)}
+
+\begin{plantilla}{transformar el óptimo en el greedy sin empeorarlo}
+\begin{pasos}
+\item \textbf{Normalizar.} Probar primero que existe una solución óptima con alguna
+propiedad cómoda (por ejemplo, sin tiempo ocioso), para poder compararla con la del
+greedy.
+\item \textbf{Definir el defecto.} Decir qué es lo que distingue al óptimo de la
+solución greedy y se puede contar: una \emph{inversión}, un par fuera de orden, un
+elemento mal ubicado.
+\item \textbf{Localizar el defecto.} Probar que si hay al menos un defecto, entonces hay
+uno \emph{entre dos elementos consecutivos} (esto es lo que hace que el intercambio sea
+inocuo, porque no mueve nada más).
+\item \textbf{Intercambiar y acotar.} Intercambiar ese par y probar dos cosas:
+  \begin{itemize}
+  \item que la solución sigue siendo \emph{factible};
+  \item que el valor objetivo \textbf{no empeora}. Como solo se movieron dos elementos,
+        alcanza con comparar sus contribuciones: una mejora, y la otra queda acotada por
+        un valor que \emph{ya existía} antes del intercambio.
+  \end{itemize}
+\item \textbf{Terminación.} Cada intercambio reduce la cantidad de defectos en $1$, y al
+inicio hay a lo sumo $\binom{n}{2}$: en una cantidad finita de pasos se llega a una
+solución sin defectos que sigue siendo óptima.
+\item \textbf{Unicidad del valor.} Probar que \emph{todas} las soluciones sin defectos
+tienen el mismo valor objetivo. Como la del greedy no tiene defectos y hay una óptima
+sin defectos, ambas valen lo mismo: el greedy es óptimo.
+\end{pasos}
+\end{plantilla}
+
+\noindent\textbf{Error típico:} saltear el Paso 6. Sin él solo se probó que \emph{alguna}
+solución sin defectos es óptima, no que la del greedy lo sea.
+
+\section{Plantilla C --- Invariante de ciclo}
+
+\begin{plantilla}{correctitud de un algoritmo iterativo}
+\begin{pasos}
+\item \textbf{Enunciar el invariante:} una afirmación sobre el estado del algoritmo que
+sea verdadera al principio de cada iteración y que, al terminar, implique lo que se
+quiere. (Ej.: ``\texttt{gradoEnt[w]} cuenta las aristas entrantes desde vértices aún no
+agregados''.)
+\item \textbf{Inicialización:} verificar que vale antes de la primera iteración.
+\item \textbf{Preservación:} suponerlo verdadero al comienzo de una iteración y probar
+que sigue valiendo al final, revisando \emph{todos} los casos del cuerpo del ciclo.
+\item \textbf{Terminación:} exhibir una cantidad entera no negativa que decrezca (o
+crezca acotada) en cada iteración, para probar que el ciclo termina.
+\item \textbf{Conclusión:} combinar el invariante con la condición de salida para
+deducir que la salida es correcta.
+\end{pasos}
+\end{plantilla}
+
+\section{Plantilla D --- Equivalencia del modelado (doble implicación)}
+
+Es la que se usa cuando el enunciado dice ``dé un algoritmo que decida si\dots'' y la
+solución pasa por construir un grafo.
+
+\begin{plantilla}{``el problema tiene solución $\iff$ el grafo cumple P''}
+\begin{pasos}
+\item \textbf{Definir el modelo sin ambigüedad:} quiénes son los vértices, quiénes las
+aristas, si el grafo es dirigido o no, y por qué. Si la relación es simétrica,
+\emph{decirlo y justificarlo} (es lo que habilita usar BFS no dirigido).
+\item \textbf{($\Rightarrow$)} Suponer que el problema original tiene solución y
+construir a partir de ella el objeto del grafo (un camino, una coloración, un orden).
+\item \textbf{($\Leftarrow$)} Suponer que el grafo cumple la propiedad y construir a
+partir del objeto del grafo una solución del problema original.
+\item \textbf{Algoritmo:} decir qué algoritmo del curso decide P, reescribiéndolo.
+\item \textbf{Costo:} acotar $n$ y $m$ en términos del tamaño real de la entrada
+(p.\,ej.\ en un tablero $n\times n$: $|V|\le n^2$ y $|E|\le 4n^2$, luego
+$O(|V|+|E|)=O(n^2)$).
+\end{pasos}
+\end{plantilla}
+
+\section{Plantilla E --- Cota inferior alcanzada}
+
+\begin{plantilla}{``el greedy usa exactamente lo mínimo posible''}
+\begin{pasos}
+\item \textbf{Encontrar una cota inferior estructural:} una cantidad $d$ que dependa
+solo de la entrada (no del algoritmo) y tal que \emph{toda} solución use $\ge d$
+recursos. Probarlo exhibiendo la obstrucción (ej.: $d$ intervalos que contienen un mismo
+punto).
+\item \textbf{Probar que el algoritmo usa $\le d$:} mirar el momento en que el algoritmo
+consume el recurso número $k$ y mostrar que eso fuerza una obstrucción de tamaño $k$,
+luego $k\le d$.
+\item \textbf{Concluir:} $d\le \text{algoritmo}\le d$, o sea igualdad, o sea óptimo.
+\end{pasos}
+\end{plantilla}
+
+\section{Plantilla F --- Inducción estructural en grafos}
+
+\begin{plantilla}{``todo grafo de tipo X tiene la propiedad P''}
+\begin{pasos}
+\item \textbf{Inducción en $n$} (cantidad de vértices). Caso base: $n=1$.
+\item \textbf{Encontrar el vértice que se saca.} Es el paso creativo: una fuente en un
+DAG, una hoja en un árbol, el vértice de grado mínimo. Hay que \emph{probar que existe}
+(típicamente por el absurdo, caminando hacia atrás hasta repetir un vértice).
+\item \textbf{Verificar que el resto conserva el tipo:} que $G-\{v\}$ sigue siendo un
+DAG, un árbol, etc. Casi siempre sale porque la propiedad es hereditaria a subgrafos.
+\item \textbf{Aplicar la H.I.} a $G-\{v\}$.
+\item \textbf{Volver a pegar $v$} y verificar que la propiedad se mantiene, revisando
+solamente las aristas que tocan a $v$.
+\end{pasos}
+\end{plantilla}
+
+\section{Plantilla G --- Refutar una regla greedy}
+
+\begin{plantilla}{``esta regla no es óptima''}
+\begin{pasos}
+\item Construir una instancia \emph{chica} (dos o tres elementos alcanzan casi siempre).
+\item Mostrar explícitamente qué devuelve la regla propuesta sobre esa instancia, con su
+valor objetivo.
+\item Exhibir una solución mejor y su valor objetivo.
+\item Concluir que la regla no es óptima. \emph{Un contraejemplo alcanza para refutar;
+ningún ejemplo alcanza para probar.}
+\end{pasos}
+\end{plantilla}
+
+\section{Plantilla H --- Acotar el tiempo de ejecución}
+
+\begin{plantilla}{análisis de complejidad}
+\begin{pasos}
+\item \textbf{Decir el tamaño de la entrada} en las variables que se van a usar ($n$,
+$m$, $n^2$ para un tablero).
+\item \textbf{Separar en fases:} inicialización, preprocesamiento/ordenamiento, ciclo
+principal, salida.
+\item \textbf{Por cada fase:} cuántas veces se ejecuta $\times$ cuánto cuesta cada
+ejecución, justificando el costo unitario con la estructura de datos elegida
+(``con \texttt{ranking} invertido, comparar dos pretendientes es $O(1)$''; ``con listas
+de adyacencia, recorrer los vecinos de $v$ es $O(\deg(v))$'').
+\item \textbf{Usar las sumas globales} en lugar de acotar de a uno cuando convenga:
+$\sum_v \deg(v)=2m$ es lo que convierte ``$O(n)$ por vértice'' en $O(n+m)$ total.
+\item \textbf{Sumar y quedarse con el término dominante}, y traducir el resultado al
+tamaño real de la entrada.
+\end{pasos}
+\end{plantilla}
+
+%=======================================================================
+\part*{Parte VI --- Caja de herramientas}
+\addcontentsline{toc}{section}{Parte VI --- Caja de herramientas}
+
+\section{Tabla de algoritmos y costos}
+
+\begin{center}\small
+\begin{tabular}{@{}llll@{}}
+\toprule
+\textbf{Problema} & \textbf{Algoritmo} & \textbf{Costo} & \textbf{Cap.} \\
+\midrule
+Matching estable & Gale--Shapley & $O(n^2)$ & 1.1 \\
+Ordenar / cola de prioridad & Mergesort, heap & $O(n\log n)$ / $O(\log n)$ por op. & 2.5 \\
+Recorrer un grafo & BFS, DFS & $O(n+m)$ & 3.3--3.4 \\
+Componentes conexas & BFS repetido & $O(n+m)$ & 3.4 \\
+Bipartición / ciclo impar & BFS por capas & $O(n+m)$ & 3.4 \\
+Alcanzabilidad dirigida & BFS dirigido & $O(n+m)$ & 3.5 \\
+Fuerte conexidad & BFS en $G$ y $G^{\mathrm{rev}}$ & $O(n+m)$ & 3.5 \\
+Orden topológico & grados de entrada (o DFS) & $O(n+m)$ & 3.6 \\
+Interval scheduling & greedy por $f(i)$ & $O(n\log n)$ & 4.1 \\
+Interval partitioning & greedy por $s(i)$ $+$ heap & $O(n\log n)$ & 4.1 \\
+Retraso máximo mínimo & EDF (greedy por $d_i$) & $O(n\log n)$ & 4.2 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{Cómo escribir la respuesta de un ejercicio}
+
+\begin{enumerate}[label=\textbf{\arabic*.}]
+\item \textbf{Modelo.} Definir con precisión los objetos (vértices, aristas, tareas,
+intervalos) y enunciar la equivalencia: ``el problema original tiene solución
+$\iff$ \emph{propiedad} del modelo''. Probar las dos implicaciones.
+\item \textbf{Algoritmo.} Pseudocódigo claro, y \emph{reescribir} los algoritmos del
+curso que se usen (BFS, orden topológico, etc.), no solo citarlos, si el enunciado lo
+pide.
+\item \textbf{Correctitud.} Para greedy: \emph{greedy stays ahead} o \emph{exchange
+argument}, explicitando el invariante o el intercambio. Para grafos: invariante del
+recorrido más la equivalencia del punto 1.
+\item \textbf{Complejidad.} Contar por fases (inicialización, ordenamiento, recorrido),
+decir qué estructura de datos se usa para cada operación y por qué es $O(1)$ o
+$O(\log n)$, y traducir $n$ y $m$ al tamaño real de la entrada.
+\end{enumerate}
+
+\section{Errores frecuentes}
+
+\begin{itemize}
+\item Usar matriz de adyacencia y después afirmar $O(n+m)$: recorrer los vecinos con
+matriz cuesta $O(n)$ por vértice, o sea $O(n^2)$ en total.
+\item Olvidar la inicialización: poner en \texttt{false} un arreglo de tamaño $n^2$ ya
+cuesta $\Theta(n^2)$ aunque el recorrido toque pocas casillas.
+\item Probar solo una implicación en una equivalencia (``si el grafo es conexo entonces
+hay solución'' sin el recíproco).
+\item En greedy, justificar con ejemplos en lugar de con una demostración; un
+contraejemplo alcanza para refutar una regla, pero ningún ejemplo alcanza para
+probarla.
+\item Suponer que un greedy es óptimo porque ``suena razonable'': las reglas de la
+tabla de 4.1 son, casi todas, falsas.
+\item Confundir orden topológico con orden por grado de entrada inicial: los contadores
+se \emph{actualizan} a medida que se eliminan vértices.
+\end{itemize}
+
+\end{document}

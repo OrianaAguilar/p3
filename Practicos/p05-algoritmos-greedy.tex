@@ -1,0 +1,358 @@
+\input{preambulo}
+
+\title{Práctico 5 --- Algoritmos greedy}
+\author{Programación 3 -- FING, UdelaR}
+\date{2026}
+
+\begin{document}
+\maketitle
+
+%=====================================================================
+\section{Ejercicio 1}
+
+\begin{enunciado}
+\textbf{(a)} Dados un valor $N$, entero positivo, y una cantidad ilimitada de monedas de valores
+10, 5, 2 y 1 pesos, presente un algoritmo que permita dar $N$ pesos usando una cantidad mínima
+de monedas.
+\textbf{(b)} Generalice el algoritmo para valores arbitrarios de las monedas.
+\textbf{(c)} Si los valores de las monedas fueran 4 y 3, ¿el algoritmo seguiría dando la solución
+óptima (esto es, con mínima cantidad de monedas)? ¿Y si los valores fueran 4, 3 y 1?
+\end{enunciado}
+
+\examref{Examen julio 2017, Pregunta~2 (b)--(c): el mismo algoritmo greedy de monedas, con
+exactamente los contraejemplos de la parte (c) ($M=6$ con monedas $\{3,4\}$, donde no encuentra
+solución, y con monedas $\{1,3,4\}$, donde encuentra una no óptima). También Examen febrero
+2018, Pregunta~2 (contraejemplos con $\{3,5\}$, $N=9$ y con $\{1,5,8\}$, $N=10$).}
+
+\subsection*{Parte (a)}
+Una solución es una cuádrupla $(a,b,c,d)$ de naturales (cantidad de monedas de 10, 5, 2 y 1) con
+$10a+5b+2c+d=N$; su costo es $a+b+c+d$. Siempre existe solución (por ejemplo $N$ monedas de 1) y
+hay finitas, así que existe una óptima.
+
+\paragraph{Algoritmo.} La elección greedy es: mientras falte dinero, dar la moneda de mayor valor
+que no supere lo que falta. Como siempre se repite la misma moneda hasta que deja de caber, se
+puede escribir con divisiones enteras:
+
+\begin{algorithm}[H]
+\caption{Cambio greedy con monedas de 10, 5, 2 y 1}
+\begin{algorithmic}[1]
+\Require $N\ge 1$
+\Ensure $(a,b,c,d)$ cantidades de monedas de 10, 5, 2 y 1
+\State $a\gets N \operatorname{div} 10$; \quad $N\gets N \bmod 10$
+\State $b\gets N \operatorname{div} 5$; \quad $N\gets N \bmod 5$
+\State $c\gets N \operatorname{div} 2$; \quad $N\gets N \bmod 2$
+\State $d\gets N$
+\State \Return $(a,b,c,d)$
+\end{algorithmic}
+\end{algorithm}
+Como hay monedas de 1, el resto final siempre se completa y el resultado es una solución. El
+tiempo de ejecución es $O(1)$ (cantidad constante de operaciones aritméticas); si se da moneda
+por moneda, es $O(\text{cantidad de monedas})=O(N)$.
+
+\paragraph{Correctitud.} Probamos que la solución óptima es \emph{única} y coincide con la
+greedy.
+
+\begin{lema}\label{lem:monedas}
+Si $(a,b,c,d)$ es una solución óptima, entonces $d\le 1$, $c\le 2$, $b\le 1$ y no se cumple a
+la vez $c=2$ y $d=1$. En consecuencia $2c+d\le 4$ y $5b+2c+d\le 9$.
+\end{lema}
+\begin{proof}
+En cada caso, si no se cumpliera, podríamos reemplazar algunas monedas por otras de igual
+suma total y menor cantidad, contradiciendo la optimalidad:
+\begin{itemize}
+  \item si $d\ge2$: cambiar dos monedas de 1 por una de 2 ($2$ monedas $\to 1$);
+  \item si $c\ge3$: cambiar tres monedas de 2 por una de 5 y una de 1 ($3\to 2$);
+  \item si $c\ge2$ y $d\ge1$: cambiar $2+2+1$ por una de 5 ($3\to1$);
+  \item si $b\ge2$: cambiar dos monedas de 5 por una de 10 ($2\to1$).
+\end{itemize}
+Con $d\le1$, $c\le2$ y $(c,d)\ne(2,1)$, los valores posibles de $2c+d$ son $0,1,2,3,4$, así que
+$2c+d\le4$; con $b\le1$ queda $5b+2c+d\le 9$.
+\end{proof}
+
+\begin{teorema}
+El algoritmo devuelve la única solución óptima.
+\end{teorema}
+\begin{proof}
+Sea $(a^*,b^*,c^*,d^*)$ una solución óptima. Como $N=10a^*+(5b^*+2c^*+d^*)$ con
+$0\le 5b^*+2c^*+d^*\le 9$ (lema), por la unicidad del cociente y el resto de la división entera,
+$a^*=N\operatorname{div}10$ y $5b^*+2c^*+d^*=N\bmod 10$. Llamemos $r_1=N\bmod 10$. Como
+$r_1=5b^*+(2c^*+d^*)$ con $0\le 2c^*+d^*\le4$, se tiene $b^*=r_1\operatorname{div}5$ y
+$2c^*+d^*=r_1\bmod 5=:r_2$. Finalmente $r_2=2c^*+d^*$ con $0\le d^*\le1$, así que
+$c^*=r_2\operatorname{div}2$ y $d^*=r_2\bmod 2$. Estos son exactamente los valores que calcula
+el algoritmo en los pasos 1--4. Luego la solución greedy es igual a toda solución óptima.
+\end{proof}
+
+\subsection*{Parte (b)}
+Sean $v_1,\dots,v_k$ los valores (enteros positivos y distintos) de las monedas. El algoritmo
+generalizado ordena los valores de mayor a menor y aplica la misma elección greedy: usar tantas
+monedas como entren de la mayor denominación que no supere el monto restante.
+
+\begin{algorithm}[H]
+\caption{Cambio greedy con valores arbitrarios}
+\begin{algorithmic}[1]
+\Require $N\ge1$; valores $v_1,\dots,v_k$
+\Ensure cantidades $(c_1,\dots,c_k)$, o ``no encontró solución''
+\State Ordenar los valores de modo que $v_1>v_2>\cdots>v_k$
+\For{$i$ desde $1$ hasta $k$}
+  \State $c_i\gets N\operatorname{div} v_i$
+  \State $N\gets N\bmod v_i$
+\EndFor
+\If{$N=0$} \State \Return $(c_1,\dots,c_k)$
+\Else \State \Return ``no encontró solución''
+\EndIf
+\end{algorithmic}
+\end{algorithm}
+
+El tiempo de ejecución es $O(k\log k)$ por el ordenamiento más $O(k)$ por el ciclo. Si alguna
+moneda vale 1, el algoritmo siempre devuelve una solución ($N\bmod 1=0$). Sin embargo, como
+muestra la parte (c), para valores arbitrarios el algoritmo \textbf{no} garantiza encontrar una
+solución ni que la que encuentre sea óptima; la demostración de la parte (a) usa propiedades
+particulares del sistema $\{10,5,2,1\}$ (el Lema~\ref{lem:monedas}).
+
+\begin{observacion}
+Para valores arbitrarios el problema se resuelve correctamente con programación dinámica:
+$\mathrm{OPT}(0)=0$ y $\mathrm{OPT}(x)=1+\min\{\mathrm{OPT}(x-v_i): v_i\le x\}$ (con
+$\min\emptyset=\infty$), en tiempo $O(Nk)$, que es pseudo-polinomial.
+\end{observacion}
+
+\subsection*{Parte (c)}
+\textbf{Monedas de 4 y 3: no.} Con $N=6$, el algoritmo toma una moneda de 4 ($6\operatorname{div}4=1$)
+y queda $N=2$; como $2<3$ no puede dar más monedas y termina con resto $2\ne 0$: no encuentra
+solución. Pero existe la solución óptima $3+3$ (dos monedas). (Otro ejemplo: $N=9$, el algoritmo
+da $4+4$ y queda resto 1, mientras que $3+3+3$ es solución.)
+
+\textbf{Monedas de 4, 3 y 1: tampoco.} Ahora siempre encuentra una solución (hay moneda de 1),
+pero no necesariamente óptima. Con $N=6$ el algoritmo da $4+1+1$ (tres monedas), mientras que
+$3+3$ usa dos monedas.
+
+%=====================================================================
+\section{Ejercicio 2}
+
+\begin{enunciado}
+(K\&T, Ex.~4.5) Hay casas a lo largo de una carretera recta, cada una dada por su distancia
+$x_i$ al inicio de la carretera. Se quieren ubicar estaciones de modo que ninguna casa esté a más
+de 4 km de una estación.
+\textbf{(a)} Dé un algoritmo eficiente que determine la ubicación de las estaciones de manera que
+se satisfaga el requerimiento de cobertura con la menor cantidad posible de estaciones.
+\textbf{(b)} Demuestre la corrección de su algoritmo. \emph{Sugerencia:} siga una estrategia
+similar a la de la sección 4.1 del libro.
+\end{enunciado}
+
+\examref{Es el mismo problema que el Primer parcial 2020, Ej.~2 (tiempos de emisión de un
+mensaje que cubran todas las clases) y el Primer parcial 2023, Ej.~3 (horas de entrega del
+carpintero): cada casa $x$ define el intervalo $[x-4,x+4]$ de posiciones de estación que la
+cubren, y se busca un conjunto mínimo de puntos que \emph{pinche} todos los intervalos. Nuestro
+algoritmo es el de las soluciones oficiales (elegir el menor extremo derecho entre los intervalos
+no cubiertos) y la demostración sigue la misma estructura ``greedy está por delante''.}
+
+\subsection*{Parte (a)}
+Decimos que una estación en la posición $p$ \emph{cubre} la casa $x$ si $|x-p|\le 4$. Idea
+greedy: la casa más a la izquierda que todavía no está cubierta tiene que ser cubierta por alguna
+estación; la ponemos \emph{lo más a la derecha posible}, a 4 km a su derecha, para cubrir la
+mayor cantidad posible de casas siguientes.
+
+\begin{algorithm}[H]
+\caption{Ubicación greedy de estaciones}
+\begin{algorithmic}[1]
+\Require posiciones de las casas $x_1,\dots,x_n$
+\Ensure posiciones de las estaciones $s_1<\dots<s_k$
+\State Ordenar las casas de modo que $x_1\le x_2\le\cdots\le x_n$
+\State $i\gets 1$; \ $k\gets 0$
+\While{$i\le n$} \Comment{$x_i$ es la casa no cubierta más a la izquierda}
+  \State $k\gets k+1$; \ $s_k\gets x_i+4$
+  \While{$i\le n$ \textbf{y} $x_i\le s_k+4$} \Comment{marcar como cubiertas}
+    \State $i\gets i+1$
+  \EndWhile
+\EndWhile
+\State \Return $s_1,\dots,s_k$
+\end{algorithmic}
+\end{algorithm}
+
+\paragraph{Tiempo de ejecución.} El ordenamiento cuesta $O(n\log n)$. En el resto, el índice
+$i$ sólo aumenta y lo hace a lo sumo $n$ veces; cada iteración del ciclo externo incrementa $i$
+al menos una vez (la casa $x_i$ con la que se define $s_k$ cumple $x_i\le s_k+4$). Por lo tanto
+los ciclos cuestan $O(n)$ y el total es $O(n\log n)$ ($O(n)$ si las casas vienen ordenadas).
+
+\subsection*{Parte (b)}
+Para cada $j$, sea $y_j$ la casa $x_i$ con la que se define $s_j=y_j+4$ en el paso 4.
+
+\begin{lema}\label{lem:valida}
+\begin{enumerate}[label=(\alph*)]
+  \item Las casas que el ciclo interno marca en la iteración $j$ están cubiertas por $s_j$.
+  \item Al comenzar la iteración $j+1$ se cumple $y_{j+1}>s_j+4$. En particular
+        $s_1<s_2<\dots<s_k$.
+  \item El algoritmo termina y toda casa queda cubierta: el resultado es una solución.
+\end{enumerate}
+\end{lema}
+\begin{proof}
+(a) Las casas marcadas en la iteración $j$ son las $x$ con $y_j\le x\le s_j+4$ (las casas están
+ordenadas y se marcan a partir de $y_j$). Como $s_j=y_j+4$, se tiene $s_j-4\le x\le s_j+4$, es
+decir $|x-s_j|\le 4$.
+(b) El ciclo interno de la iteración $j$ termina con $i>n$ o con $x_i>s_j+4$; si comienza la
+iteración $j+1$ es porque $i\le n$, así que $y_{j+1}=x_i>s_j+4$. Luego
+$s_{j+1}=y_{j+1}+4>s_j+8>s_j$.
+(c) Cada iteración del ciclo externo incrementa $i$ (ver el análisis de tiempo), así que el
+algoritmo termina, y lo hace con $i>n$, es decir, con todas las casas marcadas; por (a) todas
+están cubiertas.
+\end{proof}
+
+Sea ahora $O=\{o_1<o_2<\dots<o_m\}$ una solución cualquiera (posiciones distintas, ordenadas de
+menor a mayor; si una solución repitiera posiciones, eliminando repeticiones se obtiene otra con
+menos estaciones). Mostramos que el algoritmo está ``por delante'' de $O$: sus estaciones están
+siempre a la derecha (o en el mismo lugar) que las de $O$, de modo que cubren al menos lo mismo.
+
+\begin{proposicion}\label{prop:adelante}
+Para todo $j$, $1\le j\le\min\{k,m\}$, se cumple $o_j\le s_j$.
+\end{proposicion}
+\begin{proof}
+Por inducción en $j$.
+
+\emph{Caso $j=1$.} Tenemos $y_1=x_1$ y $s_1=x_1+4$. Como $O$ es solución, la casa $x_1$ está
+cubierta por alguna $o_l$, de modo que $o_l\le x_1+4$. Como $o_1\le o_l$, resulta
+$o_1\le x_1+4=s_1$.
+
+\emph{Paso inductivo.} Supongamos $o_j\le s_j$ para cierto $j<\min\{k,m\}$. Por el
+Lema~\ref{lem:valida}(b) y la hipótesis de inducción,
+\[
+y_{j+1}>s_j+4\ge o_j+4\ge o_l+4\qquad\text{para todo } l\le j,
+\]
+así que ninguna de las estaciones $o_1,\dots,o_j$ cubre la casa $y_{j+1}$. Como $O$ es
+solución, $y_{j+1}$ está cubierta por alguna $o_l$ con $l\ge j+1$, y entonces
+$o_{j+1}\le o_l\le y_{j+1}+4=s_{j+1}$.
+\end{proof}
+
+\begin{teorema}
+El algoritmo devuelve una solución con la mínima cantidad de estaciones.
+\end{teorema}
+\begin{proof}
+Por el Lema~\ref{lem:valida}(c) el resultado es una solución. Sea $O$ una solución
+cualquiera con $m$ estaciones, como antes; veamos que $k\le m$. Supongamos por absurdo que
+$k>m$. Entonces existe la iteración $m+1$ y, por el Lema~\ref{lem:valida}(b) y la
+Proposición~\ref{prop:adelante} con $j=m$,
+\[
+y_{m+1}>s_m+4\ge o_m+4\ge o_l+4\qquad\text{para todo } l\le m,
+\]
+por lo que la casa $y_{m+1}$ no está cubierta por ninguna estación de $O$, lo que contradice que
+$O$ sea solución. Luego $k\le m$ y, como $O$ es arbitraria, la solución greedy es óptima.
+\end{proof}
+
+\begin{observacion}
+Si la carretera termina en la posición $L$ (con todas las casas en $[0,L]$) y las estaciones deben
+estar sobre la carretera, basta usar $s_k\gets\min\{x_i+4,\,L\}$ en el paso 4. La demostración es
+la misma: si $s_k=L$ todas las casas restantes están en $[L-4,L]$ y quedan cubiertas, y en la
+proposición se usa además que $o_l\le L$.
+\end{observacion}
+
+%=====================================================================
+\section{Ejercicio 3}
+
+\begin{enunciado}
+(K\&T, Ex.~4.6) En un triatlón, para cada participante $i$ se tiene una estimación del tiempo de
+natación $s_i$, de ciclismo $b_i$ y de carrera $r_i$. La piscina sólo puede ser usada por un
+nadador a la vez; las etapas posteriores pueden desarrollarse simultáneamente por varios
+competidores. Se quiere determinar en qué orden largan los competidores (uno a la vez) para
+minimizar la duración de la competencia, que termina cuando el último participante llega a la
+meta.
+\textbf{(a)} Dé un algoritmo eficiente para resolver el problema.
+\textbf{(b)} Demuestre la corrección de su algoritmo.
+\end{enunciado}
+
+\examref{El Primer parcial 2022, Ej.~2 (panadería: preparación en paralelo y horneado de a uno)
+es la versión ``espejada'' de este problema: allí la etapa compartida es la última y se ordena
+por preparación creciente; aquí la etapa compartida es la primera y se ordena por
+$b_i+r_i$ decreciente. Seguimos la misma técnica de la solución oficial: \emph{exchange
+argument} sobre inversiones entre posiciones contiguas.}
+
+\paragraph{Modelo.} Sea $t_i=b_i+r_i$ el tiempo que le lleva al participante $i$ terminar
+una vez que sale de la piscina. Una solución es un orden $O=(o_1,\dots,o_n)$ de largada. Podemos
+suponer que la piscina nunca queda ociosa: cada nadador entra apenas sale el anterior (dejar la
+piscina vacía un tiempo sólo atrasa a todos los que vienen después y no adelanta a nadie). Así,
+el participante $o_j$ sale de la piscina en el instante $\sum_{l\le j}s_{o_l}$ y llega a la
+meta en
+\[
+F_j(O)=\sum_{l=1}^{j} s_{o_l}+t_{o_j},
+\qquad\text{y la duración de la competencia es}\qquad
+T(O)=\max_{1\le j\le n} F_j(O).
+\]
+Queremos un orden $O$ que minimice $T(O)$.
+
+\subsection*{Parte (a)}
+Hacer largar primero a los que más tardan en las etapas que se hacen en paralelo.
+
+\begin{algorithm}[H]
+\caption{Orden de largada del triatlón}
+\begin{algorithmic}[1]
+\Require $(s_i,b_i,r_i)$ para $i=1,\dots,n$
+\Ensure orden de largada $G=(g_1,\dots,g_n)$
+\State Calcular $t_i=b_i+r_i$ para cada $i$
+\State Ordenar los participantes de modo que $t_{g_1}\ge t_{g_2}\ge\cdots\ge t_{g_n}$ (empates en cualquier orden)
+\State \Return $G$
+\end{algorithmic}
+\end{algorithm}
+El tiempo de ejecución es $O(n)$ para el paso 1 más $O(n\log n)$ para el ordenamiento:
+$O(n\log n)$.
+
+\paragraph{Otros criterios naturales no funcionan.} Por ejemplo, ordenar por natación
+creciente: con $1$: $(s,t)=(1,1)$ y $2$: $(s,t)=(10,100)$, el orden $(1,2)$ da
+$T=\max\{2,\,111\}=111$, mientras que $(2,1)$ da $T=\max\{110,\,12\}=110$. Ordenar sólo por
+carrera $r_i$ decreciente: con $1$: $(s,b,r)=(1,10,0)$ y $2$: $(s,b,r)=(1,0,1)$, ese criterio
+da $(2,1)$ con $T=\max\{2,12\}=12$, pero $(1,2)$ da $T=\max\{11,3\}=11$.
+
+\subsection*{Parte (b)}
+Fijemos el orden $G=(g_1,\dots,g_n)$ que devuelve el algoritmo. Dado otro orden $O$, decimos que
+dos participantes $p,q$ forman una \emph{inversión} de $O$ (respecto de $G$) si aparecen en
+distinto orden relativo en $O$ y en $G$. $G$ es el único orden sin inversiones.
+
+\begin{lema}\label{lem:contigua}
+Si $O\neq G$, entonces existen dos participantes \emph{contiguos} en $O$, $o_j$ y $o_{j+1}$, que
+forman una inversión (es decir, $o_{j+1}$ está antes que $o_j$ en $G$).
+\end{lema}
+\begin{proof}
+Sea $\pi(p)$ la posición de $p$ en $G$. Si no hubiera inversiones contiguas, se cumpliría
+$\pi(o_1)<\pi(o_2)<\dots<\pi(o_n)$; como $\pi$ es una biyección sobre $\{1,\dots,n\}$, esto
+implica $\pi(o_j)=j$ para todo $j$, es decir $O=G$.
+\end{proof}
+
+\begin{lema}\label{lem:intercambio}
+Sean $p=o_j$ y $q=o_{j+1}$ contiguos en $O$ formando una inversión, y sea $O'$ el orden que
+resulta de intercambiarlos. Entonces $T(O')\le T(O)$, y $O'$ tiene exactamente una inversión
+menos que $O$.
+\end{lema}
+\begin{proof}
+Como $q$ está antes que $p$ en $G$ y $G$ está ordenado por $t$ decreciente, $t_q\ge t_p$. Sea
+$A=\sum_{l<j}s_{o_l}$ el tiempo de natación de los que largan antes que ambos.
+Para los participantes en posiciones $l<j$ o $l>j+1$ la suma de tiempos de natación hasta ellos
+inclusive no cambia (es la misma suma de términos), así que su tiempo de llegada es el mismo en
+$O$ y en $O'$. Para $p$ y $q$:
+\[
+\begin{array}{ll}
+\text{en } O: & F_p=A+s_p+t_p,\qquad F_q=A+s_p+s_q+t_q,\\[2pt]
+\text{en } O': & F'_q=A+s_q+t_q,\qquad F'_p=A+s_q+s_p+t_p .
+\end{array}
+\]
+Entonces $F'_q\le F_q$ (porque $s_p\ge0$) y $F'_p=A+s_p+s_q+t_p\le A+s_p+s_q+t_q=F_q$ (porque
+$t_p\le t_q$). Así $\max\{F'_p,F'_q\}\le F_q\le T(O)$ y, como los demás tiempos de llegada no
+cambian, $T(O')\le T(O)$.
+
+Por último, el intercambio de dos elementos contiguos sólo cambia el orden relativo del par
+$\{p,q\}$, que pasa a coincidir con el de $G$; el orden relativo de cualquier otro par no cambia.
+Luego $O'$ tiene una inversión menos.
+\end{proof}
+
+\begin{teorema}
+El orden $G$ devuelto por el algoritmo es óptimo.
+\end{teorema}
+\begin{proof}
+Sea $O^*$ un orden óptimo (existe porque hay finitos órdenes). Si $O^*=G$ no hay nada que
+probar. Si no, por el Lema~\ref{lem:contigua} tiene una inversión contigua y por el
+Lema~\ref{lem:intercambio} al intercambiarla obtenemos un orden con una inversión menos y
+duración no mayor. Repitiendo, como la cantidad de inversiones es un natural (a lo sumo
+$\binom n2$) que disminuye en uno en cada paso, después de finitos intercambios llegamos a un
+orden sin inversiones, que es $G$, y en cada paso la duración no aumentó:
+\[
+T(G)\le\cdots\le T(O^*).
+\]
+Como $O^*$ es óptimo, $T(G)=T(O^*)$ y $G$ también es óptimo.
+\end{proof}
+
+\end{document}

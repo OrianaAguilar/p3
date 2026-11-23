@@ -1,0 +1,336 @@
+\input{preambulo}
+
+\tikzset{
+  nodo/.style={circle,draw,minimum size=7mm,inner sep=0pt},
+  ar/.style={-{Stealth[length=2.5mm]},thick},
+  fw/.style={-{Stealth[length=2.5mm]},thick,black},
+  bw/.style={-{Stealth[length=2.5mm]},thick,red!70!black,dashed},
+  cam/.style={-{Stealth[length=2.5mm]},line width=1.6pt,blue!70!black},
+  lab/.style={font=\small,fill=white,inner sep=1pt}
+}
+% Coloca los nodos de la red del Ejercicio 1
+\newcommand{\nodosred}{%
+  \node[nodo] (s) at (0,0) {$s$};
+  \node[nodo] (u) at (2.6,1.5) {$u$};
+  \node[nodo] (w) at (2.6,0) {$w$};
+  \node[nodo] (y) at (2.6,-1.5) {$y$};
+  \node[nodo] (v) at (5.2,1.5) {$v$};
+  \node[nodo] (x) at (5.2,0) {$x$};
+  \node[nodo] (z) at (5.2,-1.5) {$z$};
+  \node[nodo] (t) at (7.8,0) {$t$};
+}
+
+\title{Práctico 10 --- Flujo en redes}
+\author{Programación 3 --- FING, UdelaR}
+\date{}
+
+\begin{document}
+\maketitle
+
+\paragraph{Resultados del libro que usamos.} Para una red de flujo $G=(V,E)$ con fuente $s$, sumidero $t$ y capacidades $c_e$:
+\begin{itemize}
+\item Para todo flujo $f$ y todo corte $s$-$t$ $(A,B)$: $v(f)=f^{\mathrm{out}}(A)-f^{\mathrm{in}}(A)\le c(A,B)$ (7.6 y 7.8).
+\item \textbf{Flujo máximo -- corte mínimo (7.13):} el valor máximo de un flujo es igual a la capacidad mínima de un corte. Si $f$ no admite camino $s$-$t$ en el grafo residual $G_f$, entonces $f$ es máximo, y el conjunto $A$ de vértices alcanzables desde $s$ en $G_f$ define un corte $(A,V\setminus A)$ de capacidad mínima con $c(A,V\setminus A)=v(f)$ (7.9, 7.11).
+\item \textbf{Integralidad (7.14):} si las capacidades son enteras, Ford-Fulkerson devuelve un flujo máximo con todos sus valores $f(e)$ enteros.
+\item \textbf{Complejidad (7.5):} con capacidades enteras, Ford-Fulkerson se ejecuta en $\Oh(mC)$, donde $C=\sum_{e \text{ sale de } s}c_e$ (cota de la cantidad de aumentos) y $m$ acota el costo de construir $G_f$ y buscar en él un camino de aumento.
+\end{itemize}
+
+%======================================================================
+\section{Ejercicio 1}
+\begin{enunciado}
+Sea la red de flujo $G$ con capacidad constante de valor uno y flujo-$(s,t)$ $f$ según aristas indicado en la figura.
+\begin{enumerate}[label=(\alph*)]
+\item Encuentre un corte $s$-$t$ de capacidad 3. Determine por inspección si ese corte es de capacidad mínima.
+\item Calcule el valor del flujo. Analice si el flujo es de valor máximo.
+\item Si el flujo no es de valor máximo aplique el algoritmo de Ford-Fulkerson para determinar uno. [Mostrar los pasos del algoritmo mediante secuencias de grafos residuales.]
+\end{enumerate}
+\end{enunciado}
+
+\examref{Ejercicio de aplicación de Ford-Fulkerson y cortes; similar al Segundo parcial 2025, Ej.~1(c)--(d) (grafo residual, flujo máximo, corte mínimo a partir de $G_r$) y al Examen diciembre 2018, Ej.~4 (obtener un corte mínimo a partir de $G_f$).}
+
+La red, con el flujo $f(e)$ de cada arista (todas las capacidades valen $1$):
+
+\begin{center}
+\begin{tikzpicture}
+\nodosred
+\draw[ar] (s) -- node[lab]{$1$} (u);
+\draw[ar] (s) -- node[lab]{$0$} (w);
+\draw[ar] (s) -- node[lab]{$0$} (y);
+\draw[ar] (u) -- node[lab]{$0$} (v);
+\draw[ar] (u) -- node[lab,pos=0.3]{$1$} (x);
+\draw[ar] (w) -- node[lab,pos=0.3]{$0$} (x);
+\draw[ar] (w) -- node[lab,pos=0.3]{$0$} (z);
+\draw[ar] (y) -- node[lab]{$0$} (z);
+\draw[ar] (v) -- node[lab]{$0$} (t);
+\draw[ar] (x) -- node[lab]{$1$} (t);
+\draw[ar] (z) -- node[lab]{$0$} (t);
+\end{tikzpicture}
+\end{center}
+
+Aristas: $(s,u)$, $(s,w)$, $(s,y)$, $(u,v)$, $(u,x)$, $(w,x)$, $(w,z)$, $(y,z)$, $(v,t)$, $(x,t)$, $(z,t)$, con $f=1$ en $(s,u),(u,x),(x,t)$ y $f=0$ en el resto.
+
+\subsection*{(a) Un corte de capacidad 3}
+
+Sea $A=\{s,u,v,w,x,y,z\}$, $B=\{t\}$. Las aristas que salen de $A$ hacia $B$ son $(v,t),(x,t),(z,t)$, así que
+\[ c(A,B)=1+1+1=3. \]
+(Otro corte de capacidad 3 es $(\{s\},V\setminus\{s\})$, con aristas salientes $(s,u),(s,w),(s,y)$.)
+
+\textbf{Es de capacidad mínima.} Por inspección, la red tiene tres caminos $s$-$t$ que no comparten aristas:
+\[ s\to u\to v\to t,\qquad s\to w\to x\to t,\qquad s\to y\to z\to t. \]
+Enviando una unidad por cada uno se obtiene un flujo válido (cada arista lleva a lo sumo $1$ y se conserva el flujo en cada nodo intermedio) de valor $3$. Como el valor de cualquier flujo es menor o igual que la capacidad de cualquier corte, todo corte tiene capacidad $\ge 3$. Luego el corte $(A,B)$ de capacidad $3$ es de capacidad mínima, y el flujo máximo vale $3$.
+
+\subsection*{(b) Valor del flujo $f$}
+
+$v(f)=f^{\mathrm{out}}(s)=f(s,u)+f(s,w)+f(s,y)=1+0+0=1$. (Se verifica que $f$ es un flujo: cumple las capacidades y la conservación; en $u$ entra $1$ y sale $1$ por $(u,x)$, en $x$ entra $1$ y sale $1$ por $(x,t)$, y en el resto de los nodos intermedios entra y sale $0$.)
+
+$f$ \textbf{no es máximo}: en (a) mostramos un flujo de valor $3>1$. Equivalentemente, $v(f)=1<3=$ capacidad mínima de un corte.
+
+\subsection*{(c) Ford-Fulkerson a partir de $f$}
+
+Como todas las capacidades son $1$ y los flujos son $0$ o $1$, en el grafo residual cada arista $e=(a,b)$ de $G$ aparece exactamente de una forma, con capacidad residual $1$: como arista \emph{hacia adelante} $(a,b)$ si $f(e)=0$, o como arista \emph{hacia atrás} $(b,a)$ si $f(e)=1$. En las figuras, las aristas hacia adelante son negras y las hacia atrás rojas punteadas (todas de capacidad residual $1$); en azul grueso se marca el camino de aumento elegido.
+
+\paragraph{Iteración 1.} Grafo residual $G_f$ del flujo inicial ($v(f)=1$). Elegimos el camino de aumento $P_1: s\to y\to z\to t$, de cuello de botella $1$.
+
+\begin{center}
+\begin{tikzpicture}
+\nodosred
+\draw[bw] (u) -- (s);
+\draw[fw] (s) -- (w);
+\draw[cam] (s) -- (y);
+\draw[fw] (u) -- (v);
+\draw[bw] (x) -- (u);
+\draw[fw] (w) -- (x);
+\draw[fw] (w) -- (z);
+\draw[cam] (y) -- (z);
+\draw[fw] (v) -- (t);
+\draw[bw] (t) -- (x);
+\draw[cam] (z) -- (t);
+\node at (3.9,-2.4) {$G_f$, \ $v(f)=1$};
+\end{tikzpicture}
+\end{center}
+
+Aumentando por $P_1$ obtenemos $f_2$ con $f_2(s,y)=f_2(y,z)=f_2(z,t)=1$ y $v(f_2)=2$.
+
+\paragraph{Iteración 2.} Grafo residual $G_{f_2}$. Ya no hay camino ``solo hacia adelante'': la única forma de llegar a $t$ es por $(v,t)$, y para llegar a $v$ hay que pasar por $u$, a lo que solo se llega usando la arista hacia atrás $(x,u)$. Elegimos $P_2: s\to w\to x\to u\to v\to t$, de cuello de botella $1$.
+
+\begin{center}
+\begin{tikzpicture}
+\nodosred
+\draw[bw] (u) -- (s);
+\draw[cam] (s) -- (w);
+\draw[bw] (y) -- (s);
+\draw[cam] (u) -- (v);
+\draw[cam,red!70!black] (x) -- (u);
+\draw[cam] (w) -- (x);
+\draw[fw] (w) -- (z);
+\draw[bw] (z) -- (y);
+\draw[cam] (v) -- (t);
+\draw[bw] (t) -- (x);
+\draw[bw] (t) -- (z);
+\node at (3.9,-2.4) {$G_{f_2}$, \ $v(f_2)=2$};
+\end{tikzpicture}
+\end{center}
+
+Al aumentar por $P_2$: $f(s,w)$, $f(w,x)$, $f(u,v)$, $f(v,t)$ pasan de $0$ a $1$, y, como $(x,u)$ es arista hacia atrás, $f(u,x)$ pasa de $1$ a $0$ (se ``deshace'' el flujo que iba por $u\to x$ y se redirige por $u\to v$). Obtenemos $f_3$ con $v(f_3)=3$:
+
+\begin{center}
+\begin{tikzpicture}
+\nodosred
+\draw[ar] (s) -- node[lab]{$1$} (u);
+\draw[ar] (s) -- node[lab]{$1$} (w);
+\draw[ar] (s) -- node[lab]{$1$} (y);
+\draw[ar] (u) -- node[lab]{$1$} (v);
+\draw[ar] (u) -- node[lab,pos=0.3]{$0$} (x);
+\draw[ar] (w) -- node[lab,pos=0.3]{$1$} (x);
+\draw[ar] (w) -- node[lab,pos=0.3]{$0$} (z);
+\draw[ar] (y) -- node[lab]{$1$} (z);
+\draw[ar] (v) -- node[lab]{$1$} (t);
+\draw[ar] (x) -- node[lab]{$1$} (t);
+\draw[ar] (z) -- node[lab]{$1$} (t);
+\node at (3.9,-2.4) {Flujo $f_3$ en $G$, \ $v(f_3)=3$};
+\end{tikzpicture}
+\end{center}
+
+\paragraph{Iteración 3.} Grafo residual $G_{f_3}$: las tres aristas que salen de $s$ están saturadas, así que en $G_{f_3}$ el nodo $s$ no tiene aristas salientes y no hay camino de $s$ a $t$. El algoritmo termina.
+
+\begin{center}
+\begin{tikzpicture}
+\nodosred
+\draw[bw] (u) -- (s);
+\draw[bw] (w) -- (s);
+\draw[bw] (y) -- (s);
+\draw[bw] (v) -- (u);
+\draw[fw] (u) -- (x);
+\draw[bw] (x) -- (w);
+\draw[fw] (w) -- (z);
+\draw[bw] (z) -- (y);
+\draw[bw] (t) -- (v);
+\draw[bw] (t) -- (x);
+\draw[bw] (t) -- (z);
+\node at (3.9,-2.4) {$G_{f_3}$, \ $v(f_3)=3$};
+\end{tikzpicture}
+\end{center}
+
+\textbf{Conclusión.} $f_3$ es un flujo máximo, de valor $3$. El conjunto de vértices alcanzables desde $s$ en $G_{f_3}$ es $A^\ast=\{s\}$, y el corte $(\{s\},V\setminus\{s\})$ tiene capacidad $3=v(f_3)$, lo que certifica la optimalidad (y confirma lo visto en (a)).
+
+%======================================================================
+\section{Ejercicio 2}
+\begin{enunciado}
+(Kleinberg \& Tardos, Ex.~7.5). Indicar si la siguiente afirmación es verdadera o falsa. Si es verdadera, dar una breve explicación. Si es falsa, dar un contraejemplo.
+
+\emph{Sea una red de flujo $G$ con fuente $s$, destino $t$ y capacidad positiva $c_e$ para cada arista $e\in E$. Sea $(A,B)$ un corte de mínima capacidad del flujo $(s,t)$. Si se incrementa en una unidad la capacidad de cada arista entonces el corte $(A,B)$ sigue siendo de mínima capacidad con respecto a las capacidades $\{c_e+1 : e\in E\}$ en G.}
+\end{enunciado}
+
+\examref{Examen julio 2023, Ej.~(b) del ejercicio de flujo: es exactamente esta afirmación. Usamos el mismo contraejemplo de la solución oficial.}
+
+\textbf{La afirmación es falsa.}
+
+\textbf{Idea.} Si $k(A,B)$ es la cantidad de aristas que salen de $A$ hacia $B$, con las nuevas capacidades
+\[ c'(A,B)=\sum_{e \text{ sale de } A}(c_e+1)=c(A,B)+k(A,B). \]
+Un corte mínimo con muchas aristas puede ser superado por otro corte de igual (o un poco mayor) capacidad original pero con menos aristas.
+
+\textbf{Contraejemplo.} Sea la red con aristas $(s,a)$ de capacidad $3$, $(s,b)$ de capacidad $4$, $(a,b)$ de capacidad $1$, $(a,t)$ de capacidad $1$ y $(b,t)$ de capacidad $5$:
+
+\begin{center}
+\begin{tikzpicture}
+\node[nodo] (s) at (0,0) {$s$};
+\node[nodo] (a) at (2.5,1.3) {$a$};
+\node[nodo] (b) at (2.5,-1.3) {$b$};
+\node[nodo] (t) at (5,0) {$t$};
+\draw[ar] (s) -- node[lab]{$3$} (a);
+\draw[ar] (s) -- node[lab]{$4$} (b);
+\draw[ar] (a) -- node[lab]{$1$} (b);
+\draw[ar] (a) -- node[lab]{$1$} (t);
+\draw[ar] (b) -- node[lab]{$5$} (t);
+\end{tikzpicture}
+\end{center}
+
+Los cortes $s$-$t$ son los cuatro conjuntos $A\ni s$ con $t\notin A$:
+
+\begin{center}
+\begin{tabular}{lllcc}
+\toprule
+$A$ & aristas salientes de $A$ & $k$ & $c(A,B)$ & $c'(A,B)$ \\
+\midrule
+$\{s\}$ & $(s,a),(s,b)$ & 2 & $3+4=7$ & $9$ \\
+$\{s,a\}$ & $(s,b),(a,b),(a,t)$ & 3 & $4+1+1=6$ & $9$ \\
+$\{s,b\}$ & $(s,a),(b,t)$ & 2 & $3+5=8$ & $10$ \\
+$\{s,a,b\}$ & $(a,t),(b,t)$ & 2 & $1+5=6$ & $8$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Con las capacidades originales, $(A,B)=(\{s,a\},\{b,t\})$ es un corte de capacidad mínima ($6$). Con las capacidades incrementadas su capacidad pasa a ser $9$, mientras que $(\{s,a,b\},\{t\})$ tiene capacidad $8<9$. Por lo tanto $(\{s,a\},\{b,t\})$ deja de ser de capacidad mínima, y la afirmación es falsa.
+
+\begin{observacion}
+En cambio, si todas las capacidades se \emph{multiplican} por una constante $\lambda>0$, todo corte mínimo sigue siendo mínimo, porque $c'(A,B)=\lambda\, c(A,B)$ para todo corte y el orden entre cortes se preserva. Al \emph{sumar} una constante, el término $k(A,B)$ depende del corte y el orden puede cambiar, como en el ejemplo.
+\end{observacion}
+
+%======================================================================
+\section{Ejercicio 3}
+\begin{enunciado}
+(Kleinberg \& Tardos, Ex.~7.9). Por inundaciones, hay $n$ pacientes que deben ser trasladados a alguno de los $k$ hospitales de la región. Cada paciente debe ir a un hospital que esté a lo sumo a media hora de traslado de su ubicación (distintos pacientes tienen distintas opciones). Además, para no sobrecargar los hospitales, cada hospital debe recibir a lo sumo $\lceil n/k\rceil$ pacientes. Se quiere decidir si se puede elegir un hospital para cada paciente cumpliendo estas condiciones.
+\begin{enumerate}[label=(\alph*)]
+\item Proporcione un algoritmo de tiempo polinomial en $n$ y $k$ que, a partir de las ubicaciones de los pacientes, determine si el traslado es posible en dichas condiciones. Sugerencia: modele el problema mediante una red con $k$ nodos que representan hospitales, $n$ nodos que representan pacientes, un nodo fuente y un nodo sumidero.
+\item Muestre la corrección de su algoritmo.
+\item Analice la complejidad de su algoritmo.
+\end{enumerate}
+\end{enunciado}
+
+\examref{La técnica (red bipartita fuente $\to$ oferta $\to$ demanda $\to$ sumidero, y respuesta afirmativa si y solo si el flujo máximo satura las aristas de un lado) es la de la solución oficial del Examen febrero 2023, Ej.~1 (reservas de sangre de un hospital); ver también Examen diciembre 2021, Ej.~3 (asignación de personal de enfermería).}
+
+Suponemos que, a partir de las ubicaciones, se puede determinar en $\Oh(1)$ si el hospital $j$ está a lo sumo a media hora del paciente $i$ (por ejemplo, contando con la tabla de tiempos de traslado, o con una función que los calcula). Llamamos $R_i\subseteq\{1,\dots,k\}$ al conjunto de hospitales admisibles para el paciente $i$, y $L=\lceil n/k\rceil$.
+
+Una \emph{asignación válida} es una función $h:\{1,\dots,n\}\to\{1,\dots,k\}$ tal que $h(i)\in R_i$ para todo $i$ y $|\{i : h(i)=j\}|\le L$ para todo $j$.
+
+\subsection*{(a) Algoritmo}
+
+\textbf{Construcción de la red $G=(V,E)$.}
+\begin{itemize}
+\item Nodos: una fuente $s$, un sumidero $t$, un nodo $p_i$ por cada paciente ($1\le i\le n$) y un nodo $q_j$ por cada hospital ($1\le j\le k$).
+\item Aristas $(s,p_i)$ con capacidad $1$, para cada paciente $i$.
+\item Aristas $(p_i,q_j)$ con capacidad $1$, para cada par con $j\in R_i$ (el hospital $j$ está a lo sumo a media hora del paciente $i$).
+\item Aristas $(q_j,t)$ con capacidad $L=\lceil n/k\rceil$, para cada hospital $j$.
+\end{itemize}
+
+\begin{center}
+\begin{tikzpicture}[xscale=1.1]
+\node[nodo] (s) at (0,0) {$s$};
+\node[nodo] (p1) at (2.5,1.8) {$p_1$};
+\node[nodo] (p2) at (2.5,0.6) {$p_2$};
+\node (pd) at (2.5,-0.5) {$\vdots$};
+\node[nodo] (pn) at (2.5,-1.8) {$p_n$};
+\node[nodo] (q1) at (5.5,1.2) {$q_1$};
+\node (qd) at (5.5,0.1) {$\vdots$};
+\node[nodo] (qk) at (5.5,-1.2) {$q_k$};
+\node[nodo] (t) at (8,0) {$t$};
+\draw[ar] (s) -- node[lab]{$1$} (p1);
+\draw[ar] (s) -- node[lab]{$1$} (p2);
+\draw[ar] (s) -- node[lab]{$1$} (pn);
+\draw[ar] (p1) -- node[lab]{$1$} (q1);
+\draw[ar] (p2) -- node[lab,pos=0.3]{$1$} (qk);
+\draw[ar] (p2) -- node[lab,pos=0.3]{$1$} (q1);
+\draw[ar] (pn) -- node[lab]{$1$} (qk);
+\draw[ar] (q1) -- node[lab]{$\lceil n/k\rceil$} (t);
+\draw[ar] (qk) -- node[lab]{$\lceil n/k\rceil$} (t);
+\end{tikzpicture}
+\end{center}
+
+\begin{algorithm}[H]
+\caption{Traslado equilibrado de pacientes}
+\begin{algorithmic}[1]
+\Require $n$ pacientes, $k$ hospitales, y para cada par $(i,j)$ si el hospital $j$ está a lo sumo a media hora del paciente $i$
+\Ensure ``sí'' (y una asignación válida) si existe una, ``no'' en caso contrario
+\State Construir la red $G$ descrita arriba
+\State $f\gets$ \Call{FordFulkerson}{$G,s,t$} \Comment{flujo máximo entero}
+\If{$v(f)=n$}
+  \ForAll{paciente $i$}
+     \State $h(i)\gets$ el único $j$ con $f(p_i,q_j)=1$
+  \EndFor
+  \State \Return ``sí'', $h$
+\Else
+  \State \Return ``no''
+\EndIf
+\end{algorithmic}
+\end{algorithm}
+
+\subsection*{(b) Corrección}
+
+Probamos: \emph{existe una asignación válida si y solo si el valor del flujo máximo en $G$ es $n$}; y si es $n$, la $h$ construida en el algoritmo es válida.
+
+Primero, todo flujo tiene valor $\le n$, porque el corte $(\{s\},V\setminus\{s\})$ tiene capacidad $\sum_{i=1}^n c(s,p_i)=n$.
+
+\textbf{($\Rightarrow$) Si existe una asignación válida, el flujo máximo vale $n$.} Sea $h$ una asignación válida. Definimos
+\[ f(s,p_i)=1,\qquad f(p_i,q_j)=\begin{cases}1 & \text{si } j=h(i)\\ 0 & \text{si no}\end{cases},\qquad f(q_j,t)=|\{i : h(i)=j\}|. \]
+Las aristas $(p_i,q_{h(i)})$ existen porque $h(i)\in R_i$. Veamos que $f$ es un flujo:
+\begin{itemize}
+\item \emph{Capacidades:} en las aristas $(s,p_i)$ y $(p_i,q_j)$ el flujo es $0$ o $1$, y la capacidad es $1$; en $(q_j,t)$, $f(q_j,t)=|\{i:h(i)=j\}|\le L$ porque $h$ es válida.
+\item \emph{Conservación en $p_i$:} entra $f(s,p_i)=1$ y sale $\sum_j f(p_i,q_j)=1$ (solo $j=h(i)$).
+\item \emph{Conservación en $q_j$:} entra $\sum_i f(p_i,q_j)=|\{i:h(i)=j\}|$ y sale $f(q_j,t)$, que es lo mismo.
+\end{itemize}
+Su valor es $v(f)=\sum_i f(s,p_i)=n$. Como ningún flujo supera $n$, el flujo máximo vale $n$, y por lo tanto Ford-Fulkerson devuelve un flujo de valor $n$.
+
+\textbf{($\Leftarrow$) Si el flujo máximo vale $n$, la $h$ construida es una asignación válida.} Sea $f$ el flujo devuelto por Ford-Fulkerson, con $v(f)=n$. Como las capacidades son enteras, $f$ es entero (7.14).
+\begin{itemize}
+\item Como $v(f)=\sum_{i=1}^n f(s,p_i)=n$ y cada $f(s,p_i)\le 1$, se tiene $f(s,p_i)=1$ para todo $i$.
+\item Por conservación en $p_i$, $\sum_j f(p_i,q_j)=1$; como cada $f(p_i,q_j)$ es un entero en $\{0,1\}$, hay \emph{exactamente un} $j$ con $f(p_i,q_j)=1$. Ese es $h(i)$, que está bien definido, y $h(i)\in R_i$ porque la arista $(p_i,q_{h(i)})$ existe solo si el hospital $h(i)$ está a lo sumo a media hora del paciente $i$.
+\item Para cada hospital $j$, por conservación en $q_j$: $|\{i:h(i)=j\}|=\sum_i f(p_i,q_j)=f(q_j,t)\le L=\lceil n/k\rceil$.
+\end{itemize}
+Luego $h$ es una asignación válida.
+
+\textbf{Conclusión.} Si existe una asignación válida, por ($\Rightarrow$) Ford-Fulkerson devuelve un flujo de valor $n$ y el algoritmo responde ``sí'' con una asignación válida (por ($\Leftarrow$)). Si no existe, por ($\Leftarrow$) (contrarrecíproco) el flujo máximo no puede valer $n$, así que vale menos y el algoritmo responde ``no''. \qed
+
+(Notar que si algún paciente no tiene ningún hospital a menos de media hora, $p_i$ no tiene aristas salientes, ningún flujo puede pasar por $(s,p_i)$, el máximo es $<n$ y el algoritmo responde correctamente ``no''.)
+
+\subsection*{(c) Complejidad}
+
+\begin{itemize}
+\item \textbf{Tamaño de la red:} $|V|=n+k+2$ y $|E|=n+\sum_i|R_i|+k\le n+nk+k$. Como $k\ge1$, $m:=|E|=\Oh(nk)$ (pues $n\le nk$ y $k\le nk$).
+\item \textbf{Construcción:} decidir para cada uno de los $nk$ pares $(i,j)$ si $j\in R_i$ cuesta $\Oh(1)$ cada uno, más crear nodos y aristas: $\Oh(nk)$.
+\item \textbf{Ford-Fulkerson:} por (7.5), $\Oh(mC)$ con $C=\sum_{e\text{ sale de }s}c_e=n$. Cada una de las a lo sumo $n$ iteraciones construye $G_f$ y busca un camino $s$-$t$ (BFS/DFS) en $\Oh(|V|+|E|)=\Oh(nk)$. Total: $\Oh(n\cdot nk)=\Oh(n^2k)$.
+\item \textbf{Construir $h$:} recorrer las aristas $(p_i,q_j)$: $\Oh(nk)$.
+\end{itemize}
+
+Tiempo total: $\Oh(n^2k)$, polinomial en $n$ y $k$.
+
+\end{document}

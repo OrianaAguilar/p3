@@ -1,0 +1,312 @@
+\input{preambulo}
+
+\title{Práctico 1 --- Emparejamiento estable}
+\author{Programación 3 -- FING, UdelaR}
+\date{2026}
+
+\begin{document}
+\maketitle
+
+\paragraph{Notación y resultados usados.} Trabajamos con dos conjuntos $M$ y $W$ de $n$
+elementos cada uno, cada persona con una lista de preferencias estricta y completa sobre el
+otro conjunto. Un \emph{emparejamiento perfecto} $S$ es \emph{estable} si no tiene
+inestabilidades, es decir, no existen $(m,w)\in S$ y $(m',w')\in S$ tales que $m$ prefiere
+$w'$ a $w$ y $w'$ prefiere $m$ a $m'$. Decimos que $w$ es una \emph{pareja válida} de $m$
+(y viceversa) si existe algún emparejamiento estable que contiene a $(m,w)$. Usamos los
+siguientes resultados del libro (Kleinberg \& Tardos, Cap.~1):
+\begin{itemize}
+  \item (1.3) El algoritmo de Gale--Shapley termina luego de a lo sumo $n^2$ iteraciones.
+  \item (1.4)--(1.6) Durante la ejecución, una $w$ que recibió una propuesta queda emparejada
+        para siempre y sus parejas sucesivas son cada vez mejores (según $w$); las propuestas de
+        cada $m$ siguen su orden de preferencia. El resultado es un emparejamiento perfecto y estable.
+  \item (1.7) Toda ejecución de Gale--Shapley con $M$ como proponente devuelve el mismo
+        emparejamiento $S^*$, en el que cada $m\in M$ queda con su \emph{mejor} pareja válida.
+  \item (1.8) En $S^*$ cada $w\in W$ queda con su \emph{peor} pareja válida.
+\end{itemize}
+
+%=====================================================================
+\section{Ejercicio 1}
+
+\begin{enunciado}
+\textbf{(a)} (K\&T, Ex.~1.2) Indique si la siguiente afirmación es verdadera o falsa. Si es
+verdadera, dé una breve explicación; si es falsa, dé un contraejemplo.
+\emph{Consideramos una instancia del problema de emparejamiento estable en la que existe un
+par $(m,w)$ tal que $m$ está primero en la lista de preferencias de $w$ y $w$ está primero en
+la lista de preferencias de $m$. Entonces el par $(m,w)$ pertenece a toda solución $S$ para
+esta instancia del problema.}
+
+\textbf{(b)} Dé una instancia (mínima) del problema de emparejamiento estable para la cual hay
+más de un emparejamiento estable. Justifique cómo se obtiene.
+\end{enunciado}
+
+\examref{En el Examen de diciembre 2017, Pregunta~3, se pregunta por una afirmación
+parecida pero distinta (\emph{en toda instancia hay un emparejamiento estable que contiene un
+par que se rankea mutuamente primero}), que es falsa: el contraejemplo oficial es la misma
+instancia que usamos en la parte (b).}
+
+\subsection*{Parte (a)}
+La afirmación es \textbf{verdadera}.
+
+Sea $S$ un emparejamiento estable cualquiera y supongamos, por absurdo, que $(m,w)\notin S$.
+Como $S$ es perfecto, $m$ está emparejado en $S$ con alguna $w'\neq w$ y $w$ está emparejada
+en $S$ con algún $m'\neq m$; es decir, $(m,w')\in S$ y $(m',w)\in S$. Entonces:
+\begin{itemize}
+  \item $m$ prefiere $w$ a $w'$, porque $w$ es la primera de su lista y $w'\neq w$;
+  \item $w$ prefiere $m$ a $m'$, porque $m$ es el primero de su lista y $m'\neq m$.
+\end{itemize}
+Por lo tanto el par $(m,w)$ es una inestabilidad de $S$ con respecto a $(m,w')$ y
+$(m',w)$, lo que contradice que $S$ sea estable. Concluimos que $(m,w)\in S$ para toda
+solución $S$.
+
+\subsection*{Parte (b)}
+Con $n=1$ hay un único emparejamiento perfecto, así que una instancia con más de un
+emparejamiento estable debe tener $n\ge 2$. Tomamos $n=2$, $M=\{m_1,m_2\}$,
+$W=\{w_1,w_2\}$ y las preferencias
+\begin{center}
+\begin{tabular}{l@{\qquad}l}
+$m_1$: $w_1 \succ w_2$ & $w_1$: $m_2 \succ m_1$\\
+$m_2$: $w_2 \succ w_1$ & $w_2$: $m_1 \succ m_2$
+\end{tabular}
+\end{center}
+Hay solo dos emparejamientos perfectos y \textbf{ambos son estables}:
+\begin{itemize}
+  \item $S_1=\{(m_1,w_1),(m_2,w_2)\}$. Se obtiene ejecutando Gale--Shapley con $M$ como
+        proponente: $m_1$ se propone a $w_1$ (libre, se forma $(m_1,w_1)$) y $m_2$ se propone a
+        $w_2$ (libre, se forma $(m_2,w_2)$); no quedan hombres libres. Es estable por la
+        corrección de Gale--Shapley; directamente: cada $m$ tiene a su primera opción, así que
+        ningún $m$ prefiere a otra mujer y no puede haber inestabilidad (una inestabilidad requiere
+        un $m$ que prefiera otra $w'$ a su pareja).
+  \item $S_2=\{(m_1,w_2),(m_2,w_1)\}$. Se obtiene ejecutando Gale--Shapley con $W$ como
+        proponente: $w_1$ se propone a $m_2$ y $w_2$ a $m_1$, ambos libres. Es estable por el
+        argumento simétrico: cada mujer tiene a su primera opción.
+\end{itemize}
+Por lo tanto esta instancia, de tamaño mínimo $n=2$, tiene dos emparejamientos estables. En
+general, una forma sistemática de detectar más de un emparejamiento estable es ejecutar
+Gale--Shapley con cada conjunto como proponente: si los resultados difieren, por (1.6) son dos
+emparejamientos estables distintos.
+
+%=====================================================================
+\section{Ejercicio 2}
+
+\begin{enunciado}
+(Primer parcial de 2019.) Considere la instancia con $M=\{m_1,m_2,m_3,m_4\}$,
+$W=\{w_1,w_2,w_3,w_4\}$ y preferencias (de mayor a menor):
+\begin{center}
+\begin{tabular}{l@{\quad}llll@{\qquad\qquad}l@{\quad}llll}
+$m_1$ & $w_1$ & $w_2$ & $w_3$ & $w_4$ & $w_1$ & $m_4$ & $m_3$ & $m_1$ & $m_2$\\
+$m_2$ & $w_1$ & $w_4$ & $w_3$ & $w_2$ & $w_2$ & $m_2$ & $m_4$ & $m_1$ & $m_3$\\
+$m_3$ & $w_2$ & $w_1$ & $w_3$ & $w_4$ & $w_3$ & $m_4$ & $m_1$ & $m_2$ & $m_3$\\
+$m_4$ & $w_4$ & $w_2$ & $w_3$ & $w_1$ & $w_4$ & $m_3$ & $m_2$ & $m_1$ & $m_4$
+\end{tabular}
+\end{center}
+\textbf{(a)} Presente una sucesión de formaciones y separaciones de parejas que se realizan a
+lo largo de una ejecución del algoritmo de Gale--Shapley.
+\textbf{(b)} Repita la parte (a) invirtiendo los roles de $M$ y $W$.
+\textbf{(c)} El emparejamiento obtenido en ambas partes es el mismo. Muestre que, en esta
+instancia, para toda persona su mejor pareja válida coincide con su peor pareja válida. ¿Qué
+resultados del libro está aplicando?
+\textbf{(d)} Concluya que para esta instancia existe una \textbf{única} solución.
+\end{enunciado}
+
+\examref{Es exactamente el Ejercicio~1 del Primer parcial 2019 (la parte (b) del parcial
+agrupa las partes (b)--(d) de este ejercicio). Relacionado: Primer parcial 2025, Ej.~1(f)
+(decidir si una instancia tiene un único emparejamiento estable comparando las salidas de
+Gale--Shapley con cada conjunto como proponente).}
+
+\subsection*{Parte (a): $M$ propone}
+Elegimos en cada iteración un hombre libre (cualquiera sirve, por (1.7) el resultado no
+depende de la elección). La tabla registra cada propuesta y su efecto.
+\begin{center}
+\begin{tabular}{cllp{7.5cm}}
+\toprule
+Paso & Propone & a & Resultado \\
+\midrule
+1 & $m_1$ & $w_1$ & $w_1$ libre: \textbf{se forma} $(m_1,w_1)$.\\
+2 & $m_2$ & $w_1$ & $w_1$ prefiere $m_1$ (3.º) a $m_2$ (4.º): rechaza a $m_2$.\\
+3 & $m_3$ & $w_2$ & $w_2$ libre: \textbf{se forma} $(m_3,w_2)$.\\
+4 & $m_4$ & $w_4$ & $w_4$ libre: \textbf{se forma} $(m_4,w_4)$.\\
+5 & $m_2$ & $w_4$ & $w_4$ prefiere $m_2$ (2.º) a $m_4$ (4.º): \textbf{se separa} $(m_4,w_4)$ y \textbf{se forma} $(m_2,w_4)$.\\
+6 & $m_4$ & $w_2$ & $w_2$ prefiere $m_4$ (2.º) a $m_3$ (4.º): \textbf{se separa} $(m_3,w_2)$ y \textbf{se forma} $(m_4,w_2)$.\\
+7 & $m_3$ & $w_1$ & $w_1$ prefiere $m_3$ (2.º) a $m_1$ (3.º): \textbf{se separa} $(m_1,w_1)$ y \textbf{se forma} $(m_3,w_1)$.\\
+8 & $m_1$ & $w_2$ & $w_2$ prefiere $m_4$ (2.º) a $m_1$ (3.º): rechaza a $m_1$.\\
+9 & $m_1$ & $w_3$ & $w_3$ libre: \textbf{se forma} $(m_1,w_3)$.\\
+\bottomrule
+\end{tabular}
+\end{center}
+No quedan hombres libres y el algoritmo devuelve
+\[
+S_M=\{(m_1,w_3),(m_2,w_4),(m_3,w_1),(m_4,w_2)\}.
+\]
+En resumen: se forman $(m_1,w_1)$, $(m_3,w_2)$, $(m_4,w_4)$; se separa $(m_4,w_4)$ y se forma
+$(m_2,w_4)$; se separa $(m_3,w_2)$ y se forma $(m_4,w_2)$; se separa $(m_1,w_1)$ y se forma
+$(m_3,w_1)$; se forma $(m_1,w_3)$.
+
+\subsection*{Parte (b): $W$ propone}
+\begin{center}
+\begin{tabular}{cllp{7.5cm}}
+\toprule
+Paso & Propone & a & Resultado \\
+\midrule
+1 & $w_1$ & $m_4$ & $m_4$ libre: \textbf{se forma} $(w_1,m_4)$.\\
+2 & $w_2$ & $m_2$ & $m_2$ libre: \textbf{se forma} $(w_2,m_2)$.\\
+3 & $w_3$ & $m_4$ & $m_4$ prefiere $w_3$ (3.ª) a $w_1$ (4.ª): \textbf{se separa} $(w_1,m_4)$ y \textbf{se forma} $(w_3,m_4)$.\\
+4 & $w_4$ & $m_3$ & $m_3$ libre: \textbf{se forma} $(w_4,m_3)$.\\
+5 & $w_1$ & $m_3$ & $m_3$ prefiere $w_1$ (2.ª) a $w_4$ (4.ª): \textbf{se separa} $(w_4,m_3)$ y \textbf{se forma} $(w_1,m_3)$.\\
+6 & $w_4$ & $m_2$ & $m_2$ prefiere $w_4$ (2.ª) a $w_2$ (4.ª): \textbf{se separa} $(w_2,m_2)$ y \textbf{se forma} $(w_4,m_2)$.\\
+7 & $w_2$ & $m_4$ & $m_4$ prefiere $w_2$ (2.ª) a $w_3$ (3.ª): \textbf{se separa} $(w_3,m_4)$ y \textbf{se forma} $(w_2,m_4)$.\\
+8 & $w_3$ & $m_1$ & $m_1$ libre: \textbf{se forma} $(w_3,m_1)$.\\
+\bottomrule
+\end{tabular}
+\end{center}
+No quedan mujeres libres y el resultado es
+\[
+S_W=\{(w_1,m_3),(w_2,m_4),(w_3,m_1),(w_4,m_2)\},
+\]
+que, salvo el orden de los componentes de cada par, es el mismo emparejamiento que $S_M$.
+
+\subsection*{Parte (c)}
+Aplicamos los resultados (1.7) y (1.8) del libro, en las dos versiones que se obtienen al
+intercambiar los roles de $M$ y $W$ (los resultados son simétricos, porque el problema lo es):
+\begin{itemize}
+  \item Con $M$ proponente, por (1.7) en $S_M$ cada $m$ queda con su \emph{mejor} pareja
+        válida, y por (1.8) cada $w$ queda con su \emph{peor} pareja válida.
+  \item Con $W$ proponente, por (1.7) (con roles intercambiados) en $S_W$ cada $w$ queda con su
+        \emph{mejor} pareja válida, y por (1.8) cada $m$ queda con su \emph{peor} pareja válida.
+\end{itemize}
+Como $S_M=S_W$, para cada $m\in M$ su mejor pareja válida (su pareja en $S_M$) es igual a su
+peor pareja válida (su pareja en $S_W$); análogamente para cada $w\in W$. Concretamente:
+\[
+\begin{array}{c|cccc|cccc}
+ & m_1 & m_2 & m_3 & m_4 & w_1 & w_2 & w_3 & w_4\\\hline
+\text{mejor = peor pareja válida} & w_3 & w_4 & w_1 & w_2 & m_3 & m_4 & m_1 & m_2
+\end{array}
+\]
+
+\subsection*{Parte (d)}
+Sea $S$ un emparejamiento estable cualquiera y sea $(m,w)\in S$. Por definición, $w$ es pareja
+válida de $m$, de modo que, en la lista de $m$, $w$ no puede estar antes que la mejor pareja
+válida de $m$ ni después que su peor pareja válida. Como por la parte (c) ambas coinciden con
+$S_M(m)$, se tiene $w=S_M(m)$. Esto vale para todo $m$, así que $S=S_M$. Por lo tanto la
+instancia tiene una \textbf{única} solución, $S_M=S_W$.
+
+%=====================================================================
+\section{Ejercicio 3}
+
+\begin{enunciado}
+(K\&T, Ex.~1.4) Hay un conjunto $H$ de $m$ hospitales y un conjunto $E$ de $n$ estudiantes;
+los hospitales tienen listas de preferencias (completas) sobre $E$ y los estudiantes sobre $H$.
+Cada hospital $h$ tiene un cupo $C(h)$ y se cumple $\sum_{h\in H} C(h)\le n$. Se quiere
+asignar estudiantes a hospitales, de modo que cada estudiante quede asignado a lo sumo a un
+hospital y todas las plazas queden ocupadas, sin inestabilidades:
+\begin{itemize}
+  \item \emph{Tipo 1:} existen $e,e'$ y $h$ tales que $e$ está asignado a $h$, $e'$ está libre y
+        $h$ prefiere a $e'$ antes que a $e$.
+  \item \emph{Tipo 2:} existen $e,e'$ y $h,h'$ tales que $e$ está asignado a $h$, $e'$ está
+        asignado a $h'$, $h$ prefiere a $e'$ antes que a $e$ y $e'$ prefiere a $h$ antes que a $h'$.
+\end{itemize}
+Demuestre que para toda instancia existe una asignación estable y presente un algoritmo para
+obtenerla. \emph{Sugerencia:} adapte Gale--Shapley con los hospitales como proponentes y muestre
+(1) que termina, (2) que al terminar todas las plazas están ocupadas, (3) que no hay
+inestabilidades de tipo 1 y (4) que no hay inestabilidades de tipo 2.
+\end{enunciado}
+
+\examref{El Primer parcial 2022, Ej.~1 (asignación de jugadores a servidores con cupo
+$|J|/|S|$) es una variante de este ejercicio; la solución oficial usa la misma adaptación de
+Gale--Shapley con los servidores (análogos a los hospitales) como proponentes, y acota las
+iteraciones por la cantidad de pares (servidor, jugador).}
+
+\subsection*{Algoritmo}
+Cada hospital lleva la cuenta de cuántos estudiantes tiene asignados, $a(h)$. Decimos que $h$
+\emph{tiene plazas libres} si $a(h)<C(h)$.
+
+\begin{algorithm}[H]
+\caption{Gale--Shapley para hospitales y estudiantes}
+\begin{algorithmic}[1]
+\State Inicialmente todo estudiante está libre y $a(h)=0$ para todo $h\in H$
+\While{existe $h\in H$ con $a(h)<C(h)$ que no se propuso a todos los estudiantes}
+  \State Sea $e$ el estudiante de mayor preferencia para $h$ al que $h$ no se propuso
+  \If{$e$ está libre}
+    \State Asignar $e$ a $h$; \ $a(h)\gets a(h)+1$
+  \Else
+    \State Sea $h'$ el hospital al que está asignado $e$
+    \If{$e$ prefiere $h$ antes que $h'$}
+      \State Desasignar $e$ de $h'$; \ $a(h')\gets a(h')-1$
+      \State Asignar $e$ a $h$; \ $a(h)\gets a(h)+1$
+    \Else
+      \State $e$ rechaza a $h$
+    \EndIf
+  \EndIf
+\EndWhile
+\State \Return la asignación
+\end{algorithmic}
+\end{algorithm}
+
+\paragraph{Invariantes.} Las siguientes propiedades se verifican trivialmente por inducción en
+las iteraciones, mirando los pasos del algoritmo:
+\begin{enumerate}[label=(I\arabic*)]
+  \item Cada estudiante está asignado a lo sumo a un hospital, y para todo $h$ el valor $a(h)$
+        es la cantidad de estudiantes asignados a $h$, con $0\le a(h)\le C(h)$. (Un hospital
+        recibe un estudiante sólo en los pasos 5 y 10, cuando se propone, y sólo se propone si
+        $a(h)<C(h)$; en el paso 9 un estudiante deja $h'$ y pasa a $h$, sin quedar en dos
+        hospitales.)
+  \item Una vez que un estudiante recibe una propuesta, queda asignado a algún hospital hasta el
+        final (en los pasos 5 y 10 queda asignado y nunca se lo deja libre: en el paso 9 se lo
+        desasigna sólo para asignarlo en el paso 10).
+  \item Los hospitales a los que está asignado un estudiante son cada vez mejores según sus
+        preferencias (sólo cambia en el paso 10, y sólo a un hospital que prefiere).
+  \item Cada hospital se propone a los estudiantes en orden decreciente de preferencia, y nunca
+        dos veces al mismo (paso 3).
+  \item Si al final $e$ está asignado a $h$, entonces $h$ se propuso a $e$ (la única forma de
+        quedar asignado a $h$ es aceptar una propuesta de $h$).
+\end{enumerate}
+
+\subsection*{1. El algoritmo termina}
+En cada iteración del ciclo un hospital $h$ se propone a un estudiante al que no se había
+propuesto antes (paso 3 e (I4)). Por lo tanto el conjunto de pares $(h,e)$ tales que $h$ se
+propuso a $e$ crece estrictamente en cada iteración, y como está contenido en $H\times E$, que
+tiene $mn$ elementos, hay a lo sumo $mn$ iteraciones. El algoritmo termina.
+
+Además, con las estructuras de la implementación estándar de Gale--Shapley (una lista de
+hospitales con plazas libres, un índice al próximo estudiante en la lista de cada hospital, el
+hospital actual de cada estudiante y una matriz \texttt{ranking}$[e][h]$ con la posición de $h$
+en la lista de $e$) cada iteración cuesta $O(1)$, y el algoritmo corre en tiempo $O(mn)$, sin
+contar el preprocesamiento de \texttt{ranking}, que también es $O(mn)$.
+
+\subsection*{2. Al terminar, todas las plazas están ocupadas}
+Supongamos por absurdo que al terminar existe $h$ con $a(h)<C(h)$. Como la condición del ciclo
+es falsa, $h$ se propuso a todos los estudiantes. Por (I2), todos los $n$ estudiantes recibieron
+una propuesta y están asignados. Por (I1) cada estudiante ocupa exactamente una plaza, así que
+la cantidad de plazas ocupadas es
+\[
+n=\sum_{g\in H} a(g) < \sum_{g\in H} C(g)\le n,
+\]
+donde la desigualdad estricta se debe a que $a(h)<C(h)$ y $a(g)\le C(g)$ para todo $g$. Esto es
+una contradicción. Luego todas las plazas están ocupadas, y junto con (I1) el resultado es una
+asignación en la que cada estudiante está asignado a lo sumo a un hospital y todos los
+hospitales llenan sus cupos.
+
+\subsection*{3. No hay inestabilidades de tipo 1}
+Supongamos por absurdo que en la asignación final $e$ está asignado a $h$, $e'$ está libre y
+$h$ prefiere $e'$ antes que $e$. Por (I5), $h$ se propuso a $e$; por (I4), como $h$ prefiere
+$e'$ a $e$, $h$ se propuso a $e'$ antes de proponerse a $e$. Pero entonces, por (I2), $e'$ quedó
+asignado desde ese momento hasta el final, lo que contradice que $e'$ esté libre.
+
+\subsection*{4. No hay inestabilidades de tipo 2}
+Supongamos por absurdo que en la asignación final $e$ está asignado a $h$, $e'$ está asignado a
+$h'$, $h$ prefiere $e'$ antes que $e$ y $e'$ prefiere $h$ antes que $h'$. Notar que $h'\ne h$,
+porque $e'$ prefiere estrictamente $h$ a $h'$.
+
+Por (I5) $h$ se propuso a $e$ y, por (I4), como prefiere $e'$, antes se propuso a $e'$. Inmediatamente después de esa propuesta, $e'$ está asignado a un hospital $h''$ tal que
+$h''=h$ (si aceptó la propuesta) o $e'$ prefiere $h''$ antes que $h$ (si la rechazó, porque sólo
+se rechaza cuando el hospital actual es preferido). Por (I3), el hospital final $h'$ de $e'$ es
+$h''$ o uno que $e'$ prefiere a $h''$. En cualquier caso, $h'=h$ o $e'$ prefiere $h'$ antes que
+$h$. Como $h'\ne h$, concluimos que $e'$ prefiere $h'$ antes que $h$, lo que contradice la
+hipótesis.
+
+\subsection*{Conclusión}
+Para toda instancia el algoritmo termina (parte 1) y devuelve una asignación en la que cada
+estudiante está en a lo sumo un hospital y todas las plazas están ocupadas (parte 2), sin
+inestabilidades de tipo 1 (parte 3) ni de tipo 2 (parte 4); es decir, una asignación estable.
+En particular, toda instancia tiene al menos una asignación estable.
+
+\end{document}

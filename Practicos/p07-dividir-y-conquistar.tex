@@ -1,0 +1,683 @@
+\input{preambulo}
+
+\newcommand{\Equiv}{\textsc{Equiv}}
+\newcommand{\nil}{\bot}
+\newcommand{\ind}[1]{\mathbf{1}_{\{#1\}}}
+
+\title{Práctico 7 --- Dividir y Conquistar}
+\author{Programación 3 --- FING, UdelaR}
+\date{}
+
+\begin{document}
+\maketitle
+
+\section*{Resultados del libro que se usan}
+
+En todo el práctico usamos los resultados de la sección 5.1--5.2 de Kleinberg y Tardos,
+\emph{Algorithm Design}. Los enunciamos acá una sola vez.
+
+\begin{teorema}[K\&T (5.1) y (5.2)]\label{t:52}
+Sea $T$ una función que cumple, para alguna constante $c$,
+\[
+T(n)\le 2\,T(n/2)+cn \quad (n>2),\qquad T(2)\le c. \tag{5.1}
+\]
+Entonces $T(n)$ es $\Oh(n\log n)$ para $n>1$ \emph{(5.2)}.
+\end{teorema}
+
+\begin{teorema}[K\&T (5.3), (5.4), (5.5)]\label{t:q}
+Sea $T$ tal que $T(n)\le q\,T(n/2)+cn$ para $n>2$ y $T(2)\le c$ \emph{(5.3)}. Si $q>2$
+entonces $T(n)$ es $\Oh(n^{\log_2 q})$ \emph{(5.4)}; si $q=1$ entonces $T(n)$ es
+$\Oh(n)$ \emph{(5.5)}.
+\end{teorema}
+
+En el libro estos resultados se prueban para $n$ potencia de $2$, desenrollando la
+recurrencia o con el árbol de recursión: en el nivel $j$ del árbol hay $2^j$
+subproblemas de tamaño $n/2^j$, cada uno aporta a lo sumo $c\,n/2^j$ de trabajo no
+recursivo, así que cada nivel aporta a lo sumo $cn$; hay $\log_2 n$ niveles y el total es
+a lo sumo $cn\log_2 n$. Cuando $n$ no es potencia de $2$, en cada ejercicio indicamos
+cómo se resuelve ese detalle.
+
+%======================================================================
+\section{Ejercicio 1}
+
+\begin{enunciado}
+\textbf{(Kleinberg \& Tardos, Ex.\ 5.3).} Queremos analizar $n$ tarjetas bancarias que
+fueron confiscadas por sospecha de fraude. Cada tarjeta está asociada a una única cuenta
+de banco, aunque cada cuenta puede estar asociada a más de una tarjeta; dos tarjetas son
+equivalentes si están asociadas a una misma cuenta.
+
+Leer y comparar los datos de cada tarjeta es un proceso costoso, pero el banco cuenta con
+un dispositivo al que se ingresan dos tarjetas y responde rápidamente si son equivalentes
+o no.
+
+Nos interesa saber si entre las $n$ tarjetas confiscadas hay algún conjunto de más de
+$n/2$ tarjetas que son todas equivalentes entre sí.
+\begin{enumerate}[label=(\alph*)]
+\item Dé un algoritmo de tipo divide y vencerás para solucionar el problema realizando
+$\Oh(n\log n)$ pruebas de equivalencia con el dispositivo mencionado.
+\item Demuestre la corrección de su algoritmo.
+\item Demuestre que la cantidad de pruebas de equivalencia que realiza su algoritmo es
+$\Oh(n\log n)$ como se pide. Enuncie los resultados teóricos del libro de referencia que
+utilice.
+\end{enumerate}
+\emph{Sugerencia:} Note que no puede haber más de una clase de equivalencia (conjunto de
+tarjetas equivalentes entre sí) de tamaño mayor a $n/2$. Utilice este hecho para definir
+un algoritmo que devuelve, si existe, un representante de dicha clase de equivalencia.
+\end{enunciado}
+
+\paragraph{Notación.} Para una secuencia (multiconjunto) de tarjetas $S$ con $|S|=n$,
+la relación ``estar asociadas a la misma cuenta'' es de equivalencia, y
+particiona $S$ en clases. Decimos que una clase $C$ es \emph{mayoritaria en $S$} si
+$|C\cap S|>|S|/2$. El dispositivo es la función $\Equiv(x,y)$, que devuelve
+\textbf{verdadero} si y solo si $x$ e $y$ son equivalentes; lo único que contamos es la
+cantidad de invocaciones a $\Equiv$.
+
+\begin{lema}[Unicidad]\label{l:unica}
+En una secuencia $S$ hay a lo sumo una clase mayoritaria.
+\end{lema}
+\begin{proof}
+Si $C\ne C'$ fueran dos clases mayoritarias, al ser clases distintas son disjuntas, y
+entonces $|S|\ge|C\cap S|+|C'\cap S|>|S|/2+|S|/2=|S|$, absurdo.
+\end{proof}
+
+\begin{lema}[Herencia]\label{l:herencia}
+Sea $S$ partida en dos secuencias $S_1$, $S_2$ (o sea, $|S|=|S_1|+|S_2|$ y cada tarjeta
+de $S$ está exactamente en una de las dos). Si $C$ es mayoritaria en $S$, entonces $C$ es
+mayoritaria en $S_1$ o en $S_2$.
+\end{lema}
+\begin{proof}
+Si no lo fuera en ninguna, $|C\cap S_1|\le|S_1|/2$ y $|C\cap S_2|\le|S_2|/2$, y sumando
+$|C\cap S|\le(|S_1|+|S_2|)/2=|S|/2$, lo que contradice que $C$ es mayoritaria en $S$.
+\end{proof}
+
+Ojo: la recíproca no vale. Una clase puede ser mayoritaria en una mitad y no en $S$; por
+eso el algoritmo tiene que \emph{verificar} a cada candidato contra toda la secuencia.
+
+\subsection*{(a) Algoritmo}
+
+La función $\textsc{Representante}(S)$ devuelve una tarjeta de la clase mayoritaria de $S$
+si esa clase existe, y $\nil$ si no existe. Para resolver el problema se invoca
+$\textsc{Representante}(s_1,\dots,s_n)$: hay más de $n/2$ tarjetas equivalentes entre sí
+si y solo si el resultado es distinto de $\nil$.
+
+\begin{algorithm}[H]
+\caption{Representante de la clase mayoritaria}
+\begin{algorithmic}[1]
+\Require Secuencia de tarjetas $S=(s_1,\dots,s_n)$, $n\ge 1$
+\Ensure Una tarjeta de la clase mayoritaria de $S$, o $\nil$ si no hay clase mayoritaria
+\Function{Representante}{$S$}
+  \If{$n=1$}
+    \State \Return $s_1$ \Comment{caso base: la única clase tiene $1>1/2$ elementos}
+  \EndIf
+  \State $m\gets\lfloor n/2\rfloor$
+  \State $S_1\gets(s_1,\dots,s_m)$;\quad $S_2\gets(s_{m+1},\dots,s_n)$ \Comment{dividir}
+  \State $r_1\gets\Call{Representante}{S_1}$;\quad $r_2\gets\Call{Representante}{S_2}$
+  \For{cada $r\in\{r_1,r_2\}$ con $r\neq\nil$} \Comment{combinar: verificar candidatos}
+    \State $cnt\gets 0$
+    \For{$k\gets 1$ \textbf{a} $n$}
+      \If{$\Call{Equiv}{r,s_k}$}
+        \State $cnt\gets cnt+1$
+      \EndIf
+    \EndFor
+    \If{$cnt>n/2$}
+      \State \Return $r$
+    \EndIf
+  \EndFor
+  \State \Return $\nil$
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+En la línea del \textbf{para} interno se puede evitar comparar $r$ consigo mismo (se
+cuenta $1$ sin usar el dispositivo); no cambia el orden.
+
+\subsection*{(b) Correctitud}
+
+\begin{proposicion}
+Para toda secuencia $S$ con $n\ge1$ tarjetas, $\textsc{Representante}(S)$ termina, y
+devuelve una tarjeta de la clase mayoritaria de $S$ si existe; si no existe, devuelve
+$\nil$.
+\end{proposicion}
+\begin{proof}
+Por inducción completa en $n$.
+
+\emph{Terminación.} Si $n\ge 2$ entonces $1\le m=\lfloor n/2\rfloor<n$ y
+$1\le n-m<n$, así que las llamadas recursivas son sobre secuencias no vacías y
+estrictamente más chicas; los ciclos son acotados.
+
+\emph{Caso base, $n=1$.} La única clase de $S$ es la de $s_1$, con $1>1/2$ elementos, así
+que es mayoritaria; el algoritmo devuelve $s_1$, que es de esa clase.
+
+\emph{Paso inductivo, $n\ge2$.} Suponemos (hipótesis inductiva, HI) que la proposición
+vale para toda secuencia de tamaño entre $1$ y $n-1$, en particular para $S_1$ y $S_2$.
+Observemos primero que el ciclo interno calcula, en $cnt$, exactamente
+$|[r]\cap S|$, la cantidad de tarjetas de $S$ en la clase $[r]$ de $r$. Por lo tanto el
+algoritmo devuelve un candidato $r$ si y solo si $[r]$ es mayoritaria en $S$. Hay dos
+casos.
+
+\begin{itemize}
+\item \emph{$S$ tiene una clase mayoritaria $C$.} Por el Lema~\ref{l:herencia}, $C$ es
+mayoritaria en $S_1$ o en $S_2$; digamos en $S_i$. Por el Lema~\ref{l:unica}, $C$ es
+\emph{la} clase mayoritaria de $S_i$, y por la HI $r_i\neq\nil$ y $r_i\in C$. Entonces, al
+verificar $r_i$, se obtiene $cnt=|C\cap S|>n/2$ y se devuelve $r_i\in C$, salvo que antes
+se haya devuelto el otro candidato $r_j$. Pero eso solo pasa si $[r_j]$ es mayoritaria en
+$S$, y por el Lema~\ref{l:unica} $[r_j]=C$. En cualquier caso se devuelve una tarjeta de
+$C$.
+\item \emph{$S$ no tiene clase mayoritaria.} Ningún candidato $r$ puede cumplir
+$cnt=|[r]\cap S|>n/2$, porque si no $[r]$ sería mayoritaria. Entonces no se ejecuta
+ningún \textbf{retornar} $r$ y el algoritmo devuelve $\nil$. \qedhere
+\end{itemize}
+\end{proof}
+
+En particular, como la clase mayoritaria de las $n$ tarjetas es justamente un conjunto
+de más de $n/2$ tarjetas equivalentes entre sí (y cualquier conjunto así está contenido
+en una única clase, que entonces es mayoritaria), la respuesta al problema es
+``sí'' si y solo si $\textsc{Representante}(s_1,\dots,s_n)\ne\nil$.
+
+\subsection*{(c) Cantidad de pruebas de equivalencia}
+
+Sea $T(n)$ la máxima cantidad de invocaciones a $\Equiv$ que hace
+$\textsc{Representante}$ sobre una secuencia de $n$ tarjetas.
+\begin{itemize}
+\item Caso base: con $n=1$ no se usa el dispositivo, así que $T(1)=0$.
+\item Caso recursivo: dividir no usa el dispositivo; las dos llamadas recursivas hacen a
+lo sumo $T(\lfloor n/2\rfloor)+T(\lceil n/2\rceil)$ pruebas; la verificación hace a lo
+sumo $n$ pruebas por candidato y hay a lo sumo $2$ candidatos, o sea a lo sumo $2n$.
+\end{itemize}
+Entonces
+\[
+T(1)=0,\qquad T(n)\le T(\lfloor n/2\rfloor)+T(\lceil n/2\rceil)+2n\quad(n\ge2).
+\]
+
+\paragraph{Con el resultado del libro.} Si $n$ es potencia de $2$ las dos mitades tienen
+tamaño $n/2$ y queda $T(n)\le 2T(n/2)+2n\le 2T(n/2)+4n$ para $n>2$, con
+$T(2)\le 2T(1)+4=4$. Esta es la recurrencia (5.1) con $c=4$, y por (5.2)
+(Teorema~\ref{t:52}) $T(n)$ es $\Oh(n\log n)$.
+
+\paragraph{Para $n$ arbitrario.} Probamos directamente, por inducción completa, que
+$T(n)\le 2n\lceil\log_2 n\rceil$ para todo $n\ge1$. Para $n=1$ ambos lados valen $0$. Para
+$n\ge2$ usamos que $\lceil\log_2\lceil n/2\rceil\rceil=\lceil\log_2 n\rceil-1$ (si
+$2^{k-1}<n\le 2^k$ entonces $2^{k-2}<\lceil n/2\rceil\le 2^{k-1}$) y que, como
+$1\le\lfloor n/2\rfloor\le\lceil n/2\rceil$ y $\log_2$ es creciente, también
+$\lceil\log_2\lfloor n/2\rfloor\rceil\le\lceil\log_2 n\rceil-1$:
+\[
+T(n)\le 2\lfloor n/2\rfloor(\lceil\log_2 n\rceil-1)+2\lceil n/2\rceil(\lceil\log_2
+n\rceil-1)+2n = 2n(\lceil\log_2 n\rceil-1)+2n=2n\lceil\log_2 n\rceil .
+\]
+Así que la cantidad de pruebas de equivalencia es $\Oh(n\log n)$, como se pedía.
+
+El resto del trabajo (armar $S_1$ y $S_2$ y llevar los contadores) es proporcional a la
+cantidad de pruebas en cada nivel, así que el tiempo total también es $\Oh(n\log n)$.
+
+\begin{observacion}
+Existe incluso una solución con $\Oh(n)$ pruebas (aparear las
+tarjetas, descartar los pares no equivalentes y quedarse con una de cada par equivalente,
+lo que da $T(n)\le T(n/2)+\Oh(n)$, que es $\Oh(n)$ por (5.5)). No se pide acá.
+\end{observacion}
+
+%======================================================================
+\section{Ejercicio 2}
+
+\begin{enunciado}
+\textbf{(Kleinberg \& Tardos, Ex.\ 5.2).} Sea $L_1,L_2,\dots,L_n$ una secuencia de
+números. Decimos que un par de índices $i,j$, $1\le i<j\le n$, es una \emph{inversión
+significativa} si se cumple $L_i>2L_j$.
+\begin{enumerate}[label=(\alph*)]
+\item Dé un algoritmo para calcular la cantidad de inversiones significativas. Su
+algoritmo debe admitir una implementación con tiempo de ejecución $\Oh(n\log n)$.
+\emph{Sugerencia:} Adapte la función Merge-and-count de la sección 5.3 del libro; observe
+que el orden relativo de los elementos de una secuencia no se altera si todos se
+multiplican por dos.
+\item Demuestre la corrección de su algoritmo. \emph{Sugerencia:} Demuestre que para $n$
+mayor que una constante (determinada por la condición del paso base de su algoritmo), la
+cantidad de inversiones en $L$, $R(L)$, se puede expresar como
+\[ R(L)=R(A)+r+R(B), \tag{2.1}\]
+donde $A$ y $B$ son las partes en que se subdivide el problema original, de tamaños $n_A$
+y $n_B$, respectivamente, y
+\[ r=\sum_{j=1}^{n_B}\sum_{i=1}^{n_A}\ind{A_i>2B_j}. \tag{2.2}\]
+Luego demuestre por inducción que su algoritmo calcula $R(L)$.
+\item Demuestre que su algoritmo admite una implementación con tiempo de ejecución que
+es $\Oh(n\log n)$. Enuncie los resultados teóricos del libro de referencia que utilice.
+\end{enumerate}
+\end{enunciado}
+
+\examref{Examen julio 2022, Ej.~1 (contar inversiones ``comunes'' con una variante de
+MergeSort, Merge-and-Count / Sort-and-Count de la sección 5.3, y justificar
+$\Oh(n\log n)$ con la recurrencia (5.1)). Este ejercicio es la misma idea, cambiando la
+condición $L_i>L_j$ por $L_i>2L_j$; la diferencia es que el conteo ya no se puede hacer
+dentro del mismo intercalado, y conviene hacerlo en una pasada aparte.}
+
+\paragraph{Notación.} Para una secuencia $L=(L_1,\dots,L_n)$ sea
+$I(L)=\{(i,j): 1\le i<j\le n,\ L_i>2L_j\}$ y $R(L)=|I(L)|$. Para dos secuencias $A$ (de
+largo $n_A$) y $B$ (de largo $n_B$) definimos
+\[
+r(A,B)=\sum_{j=1}^{n_B}\sum_{i=1}^{n_A}\ind{A_i>2B_j}
+=\bigl|\{(i,j): 1\le i\le n_A,\ 1\le j\le n_B,\ A_i>2B_j\}\bigr|,
+\]
+la cantidad de ``inversiones significativas cruzadas'' entre $A$ y $B$.
+
+\subsection*{(a) Algoritmo}
+
+Igual que en Sort-and-Count, la función recursiva devuelve un par: la cantidad de
+inversiones significativas y la secuencia ordenada. Ordenar sirve para que el conteo de
+inversiones cruzadas se pueda hacer en tiempo lineal.
+
+\begin{algorithm}[H]
+\caption{Conteo de inversiones significativas cruzadas}
+\begin{algorithmic}[1]
+\Require $A=(a_1,\dots,a_p)$ y $B=(b_1,\dots,b_q)$, ambas ordenadas en forma creciente
+\Ensure $r(A,B)=|\{(i,j): a_i>2b_j\}|$
+\Function{ContarCruzadas}{$A,B$}
+  \State $cnt\gets 0$;\quad $i\gets 1$
+  \For{$j\gets 1$ \textbf{a} $q$}
+    \While{$i\le p$ \textbf{y} $a_i\le 2b_j$}
+      \State $i\gets i+1$
+    \EndWhile
+    \State $cnt\gets cnt+(p-i+1)$ \Comment{$a_i,\dots,a_p$ son exactamente los $>2b_j$}
+  \EndFor
+  \State \Return $cnt$
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[H]
+\caption{Ordenar y contar inversiones significativas}
+\begin{algorithmic}[1]
+\Require Secuencia $L=(L_1,\dots,L_n)$, $n\ge1$
+\Ensure El par $(R(L),L')$, con $L'$ la secuencia $L$ ordenada en forma creciente
+\Function{OrdenarYContar}{$L$}
+  \If{$n=1$}
+    \State \Return $(0,L)$
+  \EndIf
+  \State $m\gets\lfloor n/2\rfloor$;\quad $A\gets(L_1,\dots,L_m)$;\quad
+         $B\gets(L_{m+1},\dots,L_n)$ \Comment{dividir}
+  \State $(r_A,A')\gets\Call{OrdenarYContar}{A}$
+  \State $(r_B,B')\gets\Call{OrdenarYContar}{B}$
+  \State $r\gets\Call{ContarCruzadas}{A',B'}$ \Comment{combinar: contar}
+  \State $L'\gets\Call{Merge}{A',B'}$ \Comment{combinar: intercalado usual de MergeSort}
+  \State \Return $(r_A+r+r_B,\ L')$
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+\textsc{Merge} es el intercalado de MergeSort: recorre $A'$ y $B'$ con dos cursores y en
+cada paso agrega al final de la salida el menor de los dos elementos apuntados; termina
+copiando el resto de la secuencia que no se agotó.
+
+\paragraph{Por qué no alcanza con modificar el intercalado directamente.} En
+Merge-and-Count, cuando se agrega $b_j$ a la salida se suman los elementos de $A$ que
+quedan, porque son justo los $>b_j$. Acá necesitamos los $>2b_j$, que son un sufijo de $A'$
+distinto (en general más corto). Por eso usamos un segundo cursor en una pasada propia,
+\textsc{ContarCruzadas}. Esto es lo que dice la sugerencia: como $x\mapsto 2x$ es
+creciente, la secuencia $2b_1\le 2b_2\le\dots\le 2b_q$ también está ordenada, y se puede
+``intercalar'' $A'$ con $2B'$ para contar.
+
+\paragraph{Ejemplo.} $L=(5,1,7,2)$: las inversiones significativas son $(1,2)$
+($5>2$), $(1,4)$ ($5>4$) y $(3,4)$ ($7>4$); $R(L)=3$. El algoritmo calcula
+$R((5,1))=1$, $R((7,2))=1$, y con $A'=(1,5)$, $B'=(2,7)$: para $b_1=2$ quedan los $a_i>4$,
+o sea $\{5\}$, que aporta $1$; para $b_2=7$ no queda ningún $a_i>14$. Total
+$1+1+1=3$.
+
+\subsection*{(b) Correctitud}
+
+\begin{lema}[Descomposición (2.1)--(2.2)]\label{l:desc}
+Sea $n\ge 2$, $m=\lfloor n/2\rfloor$, $A=(L_1,\dots,L_m)$ y $B=(L_{m+1},\dots,L_n)$ (o
+sea $A_i=L_i$ y $B_j=L_{m+j}$, con $n_A=m$, $n_B=n-m$). Entonces
+$R(L)=R(A)+r(A,B)+R(B)$.
+\end{lema}
+\begin{proof}
+Partimos $I(L)$ en tres conjuntos disjuntos, según dónde caen $i$ y $j$ (recordar que
+$i<j$):
+\begin{itemize}
+\item $I_1=\{(i,j)\in I(L): j\le m\}$. Ambos índices están en $A$ y la condición es
+$A_i>2A_j$ con $i<j\le m$; o sea $I_1=I(A)$ y $|I_1|=R(A)$.
+\item $I_3=\{(i,j)\in I(L): i> m\}$. Con el cambio $i=m+i'$, $j=m+j'$, la condición queda
+$B_{i'}>2B_{j'}$ con $1\le i'<j'\le n_B$; es una biyección con $I(B)$, así que
+$|I_3|=R(B)$.
+\item $I_2=\{(i,j)\in I(L): i\le m<j\}$. Acá la condición $i<j$ se cumple siempre, y con
+$j=m+j'$ la condición es $A_i>2B_{j'}$ con $1\le i\le n_A$, $1\le j'\le n_B$. Así que
+$|I_2|=\sum_{j'=1}^{n_B}\sum_{i=1}^{n_A}\ind{A_i>2B_{j'}}=r(A,B)$.
+\end{itemize}
+Como todo par de $I(L)$ cae en exactamente uno de los tres casos,
+$R(L)=|I_1|+|I_2|+|I_3|=R(A)+r(A,B)+R(B)$.
+\end{proof}
+
+\begin{lema}[Invariancia de $r$]\label{l:inv}
+Si $A'$ es una permutación de $A$ y $B'$ es una permutación de $B$, entonces
+$r(A',B')=r(A,B)$.
+\end{lema}
+\begin{proof}
+$r(A,B)$ cuenta todos los pares (elemento de $A$, elemento de $B$) con el primero mayor
+que el doble del segundo, sin mirar posiciones. Si $A'_i=A_{\sigma(i)}$ y
+$B'_j=B_{\tau(j)}$ con $\sigma,\tau$ biyecciones, la suma doble para $(A',B')$ tiene
+exactamente los mismos términos que la de $(A,B)$, solo que reordenados.
+\end{proof}
+
+\begin{lema}[Correctitud de \textsc{ContarCruzadas}]\label{l:cc}
+Si $A=(a_1,\dots,a_p)$ y $B=(b_1,\dots,b_q)$ están ordenadas en forma creciente,
+$\textsc{ContarCruzadas}(A,B)$ devuelve $r(A,B)$.
+\end{lema}
+\begin{proof}
+Sea $k_j=|\{i: a_i\le 2b_j\}|$. Como $A$ es creciente, los $a_i\le 2b_j$ son exactamente
+$a_1,\dots,a_{k_j}$ (un prefijo) y los $a_i>2b_j$ son $a_{k_j+1},\dots,a_p$, que son
+$p-k_j$. Como $B$ es creciente, $2b_{j-1}\le 2b_j$ y por lo tanto
+$k_{j-1}\le k_j$.
+
+Probamos por inducción en $j$ el invariante: \emph{al terminar la iteración $j$ del
+\textbf{para} se cumple $i=k_j+1$ y $cnt=\sum_{j'=1}^{j}(p-k_{j'})$}. Al comenzar la
+iteración $j$ vale $i=k_{j-1}+1$ (con $k_0=0$ para $j=1$). Todos los $a_{i'}$ con
+$i'\le k_j$ cumplen $a_{i'}\le 2b_j$, así que el \textbf{mientras} avanza $i$ desde
+$k_{j-1}+1\le k_j+1$ hasta llegar a $k_j+1$, y ahí para: o bien $k_j=p$ y $i=p+1$, o bien
+$a_{k_j+1}>2b_j$. Entonces $p-i+1=p-k_j$ es justo la cantidad de $a_i>2b_j$, y se suma a
+$cnt$. Al terminar el \textbf{para},
+$cnt=\sum_{j=1}^q(p-k_j)=\sum_{j=1}^q\sum_{i=1}^p\ind{a_i>2b_j}=r(A,B)$.
+\end{proof}
+
+\begin{proposicion}
+Para toda secuencia $L$ de largo $n\ge1$, la invocación \textsc{OrdenarYContar}$(L)$
+devuelve $(R(L),L')$, donde $L'$ es la secuencia $L$ ordenada en forma creciente.
+\end{proposicion}
+\begin{proof}
+Por inducción completa en $n$.
+
+\emph{Base, $n=1$.} No hay pares $i<j$, así que $R(L)=0$, y una secuencia de un elemento
+está ordenada. El algoritmo devuelve $(0,L)$.
+
+\emph{Paso, $n\ge 2$.} Como $1\le m<n$ y $1\le n-m<n$, por HI
+$(r_A,A')=(R(A),\text{$A$ ordenada})$ y $(r_B,B')=(R(B),\text{$B$ ordenada})$. Por el
+Lema~\ref{l:cc}, $r=r(A',B')$, que por el Lema~\ref{l:inv} es igual a $r(A,B)$. Por la
+correctitud del intercalado de MergeSort (sección 5.1 del libro), $L'=\textsc{Merge}(A',B')$
+es la secuencia ordenada con los elementos de $A$ y $B$, o sea $L$ ordenada. Finalmente,
+por el Lema~\ref{l:desc}, $r_A+r+r_B=R(A)+r(A,B)+R(B)=R(L)$.
+\end{proof}
+
+Notá que en ningún momento usamos que los números sean positivos: solo que $x\mapsto 2x$
+es creciente, que es lo que garantiza $k_{j-1}\le k_j$.
+
+\subsection*{(c) Tiempo de ejecución}
+
+\begin{itemize}
+\item \textsc{ContarCruzadas}$(A,B)$ con $|A|=p$, $|B|=q$: el \textbf{para} hace $q$
+iteraciones con trabajo constante aparte del \textbf{mientras}. El cursor $i$ nunca
+retrocede y solo avanza mientras $i\le p$, así que el cuerpo del \textbf{mientras} se
+ejecuta a lo sumo $p$ veces \emph{en total}, sumando todas las iteraciones del
+\textbf{para}. Las evaluaciones de la condición que dan falso son a lo sumo una por cada
+$j$. El tiempo es $\Oh(p+q)$.
+\item \textsc{Merge}$(A',B')$: cada paso agrega un elemento a la salida, así que hace
+$p+q$ pasos de costo constante: $\Oh(p+q)$.
+\item Dividir $L$ en $A$ y $B$ es $\Oh(n)$ (o $\Oh(1)$ si se trabaja con índices sobre un
+arreglo).
+\end{itemize}
+Entonces existe una constante $c$ tal que el tiempo $T(n)$ de
+$\textsc{OrdenarYContar}$ sobre una secuencia de largo $n$ cumple
+\[
+T(1)\le c,\qquad T(n)\le T(\lfloor n/2\rfloor)+T(\lceil n/2\rceil)+cn\quad(n\ge 2):
+\]
+$T(1)$ es el caso base (una comparación y un retorno); los dos términos recursivos
+corresponden a las dos llamadas sobre las mitades; el término $cn$ es el costo de
+dividir, contar las cruzadas y el intercalado.
+
+Para $n$ potencia de $2$, y tomando $c$ suficientemente grande para que además
+$T(2)\le 2T(1)+2c\le c'$ con $c'=4c$, queda $T(n)\le 2T(n/2)+c'n$ para $n>2$ y
+$T(2)\le c'$, que es la recurrencia (5.1). Por (5.2) (Teorema~\ref{t:52}), $T(n)$ es
+$\Oh(n\log n)$.
+
+Si $n$ no es potencia de $2$, repetimos el argumento por inducción directa del
+Ejercicio~1. Por inducción completa, $T(n)\le c\,n\lceil\log_2 n\rceil+c\,n$ para todo
+$n\ge1$: para $n=1$ es $T(1)\le c$; para $n\ge2$, sea $\ell=\lceil\log_2 n\rceil$; como
+$\lceil\log_2\lceil n/2\rceil\rceil=\ell-1$ y $1\le\lfloor n/2\rfloor\le\lceil n/2\rceil$,
+ambas mitades cumplen $\lceil\log_2(\cdot)\rceil\le \ell-1$, y
+\[
+T(n)\le c\lfloor n/2\rfloor(\ell-1)+c\lfloor n/2\rfloor+c\lceil n/2\rceil(\ell-1)
++c\lceil n/2\rceil+cn=cn(\ell-1)+cn+cn=cn\ell+cn.
+\]
+En ambos casos $T(n)$ es $\Oh(n\log n)$.
+
+%======================================================================
+\section{Ejercicio 3}
+
+\begin{enunciado}
+El algoritmo de ordenación llamado Quicksort utiliza un método con el cual se
+redistribuyen los elementos de un segmento de un arreglo en torno a un separador, también
+llamado pivote, dejando el segmento parcialmente ordenado. Tras esa redistribución el
+pivote queda en una posición, $s$, los elementos menores que el pivote quedan en las
+posiciones anteriores a $s$, y los elementos mayores que el pivote quedan en las
+posiciones posteriores a $s$. [\dots] Además el pivote queda exactamente en la posición que
+quedaría si el segmento se ordenara totalmente.
+
+El algoritmo \textsc{Particion} (figura 3.1) es una posible versión del método, en el cual
+se elige el primer elemento del segmento como pivote. El tiempo de ejecución es
+$\Theta(n)$, donde $n$ es la cantidad de elementos del segmento. Es un algoritmo
+\emph{in place}: el espacio adicional usado es $\Oh(1)$.
+
+\begin{algorithmic}[1]
+\Require Un segmento de arreglo $A[\mathit{inf}..\mathit{sup}]$, $\mathit{inf}\le\mathit{sup}$
+\Ensure El pivote es $A[\mathit{inf}]$; los elementos se redistribuyen: el pivote queda en
+la posición $s$; cada elemento en $A[\mathit{inf}..s]$ es menor o igual al pivote; cada
+elemento en $A[s+1..\mathit{sup}]$ es mayor que el pivote; devuelve $s$.
+\State $pivote\gets A[\mathit{inf}]$;\ $s\gets\mathit{inf}$;\ $i\gets\mathit{sup}$
+\While{$i>s$}
+  \If{$A[i]\le pivote$}
+    \State $s\gets s+1$; intercambiar $A[s]$ y $A[i]$
+  \Else
+    \State $i\gets i-1$
+  \EndIf
+\EndWhile
+\State intercambiar $A[\mathit{inf}]$ y $A[s]$; \Return $s$
+\end{algorithmic}
+
+En cada iteración del ciclo la distancia entre $s$ e $i$ disminuye en uno, por lo que el
+ciclo termina en $\Theta(n)$ iteraciones. En lo que sigue asumimos que todos los
+elementos del arreglo son diferentes.
+\begin{enumerate}[label=(\alph*)]
+\item Considere la siguiente versión de Quicksort:
+\textsc{QuickSort}$(A,\mathit{inf},\mathit{sup})$: si $\mathit{inf}<\mathit{sup}$ entonces
+$s\gets\textsc{Particion}(A,\mathit{inf},\mathit{sup})$;
+$\textsc{QuickSort}(A,\mathit{inf},s-1)$; $\textsc{QuickSort}(A,s+1,\mathit{sup})$.
+Demuestre, resolviendo la relación de recurrencia, que el peor caso de tiempo de
+ejecución es $\Theta(n^2)$. Describa una configuración de la entrada a la que le
+corresponda el peor caso del tiempo de ejecución.
+\item Asuma que se dispone del algoritmo \textsc{Mediana}, que dado un segmento de arreglo
+devuelve la posición en que se encuentra la mediana de los elementos de ese rango (si la
+cantidad de elementos es par, la que queda en la menor de las dos posiciones centrales). El
+tiempo de ejecución de \textsc{Mediana} es $\Theta(n)$.
+Usando \textsc{Particion} y \textsc{Mediana} diseñe un algoritmo que mediante la
+estrategia dividir y conquistar ordene un arreglo en tiempo $\Oh(n\log n)$. Exprese el
+tiempo de ejecución con una relación de recurrencia indicando la procedencia de cada
+término. Explique por qué el tiempo de ejecución requerido es solución de esa relación de
+recurrencia.
+\end{enumerate}
+\end{enunciado}
+
+\examref{Examen diciembre 2012, Ej.~4 (QuickSort con pivote en la primera posición: peor
+caso cuando la secuencia ya está ordenada, $\sum_{L=2}^{n}(L-1)=n(n-1)/2$
+comparaciones); 2do.\ parcial 2013, parte (c) (QuickSort a partir de PARTITION, elementos de
+dividir y conquistar). La idea de usar la mediana como separador para obtener
+subproblemas de tamaño $\le n/2$ aparece en el Examen febrero 2025 (elemento faltante),
+cuya solución oficial escribe la recurrencia indicando el origen de cada término y cita el
+resultado del libro, igual que hacemos en la parte (b).}
+
+\paragraph{Costo de \textsc{Particion}.} Sea $k=\mathit{sup}-\mathit{inf}+1$ el tamaño
+del segmento. Al empezar, $i-s=k-1$; cada iteración disminuye $i-s$ en exactamente $1$
+(o aumenta $s$, o disminuye $i$), y el ciclo termina cuando $i=s$. Por lo tanto hace
+exactamente $k-1$ iteraciones, cada una con una comparación $A[i]\le pivote$ y costo
+constante, más un trabajo constante fuera del ciclo. Entonces existen constantes
+$0<a\le b$ tales que el tiempo de \textsc{Particion} sobre $k\ge1$ elementos, $P(k)$,
+cumple $ak\le P(k)\le bk$.
+
+\subsection*{(a) Peor caso de QuickSort: $\Theta(n^2)$}
+
+Sea $W(n)$ el tiempo de peor caso de \textsc{QuickSort} sobre un segmento de $n$
+elementos (distintos). Si $n\le 1$ (segmento vacío, $\mathit{inf}>\mathit{sup}$, o de un
+elemento) solo se evalúa la condición: $W(0),W(1)\le d$ para una constante $d>0$. Si
+$n\ge2$, \textsc{Particion} cuesta $P(n)$ y deja el pivote en la posición $s$; si el
+pivote es el $(k+1)$-ésimo menor del segmento ($0\le k\le n-1$), la primera llamada
+recursiva recibe los $k$ menores y la segunda los $n-1-k$ mayores. Entonces
+\[
+W(n)\le \max_{0\le k\le n-1}\bigl(W(k)+W(n-1-k)\bigr)+bn\qquad(n\ge 2).
+\]
+(El término $bn$ incluye la partición y el costo constante de la llamada.)
+
+\paragraph{Cota superior: $W(n)\in\Oh(n^2)$.} Probamos por inducción completa que
+$W(n)\le Cn^2+d$ para todo $n\ge0$, con $C=2b+d$. Para $n\le1$ es inmediato. Para $n\ge2$,
+por HI (aplicable porque $k,\,n-1-k\le n-1$),
+\[
+W(n)\le \max_{0\le k\le n-1}\bigl(C k^2+C(n-1-k)^2\bigr)+2d+bn.
+\]
+La función $k\mapsto k^2+(n-1-k)^2$ es convexa, así que en el intervalo $[0,n-1]$ alcanza
+su máximo en un extremo, donde vale $(n-1)^2$. Luego
+\[
+W(n)\le C(n-1)^2+2d+bn = Cn^2+d-\bigl[(2C-b)n-C-d\bigr].
+\]
+Como $2C-b=3b+2d>0$ y $n\ge2$, $(2C-b)n-C-d\ge 2(3b+2d)-(2b+d)-d=4b+2d>0$, y por lo tanto
+$W(n)\le Cn^2+d$.
+
+\paragraph{Cota inferior: una entrada que cuesta $\Omega(n^2)$.} Tomemos el arreglo
+\textbf{ordenado en forma creciente}, $A[\mathit{inf}]<A[\mathit{inf}+1]<\dots<A[\mathit{sup}]$.
+\begin{itemize}
+\item En \textsc{Particion}, el pivote $A[\mathit{inf}]$ es el mínimo del segmento, así que
+para todo $i>\mathit{inf}$ vale $A[i]>pivote$: en cada iteración se ejecuta $i\gets i-1$,
+$s$ queda en $\mathit{inf}$, no se intercambia nada dentro del ciclo, y el intercambio
+final es de $A[\mathit{inf}]$ consigo mismo. Devuelve $s=\mathit{inf}$ y el arreglo
+\emph{no cambia}.
+\item Entonces la primera llamada es sobre el segmento vacío
+$A[\mathit{inf}..\mathit{inf}-1]$ y la segunda sobre $A[\mathit{inf}+1..\mathit{sup}]$,
+de $n-1$ elementos, que \emph{sigue ordenado en forma creciente}.
+\end{itemize}
+Por lo tanto, si $T_{\mathrm{ord}}(n)$ es el tiempo con esta entrada,
+\[
+T_{\mathrm{ord}}(n)=T_{\mathrm{ord}}(n-1)+T_{\mathrm{ord}}(0)+P(n)\ \ge\ T_{\mathrm{ord}}(n-1)+an
+\quad(n\ge2),\qquad T_{\mathrm{ord}}(1)>0.
+\]
+Resolviendo la recurrencia (desenrollándola):
+\[
+T_{\mathrm{ord}}(n)\ \ge\ T_{\mathrm{ord}}(1)+a\sum_{k=2}^{n}k\ \ge\
+a\Bigl(\frac{n(n+1)}{2}-1\Bigr),
+\]
+que es $\Omega(n^2)$. Contando solo comparaciones con el pivote, el número exacto es
+$\sum_{k=2}^{n}(k-1)=\frac{n(n-1)}{2}$, igual que en la solución oficial del examen de
+diciembre 2012.
+
+Como $T_{\mathrm{ord}}(n)\le W(n)\le Cn^2+d$, concluimos que $W(n)\in\Theta(n^2)$.
+
+\paragraph{Configuración de peor caso.} En general el peor caso se da cuando en
+\emph{todas} las llamadas el pivote (el primer elemento del segmento) es el mínimo o el
+máximo del segmento, de modo que uno de los subproblemas queda vacío y el otro tiene
+$n-1$ elementos; la cantidad de comparaciones con el pivote es entonces
+$(n-1)+(n-2)+\dots+1=n(n-1)/2$. Ese es el máximo posible: si $K(n)$ es la máxima cantidad
+de comparaciones, $K(0)=K(1)=0$ y $K(n)=\max_{0\le k\le n-1}(K(k)+K(n-1-k))+(n-1)$, y por
+inducción completa $K(n)\le n(n-1)/2$, porque $k(k-1)/2+(n-1-k)(n-2-k)/2$ es convexa en
+$k$ y en $[0,n-1]$ vale a lo sumo $(n-1)(n-2)/2$, y $(n-1)(n-2)/2+(n-1)=n(n-1)/2$. Un ejemplo concreto es el
+\textbf{arreglo ya ordenado en forma creciente}, como vimos arriba.
+
+(Notá que el arreglo ordenado en forma decreciente \emph{no} sirve como ejemplo con esta
+versión de \textsc{Particion}: con $(5,4,3,2,1)$ la primera partición da $(2,1,4,3,5)$ y el
+segmento izquierdo $(2,1,4,3)$ ya no tiene el pivote en un extremo.)
+
+\subsection*{(b) QuickSort con la mediana como pivote: $\Oh(n\log n)$}
+
+La idea es elegir como pivote la mediana del segmento. Como \textsc{Particion} usa como
+pivote el primer elemento, antes de particionar se intercambia la mediana con
+$A[\mathit{inf}]$.
+
+\begin{algorithm}[H]
+\caption{QuickSort con mediana}
+\begin{algorithmic}[1]
+\Require Un rango de un arreglo $A[\mathit{inf}..\mathit{sup}]$, con elementos distintos
+\Ensure El rango queda ordenado en forma creciente
+\Procedure{QuickSortMediana}{$A,\mathit{inf},\mathit{sup}$}
+  \If{$\mathit{inf}<\mathit{sup}$} \Comment{si no, caso base: 0 o 1 elementos}
+    \State $p\gets\Call{Mediana}{A,\mathit{inf},\mathit{sup}}$
+    \State intercambiar $A[\mathit{inf}]$ y $A[p]$ \Comment{la mediana pasa a ser el pivote}
+    \State $s\gets\Call{Particion}{A,\mathit{inf},\mathit{sup}}$ \Comment{dividir}
+    \State \Call{QuickSortMediana}{$A,\mathit{inf},s-1$} \Comment{conquistar}
+    \State \Call{QuickSortMediana}{$A,s+1,\mathit{sup}$}
+  \EndIf \Comment{combinar: no hace falta, se trabaja in place}
+\EndProcedure
+\end{algorithmic}
+\end{algorithm}
+Para ordenar un arreglo $A[1..n]$ se invoca $\textsc{QuickSortMediana}(A,1,n)$.
+
+\paragraph{Tamaño de los subproblemas.} Sea $n=\mathit{sup}-\mathit{inf}+1\ge2$. La mediana
+es el elemento que ocupa la posición $\lceil n/2\rceil$ en el orden del segmento (si $n$ es
+impar es la posición central $(n+1)/2$; si es par, la menor de las dos centrales, $n/2$).
+Como los elementos son distintos, hay exactamente $\lceil n/2\rceil-1$ elementos menores y
+$n-\lceil n/2\rceil=\lfloor n/2\rfloor$ mayores. Por la especificación de
+\textsc{Particion}, el pivote queda en $s=\mathit{inf}+\lceil n/2\rceil-1$, y las
+llamadas recursivas reciben
+\[
+n_1=\lceil n/2\rceil-1\le n/2\qquad\text{y}\qquad n_2=\lfloor n/2\rfloor\le n/2
+\]
+elementos, con $n_1+n_2=n-1$.
+
+\paragraph{Correctitud.} Por inducción completa en $n$. Si $n\le1$ el rango ya está
+ordenado y el algoritmo no hace nada. Si $n\ge2$, el intercambio deja en
+$A[\mathit{inf}]$ a la mediana sin cambiar el multiconjunto del rango. \textsc{Particion}
+deja el pivote en $s$, los elementos menores en $A[\mathit{inf}..s-1]$ y los mayores en
+$A[s+1..\mathit{sup}]$ (los elementos son distintos, así que ``menor o igual'' equivale a
+``menor'' salvo el propio pivote). Como $n_1,n_2<n$, por HI las dos llamadas ordenan sus
+rangos; al reordenar cada rango se permutan elementos dentro de él, así que se mantiene que
+todo elemento de $A[\mathit{inf}..s-1]$ es menor que $A[s]$, y este es menor que todo
+elemento de $A[s+1..\mathit{sup}]$. Entonces $A[\mathit{inf}..\mathit{sup}]$ queda
+ordenado. (Esta prueba es la misma que la de \textsc{QuickSort} de la parte (a); la
+elección del pivote solo afecta el tiempo.)
+
+\paragraph{Relación de recurrencia.} Sea $T(n)$ el tiempo de peor caso de
+\textsc{QuickSortMediana} sobre $n$ elementos. Existe una constante $c>0$ tal que
+\[
+T(0),\,T(1)\le c,\qquad
+T(n)\le T\bigl(\lceil n/2\rceil-1\bigr)+T\bigl(\lfloor n/2\rfloor\bigr)+cn\quad(n\ge2).
+\]
+Procedencia de cada término:
+\begin{itemize}
+\item $T(0),T(1)\le c$: caso base, solo se evalúa la condición $\mathit{inf}<\mathit{sup}$.
+\item $T(\lceil n/2\rceil-1)$ y $T(\lfloor n/2\rfloor)$: las dos llamadas recursivas, sobre
+los elementos menores y mayores que la mediana, cuyos tamaños calculamos arriba. Hay
+\emph{dos} términos porque hay dos llamadas, y cada una tiene a lo sumo $n/2$ elementos
+porque el pivote es la mediana.
+\item $cn$: el trabajo no recursivo, que es \textsc{Mediana} ($\Theta(n)$), el intercambio
+($\Oh(1)$), \textsc{Particion} ($\Theta(n)$, como vimos) y la comparación inicial
+($\Oh(1)$). No hay costo de combinación.
+\end{itemize}
+
+\paragraph{Por qué la solución es $\Oh(n\log n)$.} Es más cómodo trabajar con
+$U(m)=T(m-1)$, donde $m=n+1$ es la cantidad de elementos más uno. Con $m_1=n_1+1$ y
+$m_2=n_2+1$ queda $m_1+m_2=n+1=m$ y $m_1,m_2\le n/2+1=(m+1)/2$, y la recurrencia es
+\[
+U(1),U(2)\le c,\qquad U(m)\le U(m_1)+U(m_2)+c\,m\quad(m\ge3).
+\]
+
+\emph{Caso $m$ potencia de 2} (o sea $n=2^k-1$). Entonces $n$ es impar, la mediana es el
+elemento central y $n_1=n_2=(n-1)/2=2^{k-1}-1$, es decir $m_1=m_2=m/2$. Queda
+$U(m)\le 2U(m/2)+cm$ para $m>2$ y $U(2)\le c$: es exactamente la recurrencia (5.1) del
+libro, y por (5.2) (Teorema~\ref{t:52}) $U(m)$ es $\Oh(m\log m)$. Entonces $T(n)=U(n+1)$
+es $\Oh(n\log n)$. Intuitivamente: en el árbol de recursión cada nivel tiene subproblemas
+que suman a lo sumo $n$ elementos, y por lo tanto a lo sumo $cn$ (más el $+1$ por
+subproblema) de trabajo, y como los tamaños se dividen por $2$ hay $\Oh(\log n)$ niveles.
+
+\emph{Caso general.} Probamos por inducción completa que, para todo $m\ge1$,
+\[
+U(m)\le c\,m\log_2 m+3c\,m-2c .
+\]
+\textit{Base.} $U(1)\le c=0+3c-2c$; $U(2)\le c\le 2c+6c-2c$.
+\textit{Paso} ($m\ge3$). Se cumple $1\le m_i\le (m+1)/2<m$, así que vale la HI para $m_1$
+y $m_2$. Como $\log_2$ es creciente y $m_i\le(m+1)/2$,
+$\log_2 m_i\le\log_2(m+1)-1$; y como $\ln(1+x)\le x$,
+$\log_2(m+1)=\log_2 m+\log_2(1+1/m)\le\log_2 m+\frac{1}{m\ln 2}$. Entonces
+\begin{align*}
+U(m)&\le c\,(m_1\log_2 m_1+m_2\log_2 m_2)+3c(m_1+m_2)-4c+cm\\
+&\le c\,m\bigl(\log_2(m+1)-1\bigr)+3cm-4c+cm\\
+&\le c\,m\log_2 m+\frac{c}{\ln2}-cm+3cm-4c+cm
+= c\,m\log_2 m+3cm-2c-\Bigl(2c-\frac{c}{\ln 2}\Bigr)\\
+&\le c\,m\log_2 m+3cm-2c,
+\end{align*}
+porque $1/\ln 2\approx1{,}443<2$. Por lo tanto
+$T(n)=U(n+1)\le c(n+1)\log_2(n+1)+3c(n+1)-2c$, que es $\Oh(n\log n)$.
+
+\begin{observacion}
+La cota $\Oh(n\log n)$ es la mejor posible: todo algoritmo de ordenación basado en
+comparaciones necesita $\Omega(n\log n)$ comparaciones en el peor caso (cota del árbol de
+decisión), así que el peor caso de \textsc{QuickSortMediana} es $\Theta(n\log n)$.
+\end{observacion}
+
+\end{document}

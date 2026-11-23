@@ -1,0 +1,1562 @@
+% =====================================================================
+%  Parte 2 — Programación dinámica
+%  Fragmento: se incluye con \input desde el documento maestro.
+%  Macros locales con prefijo pd.
+% =====================================================================
+
+\newcommand{\pdalgo}[1]{\par\medskip\noindent{\sans\small\bfseries\color{acento}#1}\par\nopagebreak\smallskip}
+\newcommand{\pdargmin}{\operatorname*{arg\,min}}
+\newcommand{\pdargmax}{\operatorname*{arg\,max}}
+\newcommand{\pdbar}[1]{\overline{#1}}
+
+\parte{pd}{Programación dinámica}{\OPT(j)=\max\{v_j+\OPT(p(j)),\ \OPT(j-1)\}}{Se arma una familia chica de subproblemas ordenados, se escribe cómo sale el óptimo de cada uno a partir de los más chicos y se llena una tabla. Es el tema que más se pregunta: hubo un ejercicio de programación dinámica en todos los segundos parciales desde 2018.}
+
+% =====================================================================
+\section{El método y cómo se corrige}
+% =====================================================================
+
+La programación dinámica (PD) sirve cuando el problema se puede escribir en
+función de una cantidad polinomial de subproblemas que cumplen tres cosas:
+tienen un orden natural de ``más chico'' a ``más grande''; el óptimo de cada
+uno se obtiene con una cuenta sencilla a partir de óptimos de subproblemas
+más chicos; y el problema original es uno de ellos (o sale de ellos de forma
+directa). A diferencia de dividir y conquistar, los subproblemas se
+\emph{solapan}: el mismo subproblema aparece en muchas ramas de la recursión,
+así que se calcula una sola vez y se guarda en una tabla.
+
+La propiedad que lo hace funcionar es el \emph{principio de optimalidad}: una
+solución óptima de una instancia está formada por soluciones óptimas de las
+subinstancias en que se descompone. Se demuestra siempre igual, ``cortando y
+pegando'': si la parte que corresponde a la subinstancia no fuera óptima, la
+reemplazo por una mejor y obtengo una solución mejor de la instancia
+original, lo cual es absurdo.\visto{Examen feb. 2013 Ej. 2: enunciar principio de optimalidad}
+
+En los exámenes viejos (hasta 2017) se pedía enunciarlo y demostrarlo para
+un problema dado, por ejemplo la mochila o los caminos mínimos de Floyd. En los
+actuales no se pide con ese nombre, pero la justificación de la recurrencia
+es exactamente ese argumento, y es la parte que más puntos pierde.\visto{Examen dic. 2015 Ej. 2: mochila y principio de optimalidad}
+
+\subsection{Qué espera la corrección}
+
+Las soluciones oficiales de 2024 y 2025 traen la lista explícita de lo que se
+evalúa. Es siempre la misma, sin importar el problema:\visto{2P 2024 Ej. 1 y 2P 2025 Ej. 3: criterios de corrección}
+
+\begin{enumerate}[label=\textbf{\arabic*.}]
+  \item \textbf{Definir la función.} Escribir $\OPT(\ldots)$ con su
+  significado en palabras (``la ganancia máxima que se puede obtener desde el
+  día $i$ hasta el día $n$'') y el \emph{rango} de cada parámetro. Si hay un
+  parámetro de estado (la cuchilla instalada, los neumáticos usados), decir
+  con precisión qué representa. Decir dónde queda la respuesta: $\OPT(n)$,
+  $\OPT(1)$, $\min_X \OPT(n,X)$, $\max_j \OPT(j)$.
+  \item \textbf{Casos base.} Los subproblemas que se resuelven sin consultar
+  otros. Hacen falta tantos como ``saltos'' tenga la recurrencia: si
+  $\OPT(i)$ usa $\OPT(i+7)$, hay que definir $\OPT(i)=0$ para
+  $n<i\le n+7$.
+  \item \textbf{Recurrencia justificada.} Se distingue por casos según la
+  última (o la primera) decisión y se explica de dónde sale cada término. Lo
+  ideal es mostrar las dos desigualdades: que cada término es el valor de
+  alguna solución factible ($\ge$ o $\le$ según se maximice o minimice) y que
+  el óptimo cae en alguno de los casos.
+  \item \textbf{Algoritmo iterativo.} Una tabla con una celda por
+  subproblema; se inicializan los casos base; se recorre en un orden tal que,
+  al calcular una celda, las que usa ya estén calculadas; se devuelve la celda
+  (o la combinación de celdas) que contiene la respuesta.
+  \item \textbf{Reconstrucción.} Recorrer la tabla en sentido opuesto al de
+  llenado; en cada paso decidir \emph{con la misma ecuación} con la que se
+  calculó la celda, mantener el estado elegido y saltar las celdas que la
+  decisión vuelve incompatibles.
+  \item \textbf{Orden del tiempo de ejecución.} Cantidad de subproblemas por
+  costo de calcular cada uno, más los precálculos (ordenar, calcular
+  $p(j)$, errores $e_{i,j}$, etc.).
+\end{enumerate}
+
+\begin{resultado}[Plantilla de la justificación de una recurrencia]
+Sea $S$ una solución óptima de la instancia $I$ (con valor $\OPT(I)$).
+Mirando la última decisión de $S$ hay $k$ casos posibles. En el caso $c$, lo
+que queda de $S$ al sacar esa decisión es una solución factible de la
+subinstancia $I_c$, y tiene que ser óptima para ella: si hubiera una mejor,
+le agrego la decisión y obtengo una solución de $I$ mejor que $S$. Entonces
+$\OPT(I)=\text{costo}(c)+\OPT(I_c)$ para el caso en que cae $S$. Como
+recíprocamente cada $\text{costo}(c)+\OPT(I_c)$ es el valor de una solución
+factible de $I$, el óptimo es el mejor de los $k$ valores.
+\end{resultado}
+
+La versión rigurosa de este argumento, con las dos desigualdades por
+separado, está en la solución oficial del ladrón de casas
+(sección~\ref{pd:sec:wis}); vale la pena copiarle el formato.
+
+\subsection{Memoización e iterativo}
+
+Escribir la recurrencia como una función recursiva directa suele ser
+exponencial, porque el mismo subproblema se resuelve muchas veces. Hay dos
+formas de evitarlo, equivalentes en orden:
+\begin{itemize}
+  \item \textbf{Memoización (de arriba hacia abajo).} La función recursiva
+  guarda cada resultado en un arreglo global $M$ y, antes de calcular,
+  consulta si ya lo tiene.
+  \item \textbf{Iterativa (de abajo hacia arriba).} Se llena la tabla en un
+  orden compatible con las dependencias. Es lo que piden \emph{siempre} los
+  parciales (``dé un algoritmo iterativo'').
+\end{itemize}
+
+El ejemplo canónico es Fibonacci. La versión dividir y conquistar
+$F(n)=F(n-1)+F(n-2)$ hace $S(n)=1+S(n-1)+S(n-2)$ sumas, con $S(0)=S(1)=0$,
+lo que da $S(n)=F(n)-1$, exponencial. La versión iterativa hace $n-1$
+sumas y, si solo guarda los dos últimos valores, usa espacio
+$\Oh(1)$.\visto{Examen feb. 2017 Preg. 3: Fibonacci con DyC y con PD}
+
+\pdalgo{Fibonacci con PD en espacio constante}
+\begin{algorithmic}[1]
+\Function{FibPD}{$n$}
+  \State $a \gets 0$;\ $b \gets 1$ \Comment{$a=F(i-1)$, $b=F(i)$}
+  \For{$i=2$ \textbf{hasta} $n$}
+    \State $c \gets a+b$;\ $a \gets b$;\ $b \gets c$
+  \EndFor
+  \State \Return $b$
+\EndFunction
+\end{algorithmic}
+
+La moraleja que se pide explicar: la diferencia de crecimiento se debe a la
+\emph{superposición de subproblemas}; la PD resuelve cada uno una sola vez.
+El mismo truco de guardar solo la última fila (o las últimas $k$ celdas)
+reduce la memoria de cualquier tabla cuando solo se pide el valor óptimo y
+no la solución.\visto{2P 2017 Ej. 1: reducir la memoria de una tabla}
+
+\begin{receta}[estructura de cualquier respuesta de PD]
+\begin{enumerate}[leftmargin=1.2em]
+  \item ``Para $\ldots$ (rango), definimos $\OPT(\ldots)$ como $\ldots$ (en
+  palabras). La respuesta es $\ldots$''.
+  \item ``Casos base: $\ldots$ porque $\ldots$''.
+  \item ``Para $\ldots$, consideramos una solución óptima $S$ de $\ldots$.
+  O bien $\ldots$ (caso 1), y entonces $\ldots$ es óptima para $\ldots$, con
+  valor $\ldots$; o bien $\ldots$ (caso 2) $\ldots$. Por lo tanto
+  $\OPT(\ldots)=\max\{\ldots\}$''.
+  \item Algoritmo: casos base, ciclos en el orden correcto, una línea que
+  aplica la recurrencia, \textbf{retornar}.
+  \item Reconstrucción: \textbf{mientras} (no \textbf{para}) que recorre al
+  revés y repite las comparaciones de la recurrencia.
+  \item Orden: ``hay $\Theta(\ldots)$ subproblemas y cada uno se calcula en
+  $\Oh(\ldots)$''.
+\end{enumerate}
+\end{receta}
+
+\begin{trampa}
+\begin{itemize}[leftmargin=1.2em]
+  \item Una ``recurrencia'' que decide localmente lo mejor en cada paso (y
+  por lo tanto podría construir la solución en la misma pasada) es un
+  greedy disfrazado; casi siempre es incorrecta y se corrige como tal.
+  \item Falta el parámetro que hace falta para que la decisión dependa de lo
+  anterior (qué cuchilla está instalada, cuántas vueltas tienen los
+  neumáticos).
+  \item El significado de $\OPT$ cambia entre el lado izquierdo y el derecho
+  de la ecuación.
+  \item Casos base insuficientes: la recurrencia consulta $\OPT(i+2)$ o
+  $\OPT(i-d)$ fuera del rango definido.
+  \item La reconstrucción compara entre sí los valores de la tabla en cada
+  posición (``si $\OPT(i,A)<\OPT(i,B)$ elijo $A$'') en lugar de seguir la
+  decisión que produjo el valor.
+  \item Algoritmo recursivo sin memoización cuando se pide iterativo.
+  \item Orden ``$\Oh(nW)$, polinomial'': es \emph{pseudo}polinomial.
+\end{itemize}
+\end{trampa}
+
+\subsection{Catálogo de patrones}
+
+Casi todos los ejercicios de examen caen en alguno de estos moldes. Reconocer
+el molde es la mitad del ejercicio: te dice qué parámetros usar, qué casos
+base escribir y en qué orden llenar la tabla.
+
+{\small
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{2.9cm}>{\raggedright\arraybackslash}p{3.4cm}>{\raggedright\arraybackslash}X@{}}
+\toprule
+\textbf{Patrón} & \textbf{Subproblema} & \textbf{Ejemplos de examen}\\
+\midrule
+Prefijo con decisión binaria & $\OPT(i)$ sobre $1..i$; tomo $i$ o no & ladrón, baldosas, edificios, intervalos ponderados\\
+Sufijo con saltos & $\OPT(i)$ sobre $i..n$; salto a $i+k$ & tarifa plana, pedidos, ravioles, dinosaurio\\
+Prefijo con estado & $\OPT(i,X)$, $X$ = última elección & neumáticos A/B, cuchillas, F1\\
+Segmentación & $\OPT(j)$; elijo dónde empieza el último tramo & fragmentos, prefijos, palíndromos\\
+Último elemento & $\OPT(j)$ = mejor que termina en $j$ & subsecuencia creciente\\
+Capacidad extra & $\OPT(i,w)$ con $w\le W$ & mochila, cambio, varillas\\
+Dos secuencias & $\OPT(i,j)$ sobre prefijos de $x$ e $y$ & edición, alineación, ejecución paralela\\
+Intervalo & $\OPT(i,j)$ sobre $x_i..x_j$ & matrices, paréntesis, palíndromo\\
+Grilla & $\OPT(i,j)$ por casilla & sargento, minero, recolector\\
+DAG o árbol & un valor por vértice, en orden topológico & camino más largo, conteo, conjunto independiente\\
+Cantidad de aristas & $\OPT(i,v)$, a lo sumo $i$ aristas & Bellman--Ford, routers\\
+\bottomrule
+\end{tabularx}}
+
+Las secciones que siguen recorren los moldes en ese orden. En cada una está la
+teoría del libro, el pseudocódigo modelo y los ejercicios que se tomaron.
+Las referencias (6.x) siguen la numeración del capítulo 6 de Kleinberg y
+Tardos; si tu edición corre algún número, lo que importa es el enunciado.
+
+% =====================================================================
+\section{Intervalos ponderados y prefijos con decisión binaria}\label{pd:sec:wis}
+% =====================================================================
+
+\subsection{Weighted interval scheduling}
+
+Hay $n$ pedidos; el pedido $j$ ocupa el intervalo $[s_j,f_j)$ y tiene valor
+$v_j>0$. Se busca un subconjunto de pedidos disjuntos dos a dos de valor
+máximo. Greedy por fin más temprano ya no sirve (solo sirve con valores
+iguales). Se ordenan los pedidos por tiempo de fin,
+$f_1\le f_2\le\dots\le f_n$, y se define $p(j)$ como el mayor índice $i<j$
+tal que $i$ y $j$ son compatibles ($p(j)=0$ si no hay ninguno). Para
+$0\le j\le n$, $\OPT(j)$ es el valor óptimo usando solo los pedidos
+$1,\dots,j$; $\OPT(0)=0$.
+
+Para el pedido $j$ hay dos casos: si está en la solución óptima $\mathcal{O}_j$,
+ninguno de $p(j)+1,\dots,j-1$ puede estar (se solapan con $j$) y lo que queda
+es una solución óptima para $1..p(j)$; si no está, $\mathcal{O}_j$ es una
+solución óptima para $1..j-1$.
+
+\begin{resultado}[(6.1)]
+$\OPT(j)=\max\bigl(v_j+\OPT(p(j)),\ \OPT(j-1)\bigr)$.
+\end{resultado}
+
+\begin{resultado}[(6.2)]
+El pedido $j$ pertenece a alguna solución óptima del conjunto
+$\{1,\dots,j\}$ si y solo si $v_j+\OPT(p(j))\ge\OPT(j-1)$.
+\end{resultado}
+
+Implementada tal cual en forma recursiva (\textproc{Compute-Opt}), la
+recurrencia es correcta (6.3, por inducción en $j$) pero exponencial: si
+$p(j)=j-2$ para todo $j$, la cantidad de llamadas crece como Fibonacci. Con
+memoización o en forma iterativa, cada valor se calcula una vez.
+
+\pdalgo{Intervalos ponderados: memoización, iterativo y reconstrucción}
+\begin{algorithmic}[1]
+\Function{M-Compute-Opt}{$j$}
+  \If{$j=0$} \Return $0$
+  \ElsIf{$M[j]$ está definido} \Return $M[j]$
+  \Else
+    \State $M[j]\gets\max\bigl(v_j+\Call{M-Compute-Opt}{p(j)},\ \Call{M-Compute-Opt}{j-1}\bigr)$
+    \State \Return $M[j]$
+  \EndIf
+\EndFunction
+\Statex
+\Function{Iterative-Compute-Opt}{\,}
+  \State $M[0]\gets 0$
+  \For{$j=1$ \textbf{hasta} $n$}
+    \State $M[j]\gets\max\bigl(v_j+M[p(j)],\ M[j-1]\bigr)$
+  \EndFor
+\EndFunction
+\Statex
+\Function{Find-Solution}{$j$}
+  \If{$j=0$} \Return $\emptyset$
+  \ElsIf{$v_j+M[p(j)]\ge M[j-1]$}
+    \State \Return $\{j\}\cup\Call{Find-Solution}{p(j)}$
+  \Else\ \Return \Call{Find-Solution}{$j-1$}
+  \EndIf
+\EndFunction
+\end{algorithmic}
+
+\begin{resultado}[(6.4) y (6.5)]
+Con los pedidos ordenados por fin y los $p(j)$ calculados,
+\textproc{M-Compute-Opt}$(n)$ corre en $\Oh(n)$: cada llamada que no
+devuelve un valor ya guardado llena una celda nueva y genera dos llamadas, y
+hay $n$ celdas. Dado el arreglo $M$, \textproc{Find-Solution} devuelve una
+solución óptima en $\Oh(n)$. Ordenar y calcular los $p(j)$ (con búsqueda
+binaria) cuesta $\Oh(n\log n)$.
+\end{resultado}
+
+\subsection{El ladrón: la solución modelo}
+
+Este es el ejercicio que conviene tener memorizado, porque la solución
+oficial es la referencia de cómo se justifica una recurrencia. Las casas
+$c_1,\dots,c_n$ están en fila, la casa $c_i$ tiene valor $v_i>0$ y no se
+pueden robar dos contiguas. Es intervalos ponderados con $p(i)=i-2$: cada
+casa se ``solapa'' solo con sus vecinas.\visto{2P 2019 Ej. 2: ladrón de casas contiguas}
+
+\begin{problema}{Ladrón de casas no contiguas (2P 2019, Ej. 2)}
+\textbf{Subproblema.} Para $0\le i\le n$, $\OPT(i)$ es la ganancia máxima
+robando casas de $\{c_1,\dots,c_i\}$. La respuesta es $\OPT(n)$.
+
+\textbf{Recurrencia.} $\OPT(0)=0$, $\OPT(1)=v_1$ y, para $i>1$,
+\[\OPT(i)=\max\{\OPT(i-1),\ \OPT(i-2)+v_i\}.\]
+
+\textbf{Justificación ($\ge$).} Sean $S_1\subseteq\{c_1..c_{i-1}\}$ y
+$S_2\subseteq\{c_1..c_{i-2}\}$ compatibles de valores $\OPT(i-1)$ y
+$\OPT(i-2)$. Tanto $S_1$ como $S_2\cup\{c_i\}$ son compatibles dentro de
+$\{c_1..c_i\}$, así que $\OPT(i)$ es al menos el máximo de ambos valores.
+
+\textbf{Justificación ($\le$).} Sea $S$ compatible con
+$v(S)=\OPT(i)$. Si $c_i\notin S$, entonces $S\subseteq\{c_1..c_{i-1}\}$ y
+$v(S)\le\OPT(i-1)$. Si $c_i\in S$, entonces $c_{i-1}\notin S$ y
+$S\setminus\{c_i\}$ es compatible dentro de $\{c_1..c_{i-2}\}$, así que
+$v(S)-v_i\le\OPT(i-2)$. En ambos casos $v(S)$ es a lo sumo el máximo.
+
+\textbf{Algoritmo.} $M[0]\gets0$, $M[1]\gets v_1$; para $i=2..n$ aplicar la
+recurrencia; devolver $M[n]$. Tiempo $\Oh(n)$.
+
+\textbf{Reconstrucción.} $i\gets n$; \emph{mientras} $i\ge1$: si
+$M[i]=M[i-1]$, $i\gets i-1$; si no, agregar $c_i$ e $i\gets i-2$.
+\end{problema}
+
+El mismo enunciado, con baldosas en lugar de casas (no se pueden retirar dos
+baldosas seguidas), se tomó en diciembre de 2017. La solución guarda un
+arreglo booleano de \emph{traceback} con la decisión tomada en cada $i$, que
+es una alternativa válida a recalcular la comparación al
+reconstruir.\visto{Examen dic. 2017 Prob. B: baldosas no contiguas}
+
+Si la incompatibilidad alcanza a más vecinos, cambia solo el salto. En el
+parcial de 2015 la restricción era una distancia mínima $d$ entre edificios,
+así que el salto es $p(i)=i-d$; el ejercicio pedía también refutar un greedy
+y corregir una implementación dada.\visto{2P 2015 Ej. 1: edificios a distancia mínima $d$}
+
+\begin{problema}{Edificios separados por al menos $d$ cuadras (2P 2015, Ej. 1)}
+La cuadra $i$ aloja $h_i$ habitantes (0 si no hay solicitud) y dos edificios
+aceptados deben estar a distancia $\ge d$. Con $T(i)$ el máximo para las
+cuadras $1..i$:
+\[
+T(0)=0,\qquad T(i)=\max\bigl\{h_i+T(\max\{0,i-d\}),\ T(i-1)\bigr\},\quad i\ge1.
+\]
+Es intervalos ponderados con $p(i)=\max\{0,i-d\}$. Se pedía además mostrar
+que el greedy ``aceptar en orden decreciente de habitantes si es compatible''
+falla: con $d=2$ y $h=(2,3,2)$ elige $\{2\}$ (valor 3) y el óptimo es
+$\{1,3\}$ (valor 4).
+\end{problema}
+
+\subsection{Sufijos con saltos}
+
+Muchas veces es más natural mirar la \emph{primera} decisión: $\OPT(i)$ es el
+óptimo para los días $i,i+1,\dots,n$, se llena con $i$ decreciente y la
+respuesta es $\OPT(1)$. Si la decisión del día $i$ ``consume'' $k$ días, la
+recurrencia salta a $\OPT(i+k)$ y hacen falta casos base hasta
+$n+k$.\visto{2P 2021 Ej. 1: tarifa plana de 7 días}
+
+\begin{problema}{Tarifa por consumo o tarifa plana (2P 2021, Ej. 1)}
+El día $i$ se paga $t_iK_c$ por consumo, o se contrata un bloque de 7 días
+consecutivos por $K_p$ (aunque queden menos de 7 días). Para
+$1\le i\le n+7$, $\OPT(i)$ es el costo óptimo de los días $i..n$:
+\begin{gather*}
+\OPT(i)=0\qquad (n<i\le n+7),\\
+\OPT(i)=\min\{t_iK_c+\OPT(i+1),\ K_p+\OPT(i+7)\}\qquad (1\le i\le n).
+\end{gather*}
+El día $i$ solo puede pagarse de esas dos formas; con la plana quedan pagos
+hasta $\min\{i+6,n\}$. Se llena con $i=n$ bajando hasta 1. Reconstrucción:
+$i\gets1$; mientras $i\le n$, si $\OPT(i)=K_p+\OPT(i+7)$ agregar $i$ a $P$ e
+$i\gets i+7$, si no $i\gets i+1$.
+\end{problema}
+
+\begin{problema}{Ravioles y sorrentinos (examen dic. 2024, Ej. 2)}
+Cada día se fabrica un solo tipo de pasta; si el día $i$ se hacen
+sorrentinos, los días $i+1$ e $i+2$ solo pueden ser ravioles. Las ventas
+estimadas son $r_i$ y $s_i$ unidades, con ganancias unitarias $g_r$ y $g_s$.
+Con $\OPT(i)$ la ganancia máxima de los días $i..n$ y $r_{n+1}=r_{n+2}=0$:
+\begin{gather*}
+\OPT(n+d)=0\qquad (1\le d\le3),\\
+\OPT(i)=\max\bigl\{s_ig_s+(r_{i+1}+r_{i+2})g_r+\OPT(i+3),\ r_ig_r+\OPT(i+1)\bigr\}.
+\end{gather*}
+Si se elige sorrentinos el día $i$, los dos días siguientes quedan fijados y
+lo que sigue desde $i+3$ no tiene restricciones. Reconstrucción con
+\textbf{mientras}: si $\OPT(i)=r_ig_r+\OPT(i+1)$ poner $R$ y avanzar 1; si no,
+poner $S,R,R$ y avanzar 3.
+\end{problema}
+
+El de pedidos de soporte de 2025 es el mismo molde, pero con tres casos que
+dependen de los datos y no de la decisión, y la solución oficial lista
+errores típicos de la reconstrucción que conviene leer.\visto{2P 2025 Ej. 3: pedidos que duran uno o dos días}
+
+\begin{problema}{Pedidos de soporte de uno o dos días (2P 2025, Ej. 3)}
+El pedido del día $i$ requiere $r_i$ horas y da ganancia $g_i$; el día $i$
+hay $d_i$ horas. Si $r_i\le d_i$ se hace en el día; si
+$d_i<r_i\le d_i+d_{i+1}$ ocupa también el día $i+1$ (y se pierde el pedido
+$i+1$); si $r_i>d_i+d_{i+1}$ se rechaza. El día $n$ solo se acepta si
+$r_n\le d_n$. Con $\OPT(i)$ la ganancia máxima de los días $i..n$:
+\[
+\OPT(n+1)=0,\qquad \OPT(n)=\begin{cases}g_n & r_n\le d_n\\ 0 & r_n>d_n\end{cases}
+\]
+\[
+\OPT(i)=\begin{cases}
+\OPT(i+1) & r_i>d_i+d_{i+1}\\
+g_i+\OPT(i+1) & r_i\le d_i\\
+\max\{\OPT(i+1),\ g_i+\OPT(i+2)\} & d_i<r_i\le d_i+d_{i+1}
+\end{cases}\qquad 1\le i<n.
+\]
+Se llena desde $n-1$ hasta 1. En el ejemplo de la letra la respuesta es
+$G=11$.
+
+\textbf{Reconstrucción.} Con \textbf{mientras}: si $\OPT(i)=\OPT(i+1)$, se
+rechaza y se avanza 1; si no, se acepta, y se avanza 1 si $r_i\le d_i$ y 2 en
+otro caso. Hay que decidir mirando también $r$ y $d$, no solo los valores de
+la tabla.
+\end{problema}
+
+\begin{trampa}[reconstrucción en sufijos con saltos]
+\begin{itemize}[leftmargin=1.2em]
+  \item Usar \textbf{para} $i=1..n$: no permite saltar el día que quedó
+  ocupado. Con $n=2$, $g=(20,10)$, $d=(1,1)$, $r=(2,1)$ la tabla da
+  $\OPT(2)=10$, $\OPT(1)=20$ y un \textbf{para} acepta los dos pedidos.
+  \item Comparar solo valores: puede valer $\OPT(i)=g_i+\OPT(i+2)$ aunque
+  $r_i>d_i+d_{i+1}$ (pedido imposible). Con $n=3$, $g=(10,10,5)$,
+  $d=(1,1,1)$, $r=(3,2,2)$ se tiene $\OPT(3)=0$, $\OPT(2)=10$, $\OPT(1)=10$,
+  y el pedido 1 se aceptaría por error.
+  \item Olvidar el caso base extra ($n+1$, o $n+1..n+7$) cuando la recurrencia
+  salta más de un lugar.
+\end{itemize}
+\end{trampa}
+
+\subsection{Recurrencias booleanas}
+
+Si la pregunta es ``¿se puede?'', $\OPT$ es booleana y el $\max$ se vuelve
+$\lor$. La reconstrucción es más simple que en optimización: basta ir a
+cualquier sucesor que valga \texttt{true}.\visto{Examen feb. 2020 Ej. 3: dinosaurio que salta obstáculos}
+
+\begin{problema}{Dinosaurio que avanza 1 o salta 4 (examen feb. 2020, Ej. 3)}
+Hay $n$ baldosas, libres o con obstáculo ($B[i]$). Desde $i$ se va a $i+1$ o a
+$i+4$; se gana al pasar más allá de $n$. Con $M(i)$ verdadero si se puede
+ganar partiendo de $i$:
+\begin{gather*}
+M(i)=\texttt{true}\qquad (n<i\le n+4),\\
+M(i)=\bigl(B[i]=\text{libre}\bigr)\wedge\bigl(M(i+1)\vee M(i+4)\bigr)\qquad (1\le i\le n).
+\end{gather*}
+Se calcula con $i$ decreciente. Si $M(1)$ es falso no hay solución; si no,
+desde $i=1$, mientras $i\le n$: si $M(i+4)$ saltar, si no avanzar.
+\end{problema}
+
+\begin{receta}[prefijos y sufijos]
+\begin{itemize}[leftmargin=1.2em]
+  \item Si la letra sugiere ``desde el día $i$ hasta el $n$'', usá sufijos y
+  llená con $i$ decreciente; si sugiere ``los primeros $i$'', prefijos.
+  \item Escribí los casos base para todos los índices fuera de rango que
+  aparecen en la recurrencia (o agregá ceros ficticios, $r_{n+1}=0$, y decilo).
+  \item En cada término explicá en una línea qué decisión representa y por
+  qué lo que queda es independiente de esa decisión.
+  \item Si se pide comparar con un greedy, el contraejemplo de tres elementos
+  casi siempre alcanza.
+\end{itemize}
+\end{receta}
+
+% =====================================================================
+\section{Prefijos con un parámetro de estado}
+% =====================================================================
+
+Cuando el costo de una decisión depende de la decisión anterior (cambiar de
+cuchilla cuesta $T$, cambiar neumáticos cuesta $P$), $\OPT(i)$ no alcanza: al
+escribir la recurrencia no sabés qué se eligió en $i-1$. Se agrega un
+parámetro que guarda exactamente esa información, y la tabla pasa a tener
+una fila por cada valor del estado. Este molde salió en el segundo parcial
+de 2024 con la mitad del puntaje.\visto{2P 2024 Ej. 1: cuchillas A y B}
+
+\begin{problema}{Cuchillas A y B (2P 2024, Ej. 1)}
+Hay $n$ cortes en orden sobre materiales $m_1..m_n$; cortar $m$ con cuchilla
+$X\in\{A,B\}$ cuesta $C_X(m)$ y cambiar de cuchilla cuesta $T$. Al empezar
+está instalada la $A$. Escribimos $\pdbar{X}$ para la cuchilla opuesta.
+
+\textbf{Subproblema.} Para $1\le i\le n$ y $X\in\{A,B\}$, $\OPT(i,X)$ es el
+costo mínimo de hacer las primeras $i$ tareas \emph{terminando con la
+cuchilla $X$} (la tarea $i$ se hace con $X$).
+
+\textbf{Recurrencia.}
+\[
+\OPT(1,A)=C_A(m_1),\qquad \OPT(1,B)=C_B(m_1)+T,
+\]
+\[
+\OPT(i,X)=C_X(m_i)+\min\bigl\{\OPT(i-1,X),\ \OPT(i-1,\pdbar{X})+T\bigr\},\quad 1<i\le n.
+\]
+Si la tarea $i$ se hace con $X$, se paga el desgaste $C_X(m_i)$; las
+primeras $i-1$ tareas deben resolverse de forma óptima terminando con $X$
+(sin cambio) o con $\pdbar{X}$ (y se paga el cambio). La respuesta es
+$\min\{\OPT(n,A),\OPT(n,B)\}$. Tiempo $\Oh(n)$.
+
+\textbf{Reconstrucción.} $X\gets\pdargmin_X\OPT(n,X)$; para $i=n$ bajando
+hasta 2: $\mathit{SOL}[i]\gets X$; si $\OPT(i-1,\pdbar{X})+T<\OPT(i-1,X)$ entonces
+$X\gets\pdbar{X}$. Al final $\mathit{SOL}[1]\gets X$.
+\end{problema}
+
+La solución oficial de este ejercicio es la más útil para estudiar, porque
+analiza tres recurrencias incorrectas que aparecieron en las pruebas. Las
+tres fallan por lo mismo: la información de qué cuchilla se usó en la tarea
+anterior no está en el subproblema, o está con un significado distinto del
+que se usa en el lado derecho.
+
+\begin{trampa}[las recurrencias incorrectas del 2P 2024]
+\begin{itemize}[leftmargin=1.2em]
+  \item $\OPT(i)=\OPT(i-1)+\min\{C_A(m_i),T+C_B(m_i)\}$ ``si la tarea $i-1$
+  se hizo con $A$'': no hay forma de saber eso desde $\OPT(i-1)$; es greedy.
+  \item ``El último cambio fue en la tarea $k$'': para sumar $T$ hay que
+  saber que la tarea $k-1$ se hizo con la otra cuchilla, y eso no está en
+  $\OPT(k-1)$.
+  \item $\OPT(i,X)$ con $X$ = ``cuchilla instalada al empezar la tarea $i$''
+  pero usando $\OPT(i-1,X)$ como si $X$ fuera la cuchilla con la que se hizo
+  $i-1$: el parámetro cambia de significado entre los dos lados.
+  \item Reconstruir eligiendo en cada $i$ la cuchilla con menor $\OPT(i,X)$:
+  con $T=5$, $C_A=(10,10)$, $C_B=(1,100)$ la tabla es
+  $\OPT(\cdot,A)=(10,20)$, $\OPT(\cdot,B)=(6,106)$ y ese método devuelve
+  $[B,A]$ de costo 21, cuando el óptimo es $[A,A]$ de costo 20.
+\end{itemize}
+\end{trampa}
+
+El de neumáticos de diciembre de 2019 es idéntico salvo por el caso base: el
+tipo de neumático de la largada se elige libremente, así que
+$\OPT(1,X)=t(1,X)$ para ambos $X$, y la parada cuesta
+$P$.\visto{Examen dic. 2019 Ej. 2: neumáticos A o B por vuelta}
+
+\pdalgo{Neumáticos A/B: costo mínimo y solución}
+\begin{algorithmic}[1]
+\State $\OPT[1,X]\gets t(1,X)$ para $X\in\{A,B\}$
+\For{$i=2$ \textbf{hasta} $n$}
+  \ForAll{$X\in\{A,B\}$}
+    \State $\OPT[i,X]\gets t(i,X)+\min\{\OPT[i-1,X],\ \OPT[i-1,\pdbar{X}]+P\}$
+  \EndFor
+\EndFor
+\State $X\gets\pdargmin_{X}\OPT[n,X]$
+\For{$i=n$ \textbf{bajando hasta} $2$}
+  \State $\mathit{SOL}[i]\gets X$
+  \If{$\OPT[i-1,\pdbar{X}]+P<\OPT[i-1,X]$} $X\gets\pdbar{X}$ \EndIf
+\EndFor
+\State $\mathit{SOL}[1]\gets X$;\ \Return $\min_X\OPT[n,X]$ y $SOL$
+\end{algorithmic}
+
+Un estado puede ser también un número. En la estrategia de Fórmula 1 de 2022
+el tiempo de cada vuelta depende de cuántas vueltas tienen los neumáticos,
+así que ese contador entra en el subproblema. La solución oficial lo vincula
+con el ejercicio 6.9 del libro (procesamiento con reinicios).\visto{2P 2022 Ej. 1: paradas de Fórmula 1}
+
+\begin{problema}{Paradas en boxes de Fórmula 1 (2P 2022, Ej. 1)}
+$s_{i,j}$ es el tiempo de la vuelta $i$ con neumáticos de $j$ vueltas de uso
+($1\le j\le i\le n$); parar al final de una vuelta cuesta $P$. Con
+$\OPT(i,j)$ el tiempo mínimo desde la vuelta $i$ hasta la $n$ si los
+neumáticos llevan $j$ vueltas al correr la vuelta $i$:
+\begin{gather*}
+\OPT(n,j)=s_{n,j},\\
+\OPT(i,j)=s_{i,j}+\min\bigl\{P+\OPT(i+1,1),\ \OPT(i+1,j+1)\bigr\}\qquad(1\le j\le i<n).
+\end{gather*}
+Respuesta $\OPT(1,1)$; se llena con $i$ decreciente y, para cada $i$, todos
+los $j\le i$: $\Oh(n^2)$. Reconstrucción: $j\gets1$; para $i=1..n-1$, si
+$\OPT(i,j)=s_{i,j}+P+\OPT(i+1,1)$ se para en $i$ y $j\gets1$, si no
+$j\gets j+1$.
+
+\textbf{Alternativa.} $\OPT'(i,j)$ = tiempo óptimo de las vueltas $1..i$
+terminando con neumáticos de $j$ vueltas: $\OPT'(i,j)=\OPT'(i-1,j-1)+s_{i,j}$
+si $j>1$, y $\OPT'(i,1)=P+s_{i,1}+\min_k\OPT'(i-1,k)$; respuesta
+$\min_k\OPT'(n,k)$.
+\end{problema}
+
+En el programa anterior a 2018 apareció la versión ``dos agentes'': Ana y
+Luis marcan los lugares $l_1,\dots,l_n$ en orden y en cada paso uno de los
+dos va al siguiente lugar. El estado es dónde quedó el que no se movió.\visto{2P 2010 Ej. 2: dos corredores marcan lugares}
+
+\begin{problema}{Dos integrantes marcan lugares (2P 2010, Ej. 2)}
+$f(l,k)$, con $k<l$, es la distancia que falta recorrer si ya se marcaron
+los lugares hasta $l_l$, uno de los integrantes está en $l_l$ y el otro en
+$l_k$. Caso base: $f(n,k)=0$. En general, el lugar $l_{l+1}$ lo marca el que
+está en $l_l$ o el que está en $l_k$:
+\[
+f(l,k)=\min\bigl\{d(l_l,l_{l+1})+f(l+1,k),\ d(l_k,l_{l+1})+f(l+1,l)\bigr\}.
+\]
+Hay $\Oh(n^2)$ subproblemas de costo $\Oh(1)$.
+\end{problema}
+
+\begin{receta}[cuándo agregar un estado]
+Preguntate: ``para decidir lo que hago en el paso $i$, ¿qué necesito saber
+de lo que pasó antes?''. Eso, y nada más, es el parámetro extra. Escribí
+explícitamente si $X$ es la elección hecha \emph{en} el paso $i$ o la que
+estaba vigente \emph{al empezar} el paso $i$, y usá el mismo significado en
+ambos lados de la ecuación. En la reconstrucción llevá el estado en una
+variable y actualizalo con la misma comparación de la recurrencia.
+\end{receta}
+
+% =====================================================================
+\section{Segmentación: elegir dónde empieza el último tramo}
+% =====================================================================
+
+\subsection{Mínimos cuadrados segmentados}
+
+Hay puntos $p_1,\dots,p_n$ ordenados por abscisa. Se quiere partirlos en
+tramos consecutivos y ajustar una recta a cada tramo; el costo es la suma de
+los errores cuadráticos $e_{i,j}$ de cada tramo $p_i..p_j$ más una constante
+$C$ por tramo. La decisión ya no es binaria: el último tramo empieza en
+algún $i$ entre 1 y $n$, y hay que probar todos (decisión \emph{de múltiples
+opciones}).
+
+\begin{resultado}[(6.6)]
+Si el último tramo de la partición óptima es $p_i,\dots,p_n$, entonces
+$\OPT(n)=e_{i,n}+C+\OPT(i-1)$.
+\end{resultado}
+
+\begin{resultado}[(6.7)]
+Para los puntos $p_1,\dots,p_j$,
+$\OPT(j)=\min_{1\le i\le j}\bigl(e_{i,j}+C+\OPT(i-1)\bigr)$, con
+$\OPT(0)=0$; el tramo $p_i..p_j$ se usa en una solución óptima del
+subproblema si y solo si el mínimo se alcanza en $i$.
+\end{resultado}
+
+\pdalgo{Segmented-Least-Squares y reconstrucción}
+\begin{algorithmic}[1]
+\State calcular $e_{i,j}$ para todo $1\le i\le j\le n$
+\State $M[0]\gets 0$
+\For{$j=1$ \textbf{hasta} $n$}
+  \State $M[j]\gets\min_{1\le i\le j}\bigl(e_{i,j}+C+M[i-1]\bigr)$
+\EndFor
+\Statex
+\Function{Find-Segments}{$j$}
+  \If{$j>0$}
+    \State hallar $i$ que minimiza $e_{i,j}+C+M[i-1]$
+    \State emitir el tramo $p_i..p_j$;\ \Call{Find-Segments}{$i-1$}
+  \EndIf
+\EndFunction
+\end{algorithmic}
+
+Con los errores precalculados, el ciclo principal es $\Oh(n^2)$ ($n$
+subproblemas, $\Oh(n)$ cada uno). Calcular todos los $e_{i,j}$ de forma
+directa cuesta $\Oh(n^3)$ y puede bajarse a $\Oh(n^2)$ con sumas
+acumuladas. En los parciales el costo del tramo suele darse como función
+calculable en $\Oh(1)$.\visto{2P 2020 Ej. 2: cortar una secuencia en fragmentos}
+
+\begin{problema}{Fragmentos con costo máximo menos mínimo (2P 2020, Ej. 2)}
+Partir $x_1..x_n$ en fragmentos consecutivos; cada fragmento cuesta
+$d_{i,j}=\max-\min$ de sus elementos y cada \emph{corte} cuesta $c$ (no cada
+fragmento). Con $\OPT(j)$ el costo mínimo del prefijo $x_1..x_j$:
+\[
+\OPT(j)=\min\Bigl\{d_{1,j},\ c+\min_{2\le i\le j}\bigl(\OPT(i-1)+d_{i,j}\bigr)\Bigr\},\qquad 1\le j\le n,
+\]
+con la convención $\min\emptyset=\infty$ (para $j=1$ queda $d_{1,1}=0$). El
+primer término es ``un solo fragmento''; el segundo, ``el último fragmento
+empieza en $i>1$'', que agrega un corte. Orden $\Oh(n^2)$.
+
+\textbf{Posiciones de inicio.} $j\gets n$; mientras $j>0$: si
+$\OPT(j)=d_{1,j}$ entonces $i\gets1$, si no buscar $i\ge2$ con
+$\OPT(j)=c+\OPT(i-1)+d_{i,j}$; marcar $p[i]\gets\texttt{true}$;
+$j\gets i-1$.
+\end{problema}
+
+Ojo con la diferencia respecto del libro: allá la constante se paga por
+tramo, acá por corte. Una forma limpia de unificar es definir
+$\OPT(0)=-c$ y usar $\OPT(j)=\min_{1\le i\le j}(c+\OPT(i-1)+d_{i,j})$. En
+febrero de 2024 se tomó otra variante, en la que el ``tramo'' es un prefijo
+de una cadena fija.\visto{Examen feb. 2024 Ej. 2: concatenación de prefijos}
+
+\begin{problema}{Concatenación de prefijos (examen feb. 2024, Ej. 2)}
+Se quiere construir $Y=y_1..y_n$ como concatenación de prefijos no nulos de
+$S=s_1..s_n$ que coincida con $X$ en la mayor cantidad de posiciones. Si el
+último prefijo cubre $x_{i+1}..x_j$, aporta
+$c(i,j)=|\{k: i<k\le j,\ x_k=s_{k-i}\}|$ coincidencias:
+\[
+\OPT(0)=0,\qquad \OPT(j)=\max_{0\le i<j}\bigl(\OPT(i)+c(i,j)\bigr),\quad 1\le j\le n.
+\]
+Precalcular $c$ ingenuamente cuesta $\Oh(n^3)$; con
+$c(i,j)=c(i,j-1)+[x_j=s_{j-i}]$ baja a $\Oh(n^2)$, igual que el ciclo
+principal.
+\end{problema}
+
+La segmentación en palíndromos del examen de febrero de 2026 es el mismo
+molde con la condición de que cada tramo sea palíndromo. La solución oficial
+la presenta explícitamente como ``parecida a mínimos cuadrados
+segmentados''.\visto{Examen feb. 2026 Ej. 3: segmentación en palíndromos}
+
+\begin{problema}{Segmentación mínima en palíndromos (examen feb. 2026, Ej. 3)}
+Con $\mathit{esP}(i,j)$ verdadero si $a_i..a_j$ es palíndromo y $\OPT(j)$ el tamaño
+mínimo de una segmentación en palíndromos de $a_1..a_j$:
+\[
+\OPT(0)=0,\qquad \OPT(j)=1+\min\{\OPT(i-1):\ 1\le i\le j,\ \mathit{esP}(i,j)\}.
+\]
+El rango de $i$ tiene que incluir $i=1$ (toda la cadena es un palíndromo) e
+$i=j$ (tramos de largo 1, que siempre existen, así que el conjunto nunca es
+vacío). Reconstrucción: $j\gets n$; mientras $j>0$, elegir $i$ con
+$\mathit{esP}(i,j)$ y $\OPT(j)=1+\OPT(i-1)$, agregar $i$ al inicio de $S$,
+$j\gets i-1$. Orden $\Oh(n^2)$ con $\mathit{esP}$ precalculada (que es a su vez una
+PD sobre intervalos, sección~\ref{pd:sec:intervalos}).
+
+El greedy ``el palíndromo inicial más largo posible'' falla: para
+\texttt{dqdqdmmmmdq} da $\{\texttt{dqdqd},\texttt{mmmm},\texttt{d},\texttt{q}\}$
+y el óptimo es $\{\texttt{dqd},\texttt{qdmmmmdq}\}$. Tomar el palíndromo
+final más largo también falla.
+\end{problema}
+
+\begin{trampa}[segmentación]
+\begin{itemize}[leftmargin=1.2em]
+  \item Excluir $i=1$ o $i=j$ del rango del mínimo, dejando afuera ``un solo
+  tramo'' o ``tramos de largo 1''.
+  \item Sumar la constante también al primer tramo cuando se cobra por corte.
+  \item Escribir $\OPT(j)=\OPT(j-1)+\ldots$: eso decide solo si $j$ empieza o
+  no un tramo, sin saber dónde empezó el anterior.
+\end{itemize}
+\end{trampa}
+
+% =====================================================================
+\section{Subsecuencia creciente más larga}
+% =====================================================================
+
+Otra decisión de múltiples opciones: para que el subproblema tenga
+estructura, se fija el \emph{último} elemento. Para $1\le j\le n$,
+$\OPT(j)$ es el largo máximo de una subsecuencia creciente de $x_1..x_j$ que
+\emph{termina en $x_j$}. Si la subsecuencia tiene largo mayor a 1, su
+penúltimo elemento es algún $x_i$ con $i<j$ y $x_i<x_j$, y lo anterior es una
+subsecuencia creciente óptima que termina en $x_i$.\visto{Examen dic. 2023 Ej. 2: subsecuencia creciente más larga}
+
+\begin{problema}{Subsecuencia creciente más larga (dic. 2023; 2P 2016; feb. 2018)}
+Sea $S_j=\{i: 1\le i<j,\ x_i<x_j\}$. Entonces
+\[
+\OPT(j)=\begin{cases}1 & S_j=\emptyset\\ 1+\max\{\OPT(i): i\in S_j\} & S_j\ne\emptyset\end{cases}
+\]
+y la respuesta es $\max_{1\le j\le n}\OPT(j)$, no $\OPT(n)$. Alternativa de
+2018: $G_0=0$, $G_i=\max\{G_{i-1},L_i\}$ con $L_i=\OPT(i)$, y la respuesta es
+$G_n$. Orden $\Oh(n^2)$.
+
+\textbf{Reconstrucción.} $j\gets\pdargmax_j\OPT(j)$; $P\gets(x_j)$; para
+$i=j-1$ bajando hasta 1: si $x_i<x_j$ y $\OPT(i)+1=\OPT(j)$, agregar $x_i$ al
+principio de $P$ y $j\gets i$. También puede guardarse un arreglo $T[j]$ con el
+índice anterior elegido.
+\end{problema}
+
+En 2016 se pedía, además, explicar qué subproblemas hacen falta para resolver
+$P_i$ (los $P_j$ con $j<i$ y $A_j<A_i$) y por qué la versión recursiva
+directa es exponencial: en el peor caso, la secuencia creciente, la llamada
+para $j$ se repite $2^{n-j}$ veces.\visto{2P 2016 Ej. 2: largos $L_i$ de subsecuencias crecientes}
+
+En febrero de 2018 se agregó una reducción: apilar la mayor cantidad de
+bandejas rectangulares, donde cada una debe ser más chica en ancho y largo
+que la de abajo. Se ordenan por ancho y se busca la subsecuencia creciente más
+larga de los largos.\visto{Examen feb. 2018 Prob. B: LIS y pila de bandejas}
+
+\begin{trampa}[subsecuencia creciente]
+Devolver $\OPT(n)$ (la mejor que termina en el último elemento) en lugar del
+máximo sobre todos los $j$; definir $\OPT(j)$ como ``la más larga en
+$x_1..x_j$'' y después usar que termina en $x_j$; olvidar que con elementos
+repetidos la condición es estricta ($x_i<x_j$).
+\end{trampa}
+
+% =====================================================================
+\section{Mochila y suma de subconjuntos: una capacidad extra}
+% =====================================================================
+
+\subsection{Suma de subconjuntos}
+
+Hay $n$ ítems con pesos enteros $w_i$ y una cota $W$; se busca un
+subconjunto $S$ con $\sum_{i\in S}w_i\le W$ lo más grande posible. Con
+$\OPT(i)$ sola no alcanza: si el ítem $n$ entra en la solución, lo que
+queda es un problema sobre $1..n-1$ \emph{con capacidad $W-w_n$}, que no es
+ninguno de los $\OPT(i)$. Hay que agregar la capacidad restante como
+parámetro: $\OPT(i,w)$ es el óptimo con los ítems $1..i$ y cota $w$, para
+$0\le i\le n$ y $0\le w\le W$.
+
+\begin{resultado}[(6.8)]
+Si $w<w_i$ entonces $\OPT(i,w)=\OPT(i-1,w)$. Si no,
+$\OPT(i,w)=\max\bigl(\OPT(i-1,w),\ w_i+\OPT(i-1,w-w_i)\bigr)$.
+Casos base: $\OPT(0,w)=0$ para todo $w$.
+\end{resultado}
+
+\pdalgo{Subset-Sum$(n,W)$ y reconstrucción}
+\begin{algorithmic}[1]
+\State $M[0,w]\gets 0$ para $0\le w\le W$
+\For{$i=1$ \textbf{hasta} $n$}
+  \For{$w=0$ \textbf{hasta} $W$}
+    \If{$w<w_i$} $M[i,w]\gets M[i-1,w]$
+    \Else\ $M[i,w]\gets\max\bigl(M[i-1,w],\ w_i+M[i-1,w-w_i]\bigr)$
+    \EndIf
+  \EndFor
+\EndFor
+\State $S\gets\emptyset$;\ $w\gets W$
+\For{$i=n$ \textbf{bajando hasta} $1$}
+  \If{$w\ge w_i$ \textbf{y} $M[i,w]=w_i+M[i-1,w-w_i]$}
+    \State $S\gets S\cup\{i\}$;\ $w\gets w-w_i$
+  \EndIf
+\EndFor
+\State \Return $M[n,W]$ y $S$
+\end{algorithmic}
+
+\begin{resultado}[(6.9), (6.10) y (6.11)]
+\textproc{Subset-Sum}$(n,W)$ calcula correctamente el óptimo en tiempo
+$\Oh(nW)$. Dada la tabla, el conjunto óptimo se reconstruye en $\Oh(n)$. La
+mochila (cada ítem tiene además valor $v_i$, y se maximiza
+$\sum_{i\in S}v_i$ sujeto a $\sum_{i\in S}w_i\le W$) se resuelve igual en
+$\Oh(nW)$ con
+$\OPT(i,w)=\max\bigl(\OPT(i-1,w),\ v_i+\OPT(i-1,w-w_i)\bigr)$ si $w_i\le w$.
+\end{resultado}
+
+El orden $\Oh(nW)$ es \emph{pseudopolinomial}: es polinomial en el
+\emph{valor} de $W$, pero $W$ se escribe con $\log W$ bits, así que puede ser
+exponencial en el tamaño de la entrada. No contradice que suma de
+subconjuntos sea $\NP$-completo (capítulo 8), y en un parcial hay que decirlo
+así y no ``polinomial''.
+
+\subsection{Mochila 0/1}
+
+La mochila es el problema de PD más preguntado del programa viejo (hasta
+2017), siempre con la misma estructura: plantear la recurrencia, justificar
+por qué greedy no sirve, implementar y, a veces, comparar con la versión
+fraccionaria.\visto{Examen jul. 2016 Prob. C: mochila de Martín}
+
+\begin{problema}{Mochila 0/1 (jul. 2016 Prob. C; dic. 2010 Prob. 1; 2P 2008 Ej. 1)}
+Productos con precio $d_k$ y peso $w_k$, un solo ejemplar de cada uno,
+capacidad $W$. Con $g(k,w)$ la ganancia óptima usando los productos
+$1..k$ con peso máximo $w$:
+\[
+g(0,w)=0,\qquad
+g(k,w)=\begin{cases}g(k-1,w) & w<w_k\\ \max\{g(k-1,w),\ g(k-1,w-w_k)+d_k\} & w\ge w_k.\end{cases}
+\]
+Se llena por filas $k=1..n$ y, dentro de cada fila, $w=0..W$; respuesta
+$g(n,W)$.
+
+\textbf{Greedy no sirve.} Con $W=10$ y ítems $(w,d)=(6,7),(5,5),(5,5)$,
+elegir por mayor $d/w$ toma el primero y obtiene 7; el óptimo es 10.
+
+\textbf{Versión fraccionaria.} Si se pueden llevar fracciones, greedy por
+mayor $d_k/w_k$ es óptimo, en $\Oh(n\log n)$.
+\end{problema}
+
+La misma estructura aparece disfrazada: espacios de publicidad con precio y
+rating y un presupuesto (2012, donde también se pedía mostrar que el greedy
+por cociente falla) y la definición formal del problema más el principio de
+optimalidad (diciembre de 2015).\visto{Examen feb. 2012 Ej. 2: publicidad con presupuesto}
+
+\subsection{Ítems ilimitados: cambio de monedas}
+
+Si cada ítem se puede usar cualquier cantidad de veces, al usar el ítem $i$
+\emph{no} se pasa a $i-1$: se queda en la misma fila con menos capacidad.
+Ese es el único cambio, y es el error más común.\visto{Examen dic. 2020 Ej. 3: cambio con menos billetes}
+
+\begin{problema}{Cambio con la menor cantidad de billetes (dic. 2020 Ej. 3; jul. 2020 Ej. 3)}
+Valores $1=w_1<w_2<\dots<w_n$, cantidad ilimitada, monto $C$. Con
+$\OPT(i,R)$ la menor cantidad de billetes con valores en $\{w_1..w_i\}$ que
+suman $R$:
+\[
+\OPT(i,0)=0,\qquad \OPT(1,R)=R,
+\]
+\[
+\OPT(i,R)=\begin{cases}\OPT(i-1,R) & R<w_i\\ \min\{\OPT(i-1,R),\ 1+\OPT(i,R-w_i)\} & R\ge w_i.\end{cases}
+\]
+O no se usa ningún billete $w_i$, o se usa al menos uno y el resto
+$R-w_i$ se paga de forma óptima con los mismos valores. Orden $\Oh(nC)$.
+
+\textbf{Greedy falla.} Con $B=\{1,3,4\}$ y $C=6$, tomar siempre el mayor
+billete da $4+1+1$ (3 billetes) y el óptimo es $3+3$. En el problema de las
+varillas (longitudes $1,4,6$) las respuestas para $4,8,14,20$ son $1,2,3,4$
+varillas; por ejemplo $14=6+4+4$ y $20=6+6+4+4$.
+
+\textbf{Reconstrucción.} $i\gets n$, $R\gets C$; mientras $R>0$: si $i=1$,
+usar $R$ billetes de 1; si no, si $R<w_i$ o $\OPT(i-1,R)<1+\OPT(i,R-w_i)$,
+$i\gets i-1$; si no, usar un billete $w_i$ y $R\gets R-w_i$.
+\end{problema}
+
+También se puede usar una sola dimensión,
+$\OPT(R)=1+\min\{\OPT(R-w_i): w_i\le R\}$ con $\OPT(0)=0$, que es
+correcta porque el orden de los billetes no importa. La ventaja de la versión
+con dos índices es que es la que sugiere la letra y la reconstrucción es más
+directa.\visto{Examen jul. 2020 Ej. 3: varillas con mínimas soldaduras}
+
+El greedy de monedas (tomar la de mayor valor que entra, tantas veces como
+se pueda) es óptimo para sistemas como el uruguayo, pero no en general; en
+febrero de 2018 se pedía identificar la técnica y mostrar que puede no
+encontrar la solución óptima. La PD de arriba es la que resuelve el caso
+general.\visto{Examen feb. 2018 Preg. 2: greedy de monedas}
+
+\subsection{Variantes con cantidades acotadas o dos restricciones}
+
+Si de cada ítem hay un stock limitado, la decisión pasa a ser \emph{cuántas}
+unidades del último ítem usar, y se toma el mínimo (o el máximo) sobre esa
+cantidad. Si además la capacidad debe llenarse exactamente, las celdas
+imposibles valen $+\infty$ y la respuesta puede no existir.\visto{2P 2012 Ej. 1: carga exacta con stock}
+
+\begin{problema}{Carga exacta con stock acotado (2P 2012, Ej. 1)}
+Productos $0..n$ de volumen $T[p]$ con stock $Q[p]$; llenar \emph{exactamente}
+la capacidad $C$ con la menor cantidad de unidades. Con $f(p,c)$ el mínimo
+usando los productos $0..p$ para volumen exacto $c$ ($+\infty$ si es
+imposible), una recurrencia posible es
+\begin{gather*}
+f(-1,0)=0,\qquad f(-1,c)=+\infty\quad (c>0),\\
+f(p,c)=\min_{0\le q\le\min\{Q[p],\lfloor c/T[p]\rfloor\}}\bigl(q+f(p-1,c-q\,T[p])\bigr).
+\end{gather*}
+La respuesta es $f(n,C)$, y si vale $+\infty$ no hay solución. Orden
+$\Oh(n\,C\,\max_pQ[p])$.
+\end{problema}
+
+Con dos recursos (por ejemplo dinero y peso) la tabla tiene una dimensión
+por cada uno. En los exámenes viejos la letra solía sugerir cómo definir los
+casos base, distinguiendo si el requerimiento mínimo ya se alcanzó o no.\visto{Examen jul. 2009 Ej. 2: menús con dos restricciones}
+
+\begin{problema}{Dos restricciones (menús 2009; ringtones 2010; contenedor 2014)}
+Si hay dos recursos (precio $\le M$ \emph{y} proteínas $\ge W$), cada uno es
+un índice. Para minimizar calorías con menús $1..k$, presupuesto $m$ y
+requerimiento proteico $w$:
+\begin{gather*}
+f(0,m,w)=\begin{cases}0 & w\le 0\\ +\infty & w>0\end{cases}\\
+f(k,m,w)=\min\bigl\{f(k-1,m,w),\ c_k+f(k-1,m-p_k,\max\{0,w-q_k\})\bigr\},
+\end{gather*}
+donde la segunda opción solo existe si $p_k\le m$. Truncar el requerimiento
+en 0 mantiene la tabla finita: $\Oh(nMW)$. El caso base distingue si el
+requerimiento mínimo ya se cumplió, que es lo que pedía la sugerencia.
+\end{problema}
+
+Hay otras variantes del programa viejo que se resuelven igual. Invertir
+$d$ pesos en $n$ empresas con interés $h(x,i)$ es una mochila en la que se
+elige \emph{cuánto} asignar a la última empresa:
+$f(i,x)=\max_{0\le y\le x}\bigl(h(y,i)+f(i-1,x-y)\bigr)$, en
+$\Oh(nd^2)$.\visto{Examen feb. 2009 Ej. 3: invertir en $n$ empresas}
+
+Cuando el objetivo tiene dos niveles (``gastar la mayor cantidad de dinero
+y, entre esas, la menor cantidad de golosinas''), el valor de cada celda es
+un par que se compara de forma lexicográfica. Cuando además del máximo se
+exige un mínimo (programadores con experiencia al menos $E$), basta
+calcular el óptimo y verificar al final que cumple la cota.\visto{Examen feb. 2016 Ej. 4: programadores con presupuesto}
+
+\begin{trampa}[mochila]
+\begin{itemize}[leftmargin=1.2em]
+  \item En la versión ilimitada, usar $\OPT(i-1,R-w_i)$: eso es 0/1.
+  \item Olvidar el caso $w<w_i$, que deja índices negativos.
+  \item Decir que $\Oh(nW)$ es polinomial.
+  \item Proponer greedy por cociente para la versión 0/1.
+  \item Omitir cómo se reconstruye el conjunto, o reconstruirlo comparando
+  $M[i,w]$ con $M[i,w-1]$ en lugar de con $M[i-1,w]$.
+\end{itemize}
+\end{trampa}
+
+% =====================================================================
+\section{Dos secuencias: alineación, edición y subsecuencias comunes}
+% =====================================================================
+
+\subsection{Alineación de secuencias}
+
+Dadas $X=x_1..x_m$ e $Y=y_1..y_n$, una \emph{alineación} es un conjunto $M$
+de pares $(i,j)$ que forma un emparejamiento sin cruces: no hay
+$(i,j),(i',j')\in M$ con $i<i'$ y $j>j'$. Cada posición sin pareja (un hueco)
+cuesta $\delta$ y cada par $(i,j)\in M$ cuesta $\alpha_{x_iy_j}$ (cero si las
+letras son iguales). El subproblema es sobre los dos prefijos: $\OPT(i,j)$ es
+el costo mínimo de alinear $x_1..x_i$ con $y_1..y_j$.
+
+\begin{resultado}[(6.14)]
+Sea $M$ una alineación de $X$ e $Y$. Si $(m,n)\notin M$, entonces la posición
+$m$ de $X$ o la posición $n$ de $Y$ no está emparejada en $M$.
+\end{resultado}
+
+\begin{resultado}[(6.15) y (6.16)]
+En una alineación óptima se cumple al menos una de: $(m,n)\in M$; la
+posición $m$ de $X$ no está emparejada; la posición $n$ de $Y$ no está
+emparejada. Por lo tanto, para $i,j\ge1$,
+\[
+\OPT(i,j)=\min\bigl\{\alpha_{x_iy_j}+\OPT(i-1,j-1),\ \delta+\OPT(i-1,j),\ \delta+\OPT(i,j-1)\bigr\},
+\]
+con $\OPT(i,0)=i\delta$ y $\OPT(0,j)=j\delta$.
+\end{resultado}
+
+La tabla se llena por filas (o por columnas) en $\Oh(mn)$ tiempo y espacio.
+El valor también es el largo del camino mínimo de $(0,0)$ a $(m,n)$ en la
+grilla $G_{XY}$, con aristas horizontales y verticales de costo $\delta$ y
+diagonales de costo $\alpha$ (6.17). Para el \emph{valor} alcanza con
+guardar dos columnas (espacio $\Oh(m)$); para recuperar la alineación en
+espacio lineal está el algoritmo de Hirschberg, que combina esa idea con
+dividir y conquistar en tiempo $\Oh(mn)$. Saber ubicar el problema (qué
+resuelve y con qué técnica) se preguntó como teoría.\visto{Examen feb. 2018 Preg. 4: qué técnica usa alineamiento}
+
+\subsection{Distancia de edición}
+
+Es la alineación con $\delta=1$ y $\alpha_{pq}=1$ si $p\ne q$ (0 si son
+iguales): un par desigual es una sustitución, una posición de $x$ sin pareja
+es un borrado y una de $y$ sin pareja es una inserción.\visto{Examen feb. 2019 Ej. 2: distancia de edición}
+
+\begin{problema}{Distancia de edición (examen feb. 2019, Ej. 2)}
+\textbf{Base.} $\OPT(0,j)=j$ (hay que insertar $j$ caracteres, y no se puede
+con menos) y $\OPT(i,0)=i$ (borrar $i$).
+
+\textbf{Lema que se pedía.} En un emparejamiento óptimo $S$, la posición $n$
+de $x$ o la $m$ de $y$ está emparejada: si ninguna lo estuviera, agregar
+$(n,m)$ cambia un borrado y una inserción por una sustitución y baja el
+costo. Si ambas lo están, es entre sí, porque si no habría un cruce.
+
+\textbf{Recurrencia.} Con $\delta_{i,j}=[x_i\ne y_j]$,
+\[
+\OPT(i,j)=\min\bigl\{\OPT(i-1,j-1)+\delta_{i,j},\ \OPT(i-1,j)+1,\ \OPT(i,j-1)+1\bigr\},\quad i,j>0.
+\]
+Cada término corresponde a: $(i,j)\in S$; $x_i$ se borra; $y_j$ se inserta.
+En los tres casos lo que queda de $S$ debe ser óptimo para los prefijos
+correspondientes (corte y pegado). Orden $\Oh(nm)$.
+\end{problema}
+
+En diciembre de 2018 apareció el mismo molde con otra historia: dos programas
+que se ejecutan a la vez y comparten un ciclo cuando la próxima instrucción
+coincide. La letra preguntaba primero por los casos base, que es la forma
+habitual de arrancar estos ejercicios.\visto{Examen dic. 2018 Ej. 3: ejecución paralela de dos programas}
+
+\begin{problema}{Ejecución en paralelo de dos programas (examen dic. 2018, Ej. 3)}
+En cada ciclo, si las próximas instrucciones de $X$ e $Y$ son iguales se
+ejecutan juntas; si no, se ejecuta una sola. Con $\OPT(i,j)$ los ciclos
+mínimos para las primeras $i$ de $X$ y $j$ de $Y$:
+\begin{gather*}
+\OPT(0,j)=j,\qquad \OPT(i,0)=i,\\
+\OPT(i,j)=\begin{cases}1+\OPT(i-1,j-1) & x_i=y_j\\ 1+\min\{\OPT(i-1,j),\OPT(i,j-1)\} & x_i\ne y_j.\end{cases}
+\end{gather*}
+Cuando $x_i=y_j$ conviene ejecutarlas juntas: cualquier ejecución óptima en
+la que no lo están se transforma en otra igual de buena postergando la
+primera al último ciclo. Observación: el resultado es $n+m-\mathrm{LCS}(X,Y)$.
+\end{problema}
+
+\subsection{Subsecuencia y substring común más largos}
+
+La subsecuencia común más larga (LCS) es el mismo molde con máximo:
+$\OPT(i,j)=1+\OPT(i-1,j-1)$ si $x_i=y_j$, y
+$\max\{\OPT(i-1,j),\OPT(i,j-1)\}$ si no, con bordes en 0. El parcial de 2017
+daba el código de la variante para \emph{substrings} (caracteres
+consecutivos) y pedía descifrarlo.\visto{2P 2017 Ej. 1: substring común más largo}
+
+\begin{problema}{Substring común más largo (2P 2017, Ej. 1)}
+El código usa dos tablas. $\mathit{Mp}[i,j]$ es el largo del sufijo común más largo
+de $A_1..A_i$ y $B_1..B_j$ (el substring común que \emph{termina} en $i$ y
+en $j$); $\mathit{Mt}[i,j]$ es el largo del substring común más largo de esos
+prefijos:
+\begin{gather*}
+\mathit{Mp}[i,j]=\begin{cases}1+\mathit{Mp}[i-1,j-1] & A_i=B_j\\ 0 & A_i\ne B_j\end{cases}\\
+\mathit{Mt}[i,j]=\max\{\mathit{Mp}[i,j],\mathit{Mt}[i-1,j],\mathit{Mt}[i,j-1]\},
+\end{gather*}
+con fila y columna 0 en cero. Para $A=\texttt{la}$, $B=\texttt{ala}$:
+
+\begin{center}
+\begin{tabular}{c|ccc}
+$\mathit{Mp}$ & a & l & a\\\hline
+l & 0 & 1 & 0\\
+a & 1 & 0 & 2
+\end{tabular}\qquad
+\begin{tabular}{c|ccc}
+$\mathit{Mt}$ & a & l & a\\\hline
+l & 0 & 1 & 1\\
+a & 1 & 1 & 2
+\end{tabular}
+\end{center}
+
+El resultado es 2 (\texttt{la}). La versión recursiva sin tabla recalcula
+los mismos $\mathit{Mp}(i,j)$ muchas veces. El espacio $\Oh(nm)$ baja a $\Oh(m)$
+guardando solo la fila anterior.
+\end{problema}
+
+En 2013 se pidió la alineación de dos secuencias de cubos de colores con un
+cubo ``comodín'' para los huecos. Es exactamente la sección 6.6 con la
+función de costos de la letra.\visto{Examen jul. 2013 Prob. 1: alinear cubos de colores}
+
+\begin{receta}[dos secuencias]
+\begin{itemize}[leftmargin=1.2em]
+  \item Definí $\OPT(i,j)$ sobre \emph{prefijos} $x_1..x_i$, $y_1..y_j$ con
+  $0\le i\le n$, $0\le j\le m$, y escribí la fila y la columna 0.
+  \item Justificá con ``¿qué pasa con las últimas posiciones $i$ y $j$?'': se
+  emparejan entre sí, $x_i$ queda solo o $y_j$ queda solo.
+  \item Llená con dos \textbf{para} anidados crecientes y devolvé $\OPT(n,m)$.
+  \item Para reconstruir, partí de $(n,m)$ y en cada celda andá a la vecina
+  (diagonal, arriba o izquierda) cuyo término dio el mínimo.
+\end{itemize}
+\end{receta}
+
+% =====================================================================
+\section{\texorpdfstring{Intervalos $i..j$}{Intervalos i..j}}\label{pd:sec:intervalos}
+% =====================================================================
+
+Cuando una decisión parte el problema en un pedazo izquierdo y uno derecho
+que \emph{no} son prefijos, los subproblemas tienen que ser intervalos
+arbitrarios $x_i..x_j$. Hay $\Theta(n^2)$ de ellos, y la tabla se llena por
+largo creciente $\ell=j-i$ (o con $i$ decreciente y $j$ creciente), para que
+los intervalos más cortos estén calculados.
+
+\subsection{Estructura secundaria del ARN}
+
+Una secuencia $B=b_1..b_n$ sobre $\{A,C,G,U\}$; una estructura secundaria es
+un conjunto $S$ de pares $(i,j)$ tal que: no hay giros cerrados ($i<j-4$);
+cada par es $\{A,U\}$ o $\{C,G\}$; ninguna base está en dos pares; y no hay
+cruces (no existen $(i,j),(k,l)\in S$ con $i<k<j<l$). Se busca $|S|$
+máximo.
+
+Con $\OPT(j)$ sobre prefijos no alcanza. Si $b_j$ se empareja con $b_t$, por
+la condición de no cruce el problema se parte en $b_1..b_{t-1}$ y
+$b_{t+1}..b_{j-1}$, y el segundo no es un prefijo. Por eso se usa
+$\OPT(i,j)$ sobre $b_i..b_j$.
+
+\begin{resultado}[Recurrencia del ARN (sección 6.5)]
+$\OPT(i,j)=0$ si $i\ge j-4$. Si no,
+\[
+\OPT(i,j)=\max\Bigl(\OPT(i,j-1),\ \max_{t}\bigl(1+\OPT(i,t-1)+\OPT(t+1,j-1)\bigr)\Bigr),
+\]
+donde $t$ recorre los $i\le t<j-4$ tales que $b_t$ y $b_j$ forman un par
+permitido. Hay $\Oh(n^2)$ subproblemas de costo $\Oh(n)$: $\Oh(n^3)$.
+\end{resultado}
+
+\pdalgo{Llenado por largo de intervalo (ARN)}
+\begin{algorithmic}[1]
+\State $M[i,j]\gets0$ para todo $i\ge j-4$
+\For{$k=5$ \textbf{hasta} $n-1$} \Comment{$k=j-i$}
+  \For{$i=1$ \textbf{hasta} $n-k$}
+    \State $j\gets i+k$
+    \State $M[i,j]\gets\max\bigl(M[i,j-1],\ \max_t(1+M[i,t-1]+M[t+1,j-1])\bigr)$
+  \EndFor
+\EndFor
+\State \Return $M[1,n]$
+\end{algorithmic}
+
+\subsection{Multiplicación de una cadena de matrices}
+
+No está en el capítulo 6 del libro, pero es el ejemplo más directo del
+molde: la última multiplicación parte la cadena en dos
+subcadenas, y cada una se resuelve de forma óptima.\visto{Examen jul. 2021 Ej. 2: producto de cadena de matrices}
+
+\begin{problema}{Producto $A_1\times\dots\times A_n$ (examen jul. 2021, Ej. 2)}
+$A_i$ es de $d_{i-1}\times d_i$. Con $\OPT(i,j)$ el mínimo de
+multiplicaciones escalares para $A_i\times\dots\times A_j$:
+\[
+\OPT(i,i)=0,\qquad \OPT(i,j)=\min_{i\le k<j}\bigl(\OPT(i,k)+\OPT(k+1,j)+d_{i-1}d_kd_j\bigr),\quad i<j.
+\]
+Calcular $A_i..A_j$ es calcular $U=A_i..A_k$, $V=A_{k+1}..A_j$ (de forma
+óptima, por definición de $\OPT$) y $U\times V$, que cuesta
+$d_{i-1}d_kd_j$. Se llena con $\ell=1..n-1$ e $i=1..n-\ell$, $j=i+\ell$;
+respuesta $\OPT(1,n)$, orden $\Oh(n^3)$.
+\end{problema}
+
+Con la misma estructura se tomó en 2011 ``intercalar paréntesis en una suma
+para minimizar la suma de las sumas intermedias'': el término de combinación
+es $\sum_{t=i}^{j}x_t$ (que se obtiene en $\Oh(1)$ con sumas
+acumuladas) en lugar de $d_{i-1}d_kd_j$.\visto{Examen dic. 2011 Prob. 2: paréntesis con sumas intermedias}
+
+\subsection{Palíndromos}
+
+\begin{problema}{Subsecuencia palíndroma más larga (examen jul. 2022, Ej. 2)}
+Con $\OPT(i,j)$ el largo máximo de una subsecuencia de $x_i..x_j$ que es
+palíndromo:
+\begin{gather*}
+\OPT(i,i)=1,\qquad \OPT(i,j)=0\quad (j<i),\\
+\OPT(i,j)=\begin{cases}2+\OPT(i+1,j-1) & x_i=x_j\\ \max\{\OPT(i+1,j),\OPT(i,j-1)\} & x_i\ne x_j\end{cases}\quad (i<j).
+\end{gather*}
+Si $x_i=x_j$, hay un palíndromo óptimo que usa ambos extremos (si usa solo
+uno, se lo cambia por el otro; si no usa ninguno, se lo puede alargar). Si
+$x_i\ne x_j$, no puede usar los dos. Orden de llenado: $i$ desde $n-1$
+bajando hasta 1 y $j$ desde $i+1$ subiendo hasta $n$. $\Oh(n^2)$.
+\end{problema}
+
+Para \emph{substrings} palíndromos (lo que necesita la segmentación de 2026)
+la tabla booleana es $\mathit{esP}(i,i)=\texttt{true}$,
+$\mathit{esP}(i,i+1)=(a_i=a_{i+1})$ y $\mathit{esP}(i,j)=(a_i=a_j)\wedge \mathit{esP}(i+1,j-1)$, con el
+mismo orden de llenado; se calcula en $\Oh(n^2)$.\visto{Examen jul. 2022 Ej. 2: subsecuencia palíndroma más larga}
+
+\begin{trampa}[intervalos]
+\begin{itemize}[leftmargin=1.2em]
+  \item Llenar con $i$ creciente: $\OPT(i,j)$ necesita $\OPT(i+1,\cdot)$, que
+  todavía no está.
+  \item Olvidar los intervalos vacíos ($j<i$) cuando la recurrencia los usa.
+  \item Plantear $\OPT(j)$ sobre prefijos cuando la decisión deja un
+  pedazo ``del medio''.
+\end{itemize}
+\end{trampa}
+
+% =====================================================================
+\section{Grillas y tableros}
+% =====================================================================
+
+Una grilla en la que solo se avanza en ciertas direcciones (hacia arriba,
+hacia abajo, a la derecha) es un DAG implícito: cada casilla es un
+subproblema y depende de sus dos o tres vecinas ``anteriores''. La tabla es
+la grilla misma y se llena fila por fila en el sentido del movimiento. Los
+bordes se manejan con centinelas $\pm\infty$ en columnas ficticias, que es lo
+que sugieren las letras.\visto{2P 2023 Ej. 1: sargento en un tablero}
+
+\begin{problema}{El sargento (2P 2023, Ej. 1)}
+Desde $(i,j)$ el sargento va a $(i-1,j-1)$, $(i-1,j)$ o $(i-1,j+1)$; salir
+de $(i,j)$ cuesta $C(i,j)$. Se va de $(n,1)$ a alguna casilla de la fila 1.
+Con $\OPT(i,j)$ el costo mínimo de llegar a $(i,j)$:
+\[
+\OPT(n,1)=0,\quad \OPT(n,j)=\infty\ (j>1),\quad \OPT(i,0)=\OPT(i,n+1)=\infty,
+\]
+\[
+\OPT(i,j)=\min_{\ell\in\{j-1,j,j+1\}}\bigl(\OPT(i+1,\ell)+C(i+1,\ell)\bigr),\quad 1\le i<n,\ 1\le j\le n.
+\]
+Se llena con $i$ desde $n-1$ bajando hasta 1; la respuesta es
+$\min_k\OPT(1,k)$. Para reconstruir, se parte de la columna que da el mínimo
+en la fila 1 y en cada fila se baja a la vecina cuyo término coincide con el
+valor actual. $\Oh(n^2)$.
+\end{problema}
+
+El minero de 2022 es el espejo: la máquina perfora hacia abajo desde una
+columna inicial a elección, maximizando el valor extraído, con
+$v_{i,0}=v_{i,n+1}=-\infty$ como centinelas.\visto{Examen feb. 2022 Ej. 3: perforación de una veta}
+
+\begin{problema}{Perforación minera (examen feb. 2022, Ej. 3)}
+Con $\OPT(i,j)$ la ganancia máxima perforando desde $(i,j)$ (incluida) hasta
+la profundidad $k$:
+\begin{gather*}
+\OPT(k,j)=v_{k,j},\\
+\OPT(i,j)=v_{i,j}+\max\{\OPT(i+1,j-1),\OPT(i+1,j),\OPT(i+1,j+1)\},\quad 1\le i<k.
+\end{gather*}
+Respuesta $\max_j\OPT(1,j)$; el plan es la columna del $\pdargmax$ y, en cada
+fila, la dirección $I$, $V$ o $D$ cuyo término da el valor de la celda.
+$\Oh(kn)$.
+\end{problema}
+
+\begin{problema}{Contar caminos y recolectar en una grilla (jul. 2017; jul. 2018)}
+\textbf{Contar.} Caminos de $(i,j)$ a $(m,n)$ moviéndose a la derecha o
+hacia arriba: $\mathit{NC}(i,j)=1$ si $i=m$ o $j=n$, y
+$\mathit{NC}(i,j)=\mathit{NC}(i+1,j)+\mathit{NC}(i,j+1)$ en otro caso. Los caminos se parten en
+disjuntos según el primer paso, por eso se \emph{suma}. Para $m=6$, $n=3$
+da $\binom{9}{3}=84$.
+
+\textbf{Recolectar.} Con $E(i,j)$ objetos en la esquina $(i,j)$ y calles
+flechadas hacia índices crecientes: $C(i,j)=0$ si $i=0$ o $j=0$, y
+$C(i,j)=\max\{C(i-1,j),C(i,j-1)\}+E(i,j)$. Si hay esquinas intransitables
+($E=-1$), se define la accesibilidad $A(i,j)$ (la esquina es transitable y
+alguna de las dos anteriores es accesible) y se toma $C(i,j)=-\infty$ en las
+no accesibles.
+\end{problema}
+
+Estos dos son del programa viejo, pero el de contar caminos marca un
+patrón que volvió en 2019: cuando la pregunta es ``¿cuántos?'', los casos
+se \emph{suman} en lugar de compararse, porque particionan el conjunto
+de soluciones.\visto{Examen jul. 2017 Prob. A: caminos en una grilla}
+
+El del recolector agrega una idea reutilizable: cuando algunas celdas están
+prohibidas, conviene una recurrencia auxiliar booleana de alcanzabilidad (o
+el valor $-\infty$) para no confundir ``no se puede llegar'' con ``se llega
+sin recolectar nada''.\visto{Examen jul. 2018 Prob. A: recolector en calles flechadas}
+
+\begin{trampa}[grillas]
+Olvidar los bordes (consultar la columna 0 o $n+1$ sin haberlas definido);
+devolver $\OPT(1,1)$ cuando el destino es ``cualquier casilla de la fila
+superior''; recorrer las filas en el sentido opuesto al movimiento.
+\end{trampa}
+
+% =====================================================================
+\section{DAGs, conteo y árboles}
+% =====================================================================
+
+\subsection{PD sobre un DAG}
+
+En un grafo dirigido acíclico, cualquier recurrencia en la que $f(v)$ se
+obtiene combinando los valores $f(w)$ de los sucesores $w$ de $v$ (con un
+máximo, un mínimo o una suma) se calcula procesando
+los vértices en orden topológico inverso: cuando se llega a $v$, todos sus
+sucesores ya están resueltos. Cada arista se mira una vez, así que el tiempo
+es $\Oh(n+m)$ con listas de adyacencia. El orden topológico se obtiene con
+el algoritmo de los grados de entrada del capítulo 3, que se pidió
+reescribir en diciembre de 2018 y en julio de 2026.\visto{Examen feb. 2023 Ej. 3: camino más largo en un DAG}
+
+\begin{problema}{Camino más largo en un DAG (examen feb. 2023, Ej. 3)}
+Los vértices $1..n$ ya están en orden topológico. Con $L(v)$ la longitud
+(en aristas) del camino más largo que empieza en $v$:
+\[
+L(v)=\begin{cases}0 & v\text{ no tiene aristas salientes}\\ 1+\max_{(v,w)\in E}L(w) & \text{si no.}\end{cases}
+\]
+Se calcula con $v$ desde $n$ bajando hasta 1 y la respuesta es $\max_vL(v)$.
+Para devolver el camino, guardar $\mathit{sig}[v]$ (el $w$ que dio el máximo) y el
+vértice de inicio del mejor, y seguir los punteros. $\Oh(|V|+|E|)$.
+\end{problema}
+
+Cuando el orden topológico no viene dado, se calcula dentro del mismo
+algoritmo. En julio de 2026 los valores se propagaban hacia adelante mientras
+se sacaban vértices de la cola, y había que detectar además si el grafo tenía
+ciclos.\visto{Examen jul. 2026 Ej. 2: tiempos de inicio con dependencias}
+
+\begin{problema}{Tiempos de inicio con dependencias (examen jul. 2026, Ej. 2)}
+La subtarea $i$ dura $d_i$ y solo puede empezar cuando terminaron todas las
+que la preceden. El inicio mínimo es $s_i=0$ si no tiene previas y
+$s_i=\max\{s_j+d_j:\ i\in p_j\}$ si no (camino crítico). Se calcula en el
+orden en que el algoritmo de grados de entrada saca los vértices de la cola:
+al sacar $h$, para cada $i\in p_h$ se hace $s_i\gets\max\{s_i,s_h+d_h\}$, se
+decrementa $a_i$ y se encola $i$ si llegó a 0. Si al final queda algún
+$a_i>0$ hay un ciclo y el proyecto no es factible. $\Oh(n+m)$.
+
+\textbf{Error típico.} Recorrer $i=1..n$ en orden de índice y propagar
+$s_j\gets\max\{s_j,s_i+d_i\}$: puede usar un $s_i$ todavía no definitivo.
+Con $p_1=\{\}$, $p_2=\{1\}$, $p_3=\{2\}$ y $d=(5,10,15)$ da $s_1=10$ en vez
+de 25.
+\end{problema}
+
+\subsection{Contar caminos}
+
+Para contar caminos de $v$ a $t$ en un DAG: $N(t)=1$ y
+$N(v)=\sum_{(v,w)\in E}N(w)$. Para contar caminos \emph{de largo mínimo}
+desde un origen se restringe la suma a las aristas que respetan las
+distancias: en un grafo sin pesos, las que van de un nivel BFS al
+siguiente.\visto{Examen jul. 2019 Ej. 2: contar historias más cortas}
+
+\begin{problema}{Historias más cortas de un libro (examen jul. 2019, Ej. 2)}
+Los capítulos forman un DAG con a lo sumo 3 aristas por vértice; se pide el
+largo mínimo $L$ de una historia (de 1 a un capítulo final) y la cantidad
+$N$ de historias de ese largo, en $\Oh(n)$. Con $L(w)$ el nivel BFS de $w$
+desde 1, los caminos mínimos a $w$ se parten según el último vértice antes
+de $w$, que está en el nivel anterior:
+\[
+N(1)=1,\qquad N(w)=\sum_{t:\ (t,w)\in E,\ L(w)=L(t)+1}N(t).
+\]
+Se hace BFS por niveles acumulando $N$ y se corta al completar el primer
+nivel con capítulos finales: $L$ es ese nivel y $N$ es la suma de $N(u)$
+sobre los finales de ese nivel. El análisis es el de BFS con $|E|=\Oh(n)$.
+\end{problema}
+
+\subsection{Árboles}
+
+En un árbol con raíz, los subproblemas son los subárboles y se resuelven en
+postorden (hijos antes que el padre). El caso clásico es el conjunto
+independiente de peso máximo (capítulo 10 del libro): para cada vértice $u$
+se calculan dos valores, el óptimo del subárbol de $u$ que incluye a $u$ y
+el que no lo incluye.\visto{Examen feb. 2022 Ej. 1: independiente de peso máximo en árbol}
+
+\begin{problema}{Conjunto independiente de peso máximo en árbol binario (examen feb. 2022, Ej. 1)}
+$q(T)$ es el peso máximo de un independiente de $T$ que no incluye la raíz
+$v$; $p(T)$ el máximo sin restricción. Si $T$ es una hoja, $p(T)=w(v)$ y
+$q(T)=0$. Si no, con subárboles $T_I$ y $T_D$:
+\[
+q(T)=p(T_I)+p(T_D),\qquad p(T)=\max\bigl\{w(v)+q(T_I)+q(T_D),\ q(T)\bigr\}.
+\]
+La unión de independientes de $T_I$ y $T_D$ es independiente; si se incluye
+$v$ no se pueden incluir las raíces de los subárboles. La función recursiva
+devuelve el par $(p,q)$; para un árbol perfecto,
+$f(n)\le2f\bigl(\tfrac{n-1}{2}\bigr)+c$, que da $f(n)\le cn$ por inducción.
+En general es $\Oh(n)$ porque cada nodo se procesa una vez.
+\end{problema}
+
+Sin pesos, en un bosque alcanza con el greedy que toma hojas (diciembre
+de 2019, demostrado por intercambio). Con pesos ese greedy falla: en el
+camino $a-b-c$ con pesos $1,10,1$ toma $\{a,c\}$ (peso 2) y el óptimo es
+$\{b\}$ (peso 10). Por eso con pesos hace falta la PD.
+
+\begin{receta}[DAGs y árboles]
+\begin{itemize}[leftmargin=1.2em]
+  \item Decí explícitamente en qué orden se procesan los vértices (orden
+  topológico inverso, postorden) y por qué así los valores necesarios ya
+  están calculados.
+  \item Para $\Oh(n+m)$: cada vértice se procesa una vez y cada arista se mira
+  una vez desde su origen, con listas de adyacencia.
+  \item Si se cuenta, sumá sobre una partición de las soluciones y decí cuál
+  es la partición.
+\end{itemize}
+\end{receta}
+
+% =====================================================================
+\section{Caminos mínimos con costos negativos: Bellman--Ford}
+% =====================================================================
+
+\subsection{Por qué no alcanza Dijkstra}
+
+Con costos negativos, Dijkstra puede fijar mal una distancia: con aristas
+$s\to a$ de costo 2, $s\to b$ de costo 3 y $b\to a$ de costo $-2$, fija
+$d(a)=2$ cuando el camino $s,b,a$ cuesta 1. Sumarle una constante a todas las
+aristas para hacerlas positivas tampoco sirve, porque penaliza más a los
+caminos con más aristas. Y si hay un ciclo de costo negativo desde el que se
+alcanza $t$, el costo mínimo no está definido (se puede dar vueltas
+indefinidamente).
+
+\begin{resultado}[(6.22)]
+Si $G$ no tiene ciclos negativos, existe un camino mínimo de $s$ a $t$ que es
+simple y, por lo tanto, tiene a lo sumo $n-1$ aristas.
+\end{resultado}
+
+Esto sugiere el parámetro: la \emph{cantidad de aristas permitidas}. En el
+libro los caminos van \emph{hacia} $t$: $\OPT(i,v)$ es el costo mínimo de un
+camino de $v$ a $t$ con a lo sumo $i$ aristas, con $\OPT(0,t)=0$ y
+$\OPT(0,v)=\infty$ para $v\ne t$. La respuesta es $\OPT(n-1,s)$.
+
+\begin{resultado}[(6.23)]
+Si $i>0$, entonces
+$\OPT(i,v)=\min\Bigl(\OPT(i-1,v),\ \min_{w\in V}\bigl(\OPT(i-1,w)+c_{vw}\bigr)\Bigr)$.
+\end{resultado}
+
+O el camino óptimo usa a lo sumo $i-1$ aristas (primer término), o usa
+exactamente $i$ y la primera es alguna $(v,w)$; lo que sigue es un camino de
+$w$ a $t$ con a lo sumo $i-1$ aristas, que tiene que ser óptimo.
+
+\pdalgo{Bellman--Ford (Shortest-Path$(G,s,t)$)}
+\begin{algorithmic}[1]
+\State $M[0,t]\gets0$;\ $M[0,v]\gets\infty$ para todo $v\ne t$
+\For{$i=1$ \textbf{hasta} $n-1$}
+  \ForAll{$v\in V$}
+    \State $M[i,v]\gets\min\bigl(M[i-1,v],\ \min_{(v,w)\in E}(M[i-1,w]+c_{vw})\bigr)$
+  \EndFor
+\EndFor
+\State \Return $M[n-1,s]$
+\end{algorithmic}
+
+\begin{resultado}[(6.24) y (6.25)]
+Si $G$ no tiene ciclos negativos, el algoritmo calcula correctamente el
+costo mínimo de un camino $s$-$t$. La tabla tiene $n^2$ celdas y cada una
+cuesta $\Oh(n)$, lo que da $\Oh(n^3)$; mirando solo las aristas que salen de
+$v$, cada iteración cuesta $\Oh(\sum_vn_v)=\Oh(m)$ y el total es $\Oh(mn)$.
+\end{resultado}
+
+En la práctica se usa un solo arreglo $M[v]$ actualizado en el lugar, más un
+puntero $\mathit{first}[v]$ al primer vértice del camino actual, lo que baja el
+espacio a $\Oh(n)$ y permite cortar en cuanto una iteración no cambia nada.
+Si el grafo de punteros $\{(v,\mathit{first}[v])\}$ llega a tener un ciclo, ese ciclo
+tiene costo negativo.
+
+\subsection{Las versiones de examen}
+
+En el parcial de 2018 se pidió primero la recurrencia para ``exactamente
+$i$ aristas'' y después obtener el óptimo con a lo sumo $K$ aristas como un
+mínimo; la letra fijaba los nombres y había que respetarlos.\visto{2P 2018 Ej. 2: caminos con a lo sumo $K$ aristas}
+
+\begin{problema}{Caminos mínimos con a lo sumo $K$ aristas (2P 2018, Ej. 2)}
+$\mathit{CMC}(i,v)$ es el costo mínimo de un camino de $v$ a $t$ con
+\emph{exactamente} $i$ aristas ($\infty$ si no hay):
+\[
+\mathit{CMC}(0,v)=\begin{cases}0&v=t\\ \infty&v\ne t\end{cases}\qquad
+\mathit{CMC}(i,v)=\min_{(v,w)\in E}\bigl(\mathit{CMC}(i-1,w)+c_{vw}\bigr),\quad 1\le i\le K,
+\]
+con $\min\emptyset=\infty$, y
+$\OPT(K,v)=\min_{0\le i\le K}\mathit{CMC}(i,v)$. La alternativa directa es
+$\OPT(k,t)=0$ y $\OPT(k,v)=\min_{(v,w)}(\OPT(k-1,w)+c_{vw})$ para $v\ne t$.
+Con listas de adyacencia el ciclo principal es $\Oh(K(n+m))$ (con matriz,
+$\Oh(Kn^2)$), y el mínimo final $\Oh(nK)$; como $K<n$, es polinomial.
+\end{problema}
+
+En julio de 2023 se pidió lo mismo pero con caminos que salen del origen, y
+con el costo de cada arista armado a partir de dos datos de la letra. Los
+costos son positivos, así que Dijkstra también serviría; lo que se evaluaba
+era la recurrencia en $i$.\visto{Examen jul. 2023 Ej. 2: routers con a lo sumo $i$ saltos}
+
+\begin{problema}{Routers con a lo sumo $i$ saltos (examen jul. 2023, Ej. 2)}
+Cada enlace $\{u,v\}$ da dos aristas $(u,v)$ y $(v,u)$; la arista $(u,v)$
+cuesta $\mathit{TP}(u)+\mathit{TT}(u,v)$ (procesar en $u$ y transmitir). Aquí los caminos
+salen \emph{desde} $s$: $\OPT(0,s)=0$, $\OPT(0,v)=\infty$ para $v\ne s$ y
+\begin{multline*}
+\OPT(i,v)=\min\Bigl\{\OPT(i-1,v),\\ \min_{(u,v)\in E}\bigl(\OPT(i-1,u)+\mathit{TP}(u)+\mathit{TT}(u,v)\bigr)\Bigr\},\quad 1\le i\le n-1.
+\end{multline*}
+Respuesta $\OPT(n-1,t)$, en $\Oh(nm)$. Para el camino: desde $v=t$ e $i=n-1$
+bajando, si $\OPT(i,v)\ne\OPT(i-1,v)$ se busca el $u$ que dio el mínimo, se
+lo agrega al principio y $v\gets u$.
+\end{problema}
+
+\subsection{Detección de ciclos negativos}
+
+Para saber si $G$ tiene \emph{algún} ciclo negativo (no solo uno que llegue a
+$t$) se agrega un vértice nuevo $t$ y una arista $(v,t)$ de costo 0 desde
+cada $v$: todo ciclo de $G$ queda conectado a $t$, y $G$ tiene un ciclo
+negativo si y solo si el grafo aumentado tiene uno desde el que se llega a
+$t$. Después se corre Bellman--Ford una iteración más de lo necesario.
+
+\begin{resultado}[(6.30) y (6.31)]
+Si $\OPT(n,v)=\OPT(n-1,v)$ para todo $v$, no hay ciclos negativos que
+lleguen a $t$. Si $\OPT(n,v)<\OPT(n-1,v)$ para algún $v$, un camino de $v$ a
+$t$ de costo $\OPT(n,v)$ tiene un ciclo, y ese ciclo tiene costo negativo.
+El ciclo se encuentra siguiendo ese camino, y todo se hace en $\Oh(mn)$.
+\end{resultado}
+
+La aplicación típica es el arbitraje: con tasas de cambio $r_{ij}$ entre
+monedas, hay un ciclo de cambios con ganancia ($\prod r_{ij}>1$) si y solo si
+hay un ciclo negativo con costos $c_{ij}=-\log r_{ij}$. En los exámenes
+recientes no se tomó la detección de ciclos, pero es teoría del capítulo
+que se puede preguntar como verdadero o falso.
+
+\subsection{Floyd--Warshall (programa anterior)}
+
+Hasta 2017 el curso daba Floyd para caminos mínimos entre todo par. No está
+en el capítulo 6 del libro, pero los exámenes viejos lo preguntan seguido y
+la idea es la misma: el parámetro extra limita los vértices intermedios
+permitidos.\visto{Examen jul. 2015 Ej. 4: optimalidad y recurrencia de Floyd}
+
+\begin{resultado}[Floyd]
+Con $f_k(i,j)$ el costo mínimo de un camino de $i$ a $j$ cuyos vértices
+intermedios están en $\{1..k\}$: $f_0(i,j)=W(i,j)$ y
+$f_k(i,j)=\min\{f_{k-1}(i,j),\ f_{k-1}(i,k)+f_{k-1}(k,j)\}$. Se puede usar
+una sola matriz; el tiempo es $\Theta(n^3)$. Funciona con costos negativos si
+no hay ciclos negativos, y un valor negativo en la diagonal indica uno.
+\end{resultado}
+
+El principio de optimalidad que se pedía enunciar es que todo subcamino de
+un camino mínimo es mínimo (si no, se lo reemplaza). Por eso el camino
+mínimo de $v_1$ a $v_k$ que visita $v_2..v_{k-1}$ en orden es la
+concatenación de los caminos mínimos entre consecutivos.\visto{2P 2009 Ej. 3: camino que visita una secuencia}
+
+La variante de carga máxima de 2011 (el ``ancho'' de un camino es su arista
+de menor capacidad y se quiere el camino más ancho) cambia las operaciones:
+\[
+f_k(i,j)=\max\bigl\{f_{k-1}(i,j),\ \min\{f_{k-1}(i,k),f_{k-1}(k,j)\}\bigr\}.
+\]
+Para reconstruir se guarda en $\mathit{Camino}[i][j]$ el último $k$ que mejoró la
+celda y se arma recursivamente $i\leadsto k\leadsto j$.\visto{2P 2011 Ej. 2: carga máxima entre ciudades}
+
+\begin{trampa}[caminos mínimos]
+\begin{itemize}[leftmargin=1.2em]
+  \item Usar Dijkstra (o sumar una constante) con costos negativos.
+  \item Olvidar el término $\OPT(i-1,v)$ en la versión ``a lo sumo $i$
+  aristas'' (sin él, es ``exactamente $i$'').
+  \item Confundir el sentido: en el libro $\OPT(i,v)$ es de $v$ \emph{hacia}
+  $t$ y se minimiza sobre aristas que \emph{salen} de $v$; si se define desde
+  $s$, se minimiza sobre aristas que \emph{entran} a $v$.
+  \item Analizar como $\Oh(n^3)$ cuando se pide $\Oh(mn)$: hay que decir que
+  cada arista se mira una vez por iteración.
+  \item Afirmar que Bellman--Ford ``funciona con ciclos negativos'': los
+  detecta, pero con ellos no hay camino mínimo.
+\end{itemize}
+\end{trampa}
+
+% =====================================================================
+\section{Mapa de lo que se preguntó}
+% =====================================================================
+
+Todos los ejercicios de programación dinámica de los parciales y exámenes
+disponibles, por año. Hasta 2017 el curso seguía otro programa (con
+backtracking y Floyd, y el pedido típico era ``dé una fórmula recursiva
+$f$''); desde 2018 sigue el libro de Kleinberg y Tardos y el pedido es
+recurrencia, algoritmo iterativo, reconstrucción y orden.
+
+\newcommand{\pdmapa}[1]{%
+\par\smallskip{\small
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{2.9cm}>{\raggedright\arraybackslash}p{2.5cm}>{\raggedright\arraybackslash}X@{}}
+\toprule
+\textbf{Fuente} & \textbf{Patrón} & \textbf{Qué se pedía}\\
+\midrule
+#1
+\bottomrule
+\end{tabularx}}\par\smallskip}
+
+\pdmapa{
+2P 2008 Ej.~1 & Mochila 0/1 & Fórmula recursiva para animales en un barco de capacidad $G$.\\
+Ex. feb. 2009 Ej.~3 & Capacidad (asignación) & Interés óptimo invirtiendo $d$ pesos en $n$ empresas; versión iterativa y cómo reconstruir.\\
+Ex. jul. 2009 Ej.~2 & Dos restricciones & Menús de mínimo valor calórico con precio $\le M$ y proteínas $\ge W$.\\
+2P 2009 Ej.~3 & Caminos mínimos & Camino mínimo de $v_1$ a $v_k$ que visita la secuencia en orden.\\
+Ex. dic. 2009 Prob.~1 & Capacidad con stock & Golosinas: gastar lo más posible con la menor cantidad.\\
+Ex. jul. 2010 Prob.~2 & Dos restricciones & Ringtones de tamaño mínimo con presupuesto y ranking mínimo.\\
+2P 2010 Ej.~2 & Prefijo con estado & Dos integrantes marcan lugares en orden; $f(l,k)$.\\
+Ex. dic. 2010 Prob.~1 & Mochila 0/1 & Comerciante romano: contraejemplo greedy y recurrencia.\\
+2P 2011 Ej.~2 & Floyd (máx-mín) & Carga máxima entre todo par de ciudades; implementación y camino.\\
+Ex. dic. 2011 Prob.~2 & Intervalos & Paréntesis que minimizan la suma de sumas intermedias.\\
+Ex. feb. 2012 Ej.~2 & Mochila 0/1 & Publicidad con presupuesto: greedy falla; recurrencia del rating.\\
+Ex. jul. 2012 Ej.~2 & Floyd & Qué resuelve, qué técnica usa y aplicación paso a paso.\\
+2P 2012 Ej.~1 & Capacidad exacta con stock & Carga exacta $C$ con mínimas unidades; $f(p,c)$, iterativo y orden.\\
+Ex. feb. 2013 Ej.~2 & Teoría & Enunciar el principio de optimalidad y aplicarlo a caminos mínimos.\\
+Ex. jul. 2013 Ej.~1 & Memoización & Verdadero o falso: Fibonacci se puede calcular en $\Oh(n)$.\\
+Ex. jul. 2013 Prob.~1 & Dos secuencias & Alineación óptima de cubos de colores con comodines.\\
+}
+
+\pdmapa{
+Ex. jul. 2014 Ej.~3 & Dos restricciones & Contenedor: máximo de compras con capacidad $C$ y valor $\le M$.\\
+Ex. jul. 2015 Ej.~4 & Floyd & Por qué vale el principio de optimalidad; recurrencia de Floyd.\\
+2P 2015 Ej.~1 & Prefijo, $p(i)=i-d$ & Edificios a distancia $\ge d$; greedy falla; recurrencia e implementación.\\
+Ex. dic. 2015 Ej.~2 & Mochila 0/1 & Definir la variante, demostrar optimalidad, plantear la recurrencia.\\
+Ex. feb. 2016 Ej.~4 & Dos restricciones & Programadores: experiencia máxima con presupuesto y mínimo $E$.\\
+Ex. jul. 2016 Ej.~4 & Teoría & Qué resuelven Floyd, suma de subconjuntos y otros, y con qué técnica.\\
+Ex. jul. 2016 Prob.~C & Mochila 0/1 & Técnica, implementación en C* y versión fraccionaria.\\
+2P 2016 Ej.~2 & Último elemento & Largos $L_i$ de subsecuencias crecientes; versión recursiva y PD.\\
+Ex. feb. 2017 Preg.~3 & Memoización & Fibonacci con DyC y con PD en espacio $\Oh(1)$; contar sumas.\\
+Ex. jul. 2017 Prob.~A & Grilla (conteo) & Cantidad de caminos monótonos $\mathit{NC}(i,j)$; caso $m=6$, $n=3$.\\
+2P 2017 Ej.~1 & Dos secuencias & Descifrar el código del substring común más largo; memoria.\\
+Ex. dic. 2017 Prob.~B & Prefijo binario & Baldosas no contiguas de máximo valor; devolver las elegidas.\\
+Ex. feb. 2018 Preg.~2 & Capacidad ilimitada & Greedy de monedas: qué técnica es y cuándo falla.\\
+Ex. feb. 2018 Preg.~4 & Teoría & Qué resuelve alineamiento de secuencias y con qué técnica.\\
+Ex. feb. 2018 Prob.~B & Último elemento & LIS con $G_i$ y $L_i$; pila de bandejas.\\
+Ex. jul. 2018 Prob.~A & Grilla & Recolector con calles flechadas; esquinas intransitables.\\
+}
+
+\pdmapa{
+2P 2018 Ej.~2 & Cantidad de aristas & Costo mínimo con $\le K$ aristas vía $\mathit{CMC}(i,v)$; algoritmo y orden.\\
+Ex. dic. 2018 Ej.~3 & Dos secuencias & Ciclos mínimos para ejecutar dos programas en paralelo.\\
+Ex. feb. 2019 Ej.~2 & Dos secuencias & Distancia de edición; lema de las últimas posiciones.\\
+Ex. jul. 2019 Ej.~2 & DAG (conteo) & Largo mínimo de las historias y cuántas hay, en $\Oh(n)$.\\
+2P 2019 Ej.~2 & Prefijo binario & Ladrón de casas no contiguas; valor y conjunto óptimo.\\
+Ex. dic. 2019 Ej.~2 & Prefijo con estado & Neumáticos A/B por vuelta con costo de parada; $\OPT(i,X)$.\\
+Ex. feb. 2020 Ej.~3 & Sufijo booleano & Dinosaurio que avanza 1 o salta 4: ¿hay secuencia ganadora?\\
+Ex. jul. 2020 Ej.~3 & Capacidad ilimitada & Varillas con la mínima cantidad de soldaduras; $C(i,\ell)$.\\
+2P 2020 Ej.~2 & Segmentación & Fragmentos con costo máximo menos mínimo y costo por corte.\\
+Ex. dic. 2020 Ej.~3 & Capacidad ilimitada & Cambio con menos billetes; instancia donde greedy falla.\\
+Ex. jul. 2021 Ej.~2 & Intervalos & Producto de una cadena de matrices.\\
+2P 2021 Ej.~1 & Sufijo con salto & Tarifa por consumo o plana de 7 días; planificación óptima.\\
+}
+
+\pdmapa{
+Ex. feb. 2022 Ej.~1 & Árbol & Independiente de peso máximo en árbol binario ($p$ y $q$); orden $\Oh(n)$.\\
+Ex. feb. 2022 Ej.~3 & Grilla & Perforación minera de ganancia máxima; plan de perforación.\\
+Ex. jul. 2022 Ej.~2 & Intervalos & Subsecuencia palíndroma más larga.\\
+2P 2022 Ej.~1 & Prefijo con estado numérico & Paradas de F1 con desgaste de neumáticos; $\OPT(i,j)$.\\
+Ex. feb. 2023 Ej.~3 & DAG & Camino más largo con orden topológico dado, en $\Oh(|V|+|E|)$.\\
+Ex. jul. 2023 Ej.~2 & Cantidad de aristas & Routers: tiempo mínimo con a lo sumo $i$ saltos; camino.\\
+2P 2023 Ej.~1 & Grilla & Sargento: costo mínimo hasta la fila superior; movimientos.\\
+Ex. dic. 2023 Ej.~2 & Último elemento & Subsecuencia creciente más larga y reconstrucción.\\
+Ex. feb. 2024 Ej.~2 & Segmentación & Concatenación de prefijos con máximas coincidencias.\\
+2P 2024 Ej.~1 & Prefijo con estado & Cuchillas A y B con costo de cambio; solución óptima.\\
+Ex. dic. 2024 Ej.~2 & Sufijo con salto & Ravioles y sorrentinos; planificación.\\
+2P 2025 Ej.~3 & Sufijo con salto & Pedidos de soporte de uno o dos días.\\
+Ex. feb. 2026 Ej.~3 & Segmentación & Segmentación mínima en palíndromos; posiciones de inicio.\\
+Ex. jul. 2026 Ej.~2 & DAG & Tiempos de inicio con dependencias (camino crítico) en $\Oh(n+m)$.\\
+}

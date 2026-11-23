@@ -1,0 +1,408 @@
+\input{preambulo}
+
+\title{Práctico 8 --- Programación Dinámica I}
+\author{Programación 3 --- FING, UdelaR}
+\date{}
+
+\begin{document}
+\maketitle
+
+% =====================================================================
+\section{Ejercicio 1}
+
+\begin{enunciado}
+\textbf{(Kleinberg \& Tardos, Ex.~6.2).} Estamos gestionando el trabajo de un equipo de hackers y necesitamos planificar las tareas para las próximas semanas. Tenemos dos tipos de trabajos: los poco estresantes y los muy estresantes. Para cada semana tenemos que decidir el tipo de trabajo que realizará el equipo. Si realizamos un trabajo poco estresante en la semana $i$ obtenemos una ganancia de $l_i$ pesos, mientras que si realizamos un trabajo muy estresante obtenemos una ganancia de $h_i$ pesos, donde $l_i$ y $h_i$ son mayores que cero. Si el equipo va a realizar un trabajo muy estresante en la semana $i$ (lo cual da mayor ganancia), deberá no hacer nada durante la semana $i-1$ para prepararse.
+
+Un plan de trabajo para $n$ semanas se especifica diciendo si el equipo realizará un trabajo de mucho estrés, poco estrés o nada durante cada semana. Dados los valores $l_1,\dots,l_n$ y $h_1,\dots,h_n$, nuestro objetivo es hallar un plan óptimo en el sentido de maximizar la ganancia.
+
+\begin{algorithmic}[1]
+\State Hacer $i=1$
+\While{$i<n$}
+  \If{$h_{i+1} > l_i + l_{i+1}$}
+    \State $BadSol[i]=$ nada;\quad $BadSol[i+1]=$ muy estresante;\quad $i=i+2$
+  \Else
+    \State $BadSol[i]=$ poco estresante;\quad $i=i+1$
+  \EndIf
+\EndWhile
+\If{$i=n$} $BadSol[i]=$ poco estresante \EndIf
+\State Devolver $BadSol$
+\end{algorithmic}
+\centerline{Figura 1.1: Algoritmo incorrecto para encontrar un plan de trabajo óptimo.}
+
+\begin{enumerate}[label=(\alph*)]
+\item Dé un ejemplo de instancia para la cual el algoritmo de la figura 1.1 produce un plan de trabajo que no es óptimo.
+\item Dada una instancia del problema, sea $OPT(i)$ la ganancia máxima que puede obtenerse en las primeras $i$ semanas, $0\le i\le n$. ¿Cuánto valen $OPT(0)$ y $OPT(1)$?
+\item Si en la semana $n$, $n>0$, decidimos realizar un trabajo poco estresante, ¿cuál es la mayor ganancia que podemos obtener a lo largo de $n$ semanas en función de $OPT(n-1)$?
+\item Si en la semana $n$, $n>1$, decidimos realizar un trabajo muy estresante, ¿cuál es la mayor ganancia que podemos obtener a lo largo de $n$ semanas en función de $OPT(n-2)$?
+\item Muestre que $OPT$ satisface una relación de recurrencia y especifique cuál es esa relación.
+\item Dé un algoritmo eficiente para calcular $OPT(n)$.
+\item Dé un algoritmo eficiente para hallar un plan de trabajo óptimo.
+\end{enumerate}
+\end{enunciado}
+
+\examref{Segundo parcial 2019, Ej.~2 (el ladrón que no puede robar dos casas contiguas). La estructura es la misma: en el último elemento hay dos opciones, una que mira $OPT(i-1)$ y otra que mira $OPT(i-2)$. Seguimos el formato de esa solución oficial (casos base, recurrencia, prueba de las dos desigualdades, algoritmo iterativo y reconstrucción).}
+
+Como en el libro, suponemos que en la semana 1 se puede hacer un trabajo muy estresante (se entiende que el equipo ``descansó'' en una semana $0$ ficticia).
+
+\subsection*{(a) Contraejemplo}
+
+Sea $n=3$ con
+\[
+\begin{array}{c|ccc}
+ i & 1 & 2 & 3\\\hline
+ l_i & 2 & 2 & 2\\
+ h_i & 1 & 5 & 10
+\end{array}
+\]
+Ejecución del algoritmo: con $i=1$ se cumple $h_2=5>l_1+l_2=4$, entonces pone $BadSol[1]=$ nada, $BadSol[2]=$ muy estresante e $i=3$. Sale del \textbf{mientras} con $i=n=3$ y pone $BadSol[3]=$ poco estresante. La ganancia es $0+5+2=7$.
+
+En cambio el plan (poco estresante, nada, muy estresante) es válido y gana $2+0+10=12>7$. El algoritmo falla porque decide mirando solo la semana siguiente, y no ve que convenía ``guardar'' el descanso para la semana 2 y hacer el trabajo estresante en la 3.
+
+\subsection*{(b) Casos base}
+
+$OPT(0)=0$: con cero semanas no hay nada que planificar. $OPT(1)=\max\{l_1,h_1\}$: en una semana sola lo mejor es hacer el trabajo que paga más (no hacer nada da $0$, que es peor porque $l_1,h_1>0$).
+
+\subsection*{(c) Poco estresante en la semana $n$}
+
+Si en la semana $n$ se hace un trabajo poco estresante, no hay restricción sobre la semana $n-1$: cualquier plan válido para las semanas $1,\dots,n-1$ se puede extender con ``poco estresante'' en la semana $n$ y sigue siendo válido. Recíprocamente, si un plan válido para $n$ semanas termina en poco estresante, sus primeras $n-1$ semanas forman un plan válido. Por lo tanto la mayor ganancia es
+\[
+l_n + OPT(n-1).
+\]
+
+\subsection*{(d) Muy estresante en la semana $n$}
+
+Si en la semana $n$ se hace un trabajo muy estresante, la semana $n-1$ tiene que ser ``nada'' (ganancia $0$), y las semanas $1,\dots,n-2$ pueden ser cualquier plan válido (la restricción solo vincula la semana $n-1$ con la $n$). Por lo tanto la mayor ganancia es
+\[
+h_n + OPT(n-2).
+\]
+
+\subsection*{(e) Relación de recurrencia}
+
+\begin{align}
+OPT(0) &= 0, \label{e1:b0}\\
+OPT(1) &= \max\{l_1,h_1\}, \label{e1:b1}\\
+OPT(i) &= \max\{\, l_i + OPT(i-1),\; h_i + OPT(i-2)\,\}, \qquad 2\le i\le n. \label{e1:rec}
+\end{align}
+
+\emph{Justificación.} Los casos base se vieron en (b). Sea $2\le i\le n$ y miremos qué hace un plan óptimo $P$ de las primeras $i$ semanas en la semana $i$. Hay tres opciones:
+\begin{itemize}
+\item \emph{Poco estresante}: por (c) aplicada a $i$ semanas, la ganancia es a lo sumo $l_i+OPT(i-1)$, y ese valor se alcanza.
+\item \emph{Muy estresante}: por (d), la ganancia es a lo sumo $h_i+OPT(i-2)$, y ese valor se alcanza.
+\item \emph{Nada}: las primeras $i-1$ semanas forman un plan válido, así que la ganancia es a lo sumo $OPT(i-1) < l_i+OPT(i-1)$. Esta opción nunca es óptima y se puede descartar.
+\end{itemize}
+Más formalmente:
+($\ge$) los planes ``óptimo de $i-1$ semanas + poco estresante'' y ``óptimo de $i-2$ semanas + nada + muy estresante'' son válidos para $i$ semanas y ganan $l_i+OPT(i-1)$ y $h_i+OPT(i-2)$, así que $OPT(i)$ es al menos el máximo.
+($\le$) si $P$ es óptimo para $i$ semanas, según lo que haga en la semana $i$ su ganancia es $\le l_i+OPT(i-1)$, $\le h_i+OPT(i-2)$ o $\le OPT(i-1)<l_i+OPT(i-1)$; en todos los casos es $\le$ que el máximo.
+Juntando las dos desigualdades se obtiene~\eqref{e1:rec}.
+
+\subsection*{(f) Algoritmo para $OPT(n)$}
+
+\begin{algorithm}[H]
+\caption{Ganancia máxima}
+\begin{algorithmic}[1]
+\Function{CalcOPT}{$l_1..l_n,\ h_1..h_n$}
+  \State $OPT[0]\gets 0$;\quad $OPT[1]\gets \max\{l_1,h_1\}$
+  \For{$i=2$ \textbf{hasta} $n$}
+    \State $OPT[i]\gets \max\{l_i+OPT[i-1],\ h_i+OPT[i-2]\}$
+  \EndFor
+  \State \Return $OPT[n]$
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+La tabla se llena en orden creciente de $i$, que es correcto porque $OPT[i]$ depende solo de $OPT[i-1]$ y $OPT[i-2]$. Cada iteración es $\Oh(1)$, así que el algoritmo es $\Oh(n)$ en tiempo y en espacio.
+
+Sobre la instancia de (a): $OPT[0]=0$, $OPT[1]=\max\{2,1\}=2$, $OPT[2]=\max\{2+2,\,5+0\}=5$, $OPT[3]=\max\{2+5,\,10+2\}=12$.
+\[
+\begin{array}{c|cccc}
+i & 0 & 1 & 2 & 3\\\hline
+OPT[i] & 0 & 2 & 5 & 12
+\end{array}
+\]
+
+\subsection*{(g) Algoritmo para hallar un plan óptimo}
+
+Se usa el arreglo $OPT$ calculado en (f) y se recorre de atrás hacia adelante, viendo cuál término del máximo dio el valor.
+
+\begin{algorithm}[H]
+\caption{Plan de trabajo óptimo}
+\begin{algorithmic}[1]
+\Function{ConstruirPlan}{$l,h,OPT$}
+  \State $i\gets n$
+  \While{$i\ge 2$}
+    \If{$OPT[i] = l_i + OPT[i-1]$}
+      \State $Plan[i]\gets$ poco estresante;\quad $i\gets i-1$
+    \Else \Comment{$OPT[i]=h_i+OPT[i-2]$}
+      \State $Plan[i]\gets$ muy estresante;\quad $Plan[i-1]\gets$ nada;\quad $i\gets i-2$
+    \EndIf
+  \EndWhile
+  \If{$i=1$}
+    \If{$l_1\ge h_1$} $Plan[1]\gets$ poco estresante \Else\ $Plan[1]\gets$ muy estresante \EndIf
+  \EndIf
+  \State \Return $Plan$
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+Por la recurrencia, en cada paso el término elegido es el que realiza $OPT[i]$, y el plan restante es óptimo para el prefijo correspondiente; por inducción el plan devuelto tiene ganancia $OPT[n]$. Cada iteración es $\Oh(1)$ y $i$ decrece en cada una, así que la reconstrucción es $\Oh(n)$, y el total (con (f)) también.
+
+En el ejemplo: $i=3$: $OPT[3]=12\ne 2+5$, entonces semana 3 muy estresante, semana 2 nada, $i=1$; como $l_1=2\ge h_1=1$, semana 1 poco estresante. Plan: (poco, nada, muy), ganancia $12$.
+
+% =====================================================================
+\section{Ejercicio 2}
+
+\begin{enunciado}
+\textbf{(Kleinberg \& Tardos, Ex.~6.6).} Un algoritmo de ``pretty printing'' tiene el objetivo de organizar las palabras de un texto en líneas consecutivas, de forma que al imprimir estas líneas el espacio en blanco que queda sobre el margen derecho se distribuya armoniosamente. (En el enunciado se muestra un fragmento de \emph{La biblioteca de Babel} impreso con margen derecho muy irregular y luego reorganizado con un margen más parejo.)
+
+Supongamos que el texto de entrada consiste en una secuencia de palabras $W=w_1,w_2,\dots,w_n$, donde $w_i$ tiene $c_i$ caracteres de largo. El texto se imprime usando una fuente monoespaciada y el ancho de página permite imprimir a lo sumo $L$ caracteres por línea. Ignoramos aspectos de puntuación y no contemplamos la posibilidad de separar una palabra en dos líneas consecutivas. Todas las palabras, salvo la última de cada línea, están seguidas de un espacio en blanco. Por lo tanto, si $w_j,w_{j+1},\dots,w_k$ se imprimen en una misma línea $\ell$, la cantidad de caracteres ocupados en la línea es
+\[
+L_\ell=\sum_{i=j}^{k-1}(c_i+1)+c_k \tag{2.1}
+\]
+y la cantidad de caracteres que ``sobran'' en la línea $\ell$ es $d_\ell = L - L_\ell$ \hfill (2.2).
+
+Decimos que una partición $P$ de un texto en líneas es válida si $d_\ell\ge 0$ para toda línea $\ell$ de $P$. Dé un algoritmo eficiente para encontrar una partición válida de un texto que minimiza la función de costo
+\[
+C(P)=\sum_{\ell\in P} d_\ell^2. \tag{2.3}
+\]
+\emph{Sugerencia:} Para todo par de índices $i,j$, $1\le i\le j\le n$, sea $e_{i,j}=d_\ell^2$ si $d_\ell\ge 0$, donde $\ell$ es la línea formada por las palabras $w_i,\dots,w_j$, y $e_{i,j}=+\infty$ si $d_\ell<0$. Calcule los valores $e_{i,j}$ y aplique una estrategia similar a la estudiada en la sección 6.3 del libro de referencia del curso.
+\end{enunciado}
+
+\examref{Examen de febrero 2026, Ej.~3 (segmentación en palíndromos de tamaño mínimo). La solución oficial dice explícitamente que se parece a la segmentación de mínimos cuadrados (sección 6.3): la decisión es dónde empieza el último segmento, y la recurrencia es $OPT(j)=\min_{1\le i\le j}\{\ldots + OPT(i-1)\}$ con caso base $OPT(0)=0$. Aquí hacemos lo mismo, con costo $e_{i,j}$ en vez de $1$ y sin restricción de palíndromo (la restricción de validez queda codificada en $e_{i,j}=+\infty$).}
+
+Suponemos $c_i\le L$ para todo $i$; si no, ninguna partición es válida (el algoritmo de abajo lo detecta porque devuelve $+\infty$).
+
+\subsection*{Subproblemas}
+
+Para $0\le j\le n$ definimos $OPT(j)$ como el costo mínimo de una partición válida de las primeras $j$ palabras $w_1,\dots,w_j$ (por convención $OPT(0)=0$, el texto vacío no tiene líneas). La respuesta al problema es $OPT(n)$.
+
+\subsection*{Recurrencia}
+
+\begin{align}
+OPT(0) &= 0, \label{e2:b}\\
+OPT(j) &= \min_{1\le i\le j}\ \bigl\{\, e_{i,j} + OPT(i-1) \,\bigr\}, \qquad 1\le j\le n. \label{e2:rec}
+\end{align}
+
+\emph{Justificación.} En cualquier partición de $w_1,\dots,w_j$ (con $j\ge 1$) la última línea termina en $w_j$ y empieza en alguna palabra $w_i$, $1\le i\le j$. Esa línea aporta $e_{i,j}$ al costo (que vale $+\infty$ si la línea no entra en el ancho $L$, de modo que esas opciones nunca son elegidas si existe alguna válida). Las líneas restantes forman una partición válida de $w_1,\dots,w_{i-1}$, cuyo costo es como mínimo $OPT(i-1)$; y recíprocamente, pegando una partición óptima de $w_1,\dots,w_{i-1}$ con la línea $w_i,\dots,w_j$ se obtiene una partición válida de costo exactamente $e_{i,j}+OPT(i-1)$. Como el costo es aditivo por líneas, la mejor partición con última línea $w_i..w_j$ cuesta $e_{i,j}+OPT(i-1)$, y $OPT(j)$ es el mínimo sobre todas las elecciones posibles de $i$. El caso $i=1$ (todo en una sola línea) es el que obliga a definir $OPT(0)=0$.
+
+Notar que se suma también el costo de la última línea del texto, tal como lo define~(2.3).
+
+\subsection*{Cálculo de los $e_{i,j}$}
+
+Sea $\lambda(i,j)=\sum_{k=i}^{j-1}(c_k+1)+c_j$ el largo de la línea $w_i..w_j$. Se cumple $\lambda(i,i)=c_i$ y $\lambda(i,j)=\lambda(i,j-1)+1+c_j$, así que para cada $i$ se calculan todos los $\lambda(i,j)$, $j\ge i$, en tiempo total $\Oh(n)$, y los $e_{i,j}$ en $\Oh(n^2)$ en total. (Una vez que $\lambda(i,j)>L$ todos los siguientes también se pasan, porque $\lambda$ crece en $j$.)
+
+\begin{algorithm}[H]
+\caption{Cálculo de los costos de línea}
+\begin{algorithmic}[1]
+\Function{CalcE}{$c_1..c_n, L$}
+  \For{$i=1$ \textbf{hasta} $n$}
+    \State $largo\gets -1$
+    \For{$j=i$ \textbf{hasta} $n$}
+      \State $largo\gets largo + 1 + c_j$ \Comment{$largo=\lambda(i,j)$}
+      \If{$largo\le L$} $e[i,j]\gets (L-largo)^2$ \Else\ $e[i,j]\gets +\infty$ \EndIf
+    \EndFor
+  \EndFor
+  \State \Return $e$
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+\subsection*{Algoritmo iterativo para el costo óptimo}
+
+\begin{algorithm}[H]
+\caption{Pretty printing: costo mínimo}
+\begin{algorithmic}[1]
+\Function{CalcOPT}{$c_1..c_n, L$}
+  \State $e\gets$ \Call{CalcE}{$c,L$}
+  \State $OPT[0]\gets 0$
+  \For{$j=1$ \textbf{hasta} $n$}
+    \State $OPT[j]\gets +\infty$
+    \For{$i=1$ \textbf{hasta} $j$}
+      \If{$e[i,j]+OPT[i-1] < OPT[j]$}
+        \State $OPT[j]\gets e[i,j]+OPT[i-1]$;\quad $Inicio[j]\gets i$
+      \EndIf
+    \EndFor
+  \EndFor
+  \State \Return $OPT[n]$
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+La tabla se llena en orden creciente de $j$; es correcto porque $OPT[j]$ depende de $OPT[0..j-1]$. Además guardamos en $Inicio[j]$ la palabra en la que empieza la última línea de una partición óptima de $w_1..w_j$.
+
+\subsection*{Reconstrucción de la partición}
+
+\begin{algorithm}[H]
+\caption{Pretty printing: partición óptima}
+\begin{algorithmic}[1]
+\Function{ConstruirParticion}{$Inicio$}
+  \State $S\gets$ secuencia vacía;\quad $j\gets n$
+  \While{$j>0$}
+    \State $i\gets Inicio[j]$
+    \State Agregar la línea $(w_i,\dots,w_j)$ al principio de $S$
+    \State $j\gets i-1$
+  \EndWhile
+  \State \Return $S$
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+(Si no se guarda $Inicio$, en la línea 3 se puede buscar con un bucle un $i$ tal que $OPT[j]=e[i,j]+OPT[i-1]$, en $\Oh(j)$.)
+
+\subsection*{Análisis de orden}
+
+\textsc{CalcE} es $\Oh(n^2)$; el doble bucle de \textsc{CalcOPT} hace $\sum_{j=1}^n j=\Oh(n^2)$ iteraciones $\Oh(1)$; la reconstrucción es $\Oh(n)$ (u $\Oh(n^2)$ sin $Inicio$). En total, $\Oh(n^2)$ en tiempo y $\Oh(n^2)$ en espacio por la matriz $e$. (Se puede bajar el espacio a $\Oh(n)$ calculando $\lambda(i,j)$ al vuelo dentro del bucle de \textsc{CalcOPT}, recorriendo $i$ desde $j$ hacia $1$.)
+
+\subsection*{Ejemplo}
+
+Sea $L=6$ y cuatro palabras de largos $c=(3,2,2,5)$ (por ejemplo \texttt{aaa bb cc ddddd}).
+
+Valores $e_{i,j}$ (entre paréntesis el largo $\lambda(i,j)$):
+\[
+\begin{array}{c|cccc}
+e_{i,j} & j=1 & j=2 & j=3 & j=4\\\hline
+i=1 & 9\ (3) & 0\ (6) & \infty\ (9) & \infty\ (15)\\
+i=2 & & 16\ (2) & 1\ (5) & \infty\ (11)\\
+i=3 & & & 16\ (2) & \infty\ (8)\\
+i=4 & & & & 1\ (5)
+\end{array}
+\]
+Tabla $OPT$:
+\[
+\begin{array}{c|l|c|c}
+j & \text{opciones } e_{i,j}+OPT(i-1) & OPT(j) & Inicio(j)\\\hline
+0 & - & 0 & -\\
+1 & i=1:\ 9+0 & 9 & 1\\
+2 & i=1:\ 0+0;\ i=2:\ 16+9 & 0 & 1\\
+3 & i=1:\ \infty;\ i=2:\ 1+9;\ i=3:\ 16+0 & 10 & 2\\
+4 & i=1,2,3:\ \infty;\ i=4:\ 1+10 & 11 & 4
+\end{array}
+\]
+Reconstrucción: $j=4\to$ línea $w_4$; $j=3\to$ línea $w_2w_3$; $j=1\to$ línea $w_1$. La partición óptima es
+\texttt{aaa} / \texttt{bb cc} / \texttt{ddddd}, con costo $9+1+1=11$.
+
+Observar que la estrategia golosa de llenar cada línea lo más posible da \texttt{aaa bb} / \texttt{cc} / \texttt{ddddd}, con costo $0+16+1=17>11$: no sirve.
+
+% =====================================================================
+\section{Ejercicio 3}
+
+\begin{enunciado}
+\textbf{(Kleinberg \& Tardos, Ex.~6.9).} Estamos ayudando a dirigir un sistema de cómputo de alto desempeño, capaz de procesar varios terabytes de datos por día, y queremos planificar el trabajo para los próximos $n$ días. En cada día $i$, $1\le i\le n$, nuestros clientes proporcionan $x_i$ terabytes de datos para procesar. Por cada terabyte procesado recibimos una ganancia fija. Sin embargo, como nuestro sistema tiene una capacidad de cómputo limitada, no siempre es posible procesar todos los datos que se nos presentan; si en un determinado día nos quedan datos sin procesar, esos datos caducan y se inhabilitan al finalizar el día.
+
+El procesamiento de los datos se realiza con un programa que no es del todo confiable. Debido a un incremento sostenido del consumo de memoria, la cantidad de datos que se pueden procesar disminuye con cada día que pasa desde la última vez que el sistema fue reiniciado. En el primer día luego de que el sistema ha sido reiniciado se pueden procesar $s_1$ terabytes, en el segundo día $s_2$ terabytes y así hasta el $n$-ésimo día, donde $s_1>s_2>\dots>s_n>0$. Si reiniciamos el sistema en un determinado día este recobra su capacidad máxima, pero durante ese día no es posible procesar datos.
+
+El problema consiste en, dadas $x_1,\dots,x_n$ y $s_1,\dots,s_n$, establecer los días en los que se reiniciará el sistema de modo de maximizar la cantidad total de datos procesados. Notar que en el día $i$ solo hay disponibles hasta $x_i$ terabytes. Asumimos que el sistema comienza el primer día en su máxima capacidad, lo cual equivale a considerar que siempre se reinicia el sistema en un día cero.
+
+\begin{enumerate}[label=(\alph*)]
+\item Dé un ejemplo de una instancia tal que $x_i>s_i$ para todo día $i$ y la solución óptima reinicia el sistema al menos 2 veces. Especifique una solución óptima (no es necesario demostrar que es óptima).
+\item Para cada par $i,j$, $1\le j\le i\le n$, definimos $OPT(i,j)$ como la cantidad máxima de datos que es posible procesar entre el día $i$ inclusive y el día $n$ inclusive, habiendo reiniciado el sistema por última vez $j$ días antes que $i$, es decir en el día $i-j$ (el sistema se reinicia en el día cero, que corresponde a $i=j$). Indique cuánto vale $OPT(n,j)$ para cada $j$, $1\le j\le n$.
+\item Para $i<n$, ¿cuánto vale $OPT(i,j)$ si decidimos reiniciar el sistema en el día $i$?
+\item Para $i<n$, ¿cuánto vale $OPT(i,j)$ si decidimos no reiniciar el sistema en el día $i$?
+\item Muestre que $OPT$ satisface una relación de recurrencia y especifique cuál es esa relación.
+\item Dé un algoritmo eficiente para calcular la cantidad total de terabytes procesados en una solución óptima.
+\item Dé un algoritmo eficiente para determinar un conjunto de días en los cuales reiniciar el sistema para maximizar la cantidad total de terabytes procesados.
+\end{enumerate}
+\end{enunciado}
+
+\examref{No encontramos este problema en los parciales/exámenes disponibles. Lo resolvemos con el mismo formato que las soluciones oficiales de programación dinámica (por ejemplo Segundo parcial 2021, Ej.~1, que también recorre los días de atrás hacia adelante).}
+
+Observación clave: si en el día $i$ no se reinicia y el último reinicio fue $j$ días antes, la capacidad de ese día es $s_j$ y se procesan $\min\{x_i,s_j\}$ terabytes.
+
+\subsection*{(a) Ejemplo}
+
+Sea $n=5$, $x=(20,20,20,20,20)$ y $s=(10,4,3,2,1)$. Se cumple $x_i=20>s_i$ para todo $i$.
+
+Una solución óptima es reiniciar los días $2$ y $4$: se procesa $\min\{20,s_1\}=10$ los días $1$, $3$ y $5$, y $0$ los días $2$ y $4$, en total $30$.
+
+(Aunque no se pide, es fácil ver que es óptima: con $k$ reinicios se procesa en $5-k$ días, y a lo sumo $k+1$ de ellos tienen capacidad $s_1=10$, los demás a lo sumo $s_2=4$. Con $k=0$ se obtiene $10+4+3+2+1=20$; con $k=1$ a lo sumo $2\cdot 10+2\cdot 4=28$; con $k=2$ a lo sumo $3\cdot 10=30$; con $k\ge 3$ a lo sumo $2\cdot 10=20$. También lo confirma la tabla de (f).)
+
+\subsection*{(b) Caso base: $OPT(n,j)$}
+
+En el último día no tiene sentido reiniciar (se procesaría $0$ y no hay días posteriores que se beneficien). Sin reiniciar, la capacidad es $s_j$ y hay $x_n$ datos, así que
+\[
+OPT(n,j)=\min\{x_n,s_j\},\qquad 1\le j\le n.
+\]
+
+\subsection*{(c) Reiniciar en el día $i<n$}
+
+Ese día no se procesa nada, y a partir del día $i+1$ el último reinicio fue $1$ día antes (en el día $i$). Por definición de $OPT$, lo máximo que se puede procesar en los días $i+1,\dots,n$ en esa situación es $OPT(i+1,1)$. Entonces el valor es
+\[
+OPT(i+1,1).
+\]
+
+\subsection*{(d) No reiniciar en el día $i<n$}
+
+Ese día se procesan $\min\{x_i,s_j\}$ terabytes, y en el día $i+1$ el último reinicio sigue siendo el del día $i-j=(i+1)-(j+1)$. Lo máximo que se puede procesar en los días restantes es $OPT(i+1,j+1)$ (notar que $j+1\le i+1$, así que está definido). El valor es
+\[
+\min\{x_i,s_j\}+OPT(i+1,j+1).
+\]
+
+\subsection*{(e) Relación de recurrencia}
+
+\begin{align}
+OPT(n,j) &= \min\{x_n,s_j\}, && 1\le j\le n, \label{e3:b}\\
+OPT(i,j) &= \max\bigl\{\, OPT(i+1,1),\ \min\{x_i,s_j\}+OPT(i+1,j+1)\,\bigr\}, && 1\le j\le i<n. \label{e3:rec}
+\end{align}
+El valor buscado es $OPT(1,1)$ (día $1$, último reinicio en el día $0$).
+
+\emph{Justificación.} El caso base es (b). Para $i<n$, en el día $i$ solo hay dos alternativas: reiniciar o no. Lo que pasa a partir del día $i+1$ depende únicamente de cuántos días hace que se reinició por última vez (el estado $(i+1,j')$), no de las decisiones anteriores, y la cantidad procesada es aditiva por días. Por eso:
+($\ge$) tomando la decisión del día $i$ y luego una planificación óptima desde el estado resultante se obtienen exactamente los valores de (c) y (d), así que $OPT(i,j)$ es al menos su máximo;
+($\le$) en una planificación óptima desde el estado $(i,j)$, si se reinicia en el día $i$ los días $i+1..n$ forman una planificación desde el estado $(i+1,1)$, que procesa a lo sumo $OPT(i+1,1)$; si no se reinicia, el día $i$ aporta $\min\{x_i,s_j\}$ y el resto es una planificación desde $(i+1,j+1)$, que procesa a lo sumo $OPT(i+1,j+1)$. Las dos desigualdades dan~\eqref{e3:rec}.
+
+\subsection*{(f) Algoritmo para el valor óptimo}
+
+\begin{algorithm}[H]
+\caption{Máximo de terabytes procesados}
+\begin{algorithmic}[1]
+\Function{CalcOPT}{$x_1..x_n,\ s_1..s_n$}
+  \For{$j=1$ \textbf{hasta} $n$}
+    \State $OPT[n,j]\gets \min\{x_n,s_j\}$
+  \EndFor
+  \For{$i=n-1$ \textbf{bajando hasta} $1$}
+    \For{$j=1$ \textbf{hasta} $i$}
+      \State $OPT[i,j]\gets \max\{OPT[i+1,1],\ \min\{x_i,s_j\}+OPT[i+1,j+1]\}$
+    \EndFor
+  \EndFor
+  \State \Return $OPT[1,1]$
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+Orden de llenado: por filas, con $i$ decreciente; la fila $i$ solo usa valores de la fila $i+1$, que ya está calculada. Se llenan $\sum_{i=1}^n i=\Oh(n^2)$ celdas, cada una en $\Oh(1)$: tiempo $\Oh(n^2)$ y espacio $\Oh(n^2)$ (o $\Oh(n)$ guardando solo dos filas, si no se quiere reconstruir).
+
+Tabla para el ejemplo de (a) ($x_i=20$, $s=(10,4,3,2,1)$):
+\[
+\begin{array}{c|ccccc}
+OPT(i,j) & j=1 & j=2 & j=3 & j=4 & j=5\\\hline
+i=5 & 10 & 4 & 3 & 2 & 1\\
+i=4 & 14 & 10 & 10 & 10 & \\
+i=3 & 20 & 14 & 14 & & \\
+i=2 & 24 & 20 & & & \\
+i=1 & 30 & & & &
+\end{array}
+\]
+Por ejemplo $OPT(4,1)=\max\{OPT(5,1),\,10+OPT(5,2)\}=\max\{10,14\}=14$, $OPT(4,2)=\max\{10,\,4+3\}=10$, $OPT(2,2)=\max\{OPT(3,1),\,4+OPT(3,3)\}=\max\{20,18\}=20$, $OPT(1,1)=\max\{24,\,10+20\}=30$.
+
+\subsection*{(g) Días de reinicio}
+
+\begin{algorithm}[H]
+\caption{Conjunto óptimo de días de reinicio}
+\begin{algorithmic}[1]
+\Function{DiasReinicio}{$x,s,OPT$}
+  \State $R\gets\emptyset$;\quad $j\gets 1$
+  \For{$i=1$ \textbf{hasta} $n-1$}
+    \If{$OPT[i,j] = OPT[i+1,1]$}
+      \State $R\gets R\cup\{i\}$;\quad $j\gets 1$ \Comment{se reinicia el día $i$}
+    \Else
+      \State $j\gets j+1$ \Comment{no se reinicia; $OPT[i,j]=\min\{x_i,s_j\}+OPT[i+1,j+1]$}
+    \EndIf
+  \EndFor
+  \State \Return $R$ \Comment{el día $n$ nunca se reinicia}
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+Se arranca en el estado $(1,1)$ y en cada día se toma la decisión que realiza el máximo de~\eqref{e3:rec}, pasando al estado correspondiente; por inducción, la planificación obtenida procesa $OPT(1,1)$ terabytes. Es $\Oh(n)$ usando la tabla de (f), y el total es $\Oh(n^2)$.
+
+En el ejemplo: $(1,1)$: $OPT(2,1)=24\ne 30$, no reinicia, $j=2$. $(2,2)$: $OPT(3,1)=20=OPT(2,2)$, reinicia el día 2. $(3,1)$: $OPT(4,1)=14\ne 20$, no reinicia, $j=2$. $(4,2)$: $OPT(5,1)=10=OPT(4,2)$, reinicia el día 4. Resultado $R=\{2,4\}$, como en (a).
+
+\end{document}

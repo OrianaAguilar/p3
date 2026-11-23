@@ -1,0 +1,33 @@
+% Compilación de todas las soluciones de los prácticos (requiere los PDF individuales ya compilados)
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[spanish]{babel}
+\usepackage{pdfpages}
+\usepackage[hidelinks]{hyperref}
+
+\newcommand{\practico}[2]{\includepdf[pages=-,addtotoc={1,section,1,{#1},#2}]{#2.pdf}}
+
+\begin{document}
+\begin{titlepage}
+\centering\vspace*{5cm}
+{\Huge\bfseries Programación 3\par}\vspace{1em}
+{\LARGE Soluciones de los prácticos\par}\vspace{2em}
+{\large Prácticos 1--12, resueltos con base en las soluciones oficiales\\ de parciales y exámenes\par}
+\vfill
+\end{titlepage}
+\tableofcontents
+\clearpage
+\practico{Práctico 1 --- Emparejamiento estable}{p01-emparejamiento-estable}
+\practico{Práctico 2 --- Análisis de algoritmos}{p02-analisis-de-algoritmos}
+\practico{Prácticos 3 y 4 --- Grafos}{p03-04-grafos}
+\practico{Práctico 5 --- Algoritmos greedy}{p05-algoritmos-greedy}
+\practico{Práctico 6 --- Algoritmos greedy en grafos}{p06-greedy-en-grafos}
+\practico{Práctico 7 --- Dividir y conquistar}{p07-dividir-y-conquistar}
+\practico{Práctico 8 --- Programación dinámica I}{p08-programacion-dinamica-1}
+\practico{Práctico 9 --- Programación dinámica II}{p09-programacion-dinamica-2}
+\practico{Práctico 10 --- Flujo en redes}{p10-flujo-en-redes}
+\practico{Práctico 11 --- Reducciones}{p11-reducciones}
+\practico{Práctico 12 --- Problemas NP-completos}{p12-np-completos}
+\end{document}

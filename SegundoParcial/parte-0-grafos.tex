@@ -1,0 +1,705 @@
+% =====================================================================
+%  Parte 0 — Greedy en grafos (Kleinberg–Tardos, cap. 4, secciones 4.4–4.6)
+%  Fragmento: se incluye con \input desde el documento maestro.
+% =====================================================================
+
+% ---------- macros y estilos locales (prefijo gr) ----------
+\newcommand{\grpred}{\mathrm{pred}}
+\newcommand{\grop}[1]{\textsc{#1}}
+\tikzset{
+  grv/.style={circle,draw=tinta,fill=white,inner sep=1pt,minimum size=5.6mm,font=\small},
+  gra/.style={draw=gris,semithick},
+  grp/.style={draw=grafos,line width=1.7pt},
+  grx/.style={draw=gris!55,semithick,dashed},
+  grd/.style={-{Stealth[length=2.1mm]},draw=gris,semithick},
+  grdp/.style={-{Stealth[length=2.3mm]},draw=grafos,line width=1.3pt},
+  grl/.style={font=\scriptsize,fill=white,inner sep=0.8pt,text=tinta},
+  grt/.style={font=\footnotesize\sffamily,text=gris},
+}
+
+\parte{grafos}{Greedy en grafos}
+  {d(v)\;=\;\min_{e=(u,v):\,u\in S}\; d(u)+\ell_e}
+  {Se arma la solución de a un paso, agregando siempre lo más barato que cruza la frontera de lo que ya está construido. Dijkstra lo hace con distancias, Prim y Kruskal con aristas. Las demostraciones son por inducción sobre ese conjunto o por intercambio a través de un corte.}
+
+% =====================================================================
+\section{Qué se pregunta y cómo se contesta}
+% =====================================================================
+
+Estos temas son las secciones 4.4 a 4.6 del libro (KT cap.~4). Entre 2018 y 2025 se evaluaron en el \emph{primer} parcial, y antes de 2017 en el segundo parcial o en la parte teórica de los exámenes. Aparecen de tres maneras:
+\begin{itemize}
+  \item \textbf{Teórico.} Enunciar y demostrar la propiedad de corte o la de ciclo, la correctitud de Dijkstra (4.14) o la unicidad del MST. También aparecen verdaderos o falsos con contraejemplo.
+  \item \textbf{Ejecución a mano.} Correr Dijkstra, Prim o Kruskal sobre un grafo chico. La pauta exige el orden exacto de elección y el costo en cada paso.
+  \item \textbf{Modelado.} Un problema contado con robots, caminos o cables, que se reduce a caminos mínimos o a MST. Hay que reescribir el algoritmo del libro y probar una cota como $\Oh(m\log n)$.
+\end{itemize}
+
+En los exámenes viejos se pedía además la \emph{forma general} de la técnica greedy y su correspondencia con Prim, Kruskal o Dijkstra.\visto{2P 2012 Ej.~2(a): esquema greedy y Kruskal}
+
+\begin{algorithmic}[1]
+\Function{Greedy}{$C$} \Comment{$C$: conjunto de candidatos}
+  \State $S\gets\emptyset$
+  \While{$S$ no es solución \textbf{y} $C\neq\emptyset$}
+    \State $x\gets$ \Call{Seleccionar}{$C$}; $C\gets C\setminus\{x\}$ \Comment{óptimo local}
+    \If{$S\cup\{x\}$ es factible} \State $S\gets S\cup\{x\}$ \EndIf
+  \EndWhile
+  \State \Return $S$ (si es solución)
+\EndFunction
+\end{algorithmic}
+
+\begin{center}
+\small
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{1.7cm}>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}p{2.6cm}@{}}
+\toprule
+ & Candidatos & Selección & Factible si\dots \\
+\midrule
+Kruskal & aristas & la de menor costo & no forma ciclo \\
+Prim & aristas entre $U$ y $V\setminus U$ & la de menor costo & siempre \\
+Dijkstra & nodos fuera de $S$ & el de menor $d'(v)$ & siempre \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+La solución se alcanza al tener $n-1$ aristas (Kruskal), al llegar a $U=V$ (Prim) o al llegar a $S=V$ (Dijkstra). En las preguntas del tipo ``elija tres algoritmos y diga qué resuelven y con qué técnica'' alcanza con una línea por algoritmo. Dijkstra resuelve caminos de costo mínimo desde un origen con costos no negativos, y es greedy. Prim y Kruskal dan un árbol de cubrimiento de costo mínimo de un grafo no dirigido con costos, y también son greedy. Floyd y Bellman–Ford, en cambio, son programación dinámica.\visto{Examen jul.~2016 Ej.~4 y feb.~2018 P.~4: qué resuelve}
+
+% =====================================================================
+\section{Caminos mínimos: el algoritmo de Dijkstra}
+% =====================================================================
+
+Sea $G=(V,E)$ un grafo dirigido (o no dirigido, con cada arista en los dos sentidos), con longitudes $\ell_e\ge 0$ y un origen $s$. Se busca, para cada $v$, la distancia $d(v)$, que es la longitud mínima de un camino de $s$ a $v$, y un camino que la realice.
+
+\subsection{El algoritmo}
+
+Dijkstra mantiene un conjunto $S$ de nodos ya \emph{resueltos}, cuya distancia $d(u)$ se conoce. En cada paso mira las aristas que salen de $S$ y elige el nodo $v\notin S$ que minimiza
+\[ d'(v)=\min_{e=(u,v):\,u\in S}\; d(u)+\ell_e , \]
+es decir, el nodo al que se llega más barato saliendo de $S$ por una sola arista.
+
+\begin{algorithmic}[1]
+\Function{Dijkstra}{$G,\ell,s$}
+  \State $S\gets\{s\}$; $d(s)\gets 0$
+  \While{$S\neq V$}
+    \State elegir $v\notin S$, con alguna arista desde $S$, que minimice $d'(v)$
+    \State $S\gets S\cup\{v\}$; $d(v)\gets d'(v)$; $\grpred(v)\gets$ el $u$ que realiza el mínimo
+  \EndWhile
+  \State \Return $d$, $\grpred$
+\EndFunction
+\end{algorithmic}
+
+El camino $P_v$ se obtiene siguiendo $\grpred$ desde $v$ hasta $s$. Las aristas $(\grpred(v),v)$ forman un árbol con raíz $s$, el \emph{árbol de caminos mínimos}.
+
+En el examen de febrero de 2026 preguntaron exactamente qué propiedad cumple el próximo vértice que entra a $S$. La respuesta es la de la línea 4: entre todas las aristas $(u,v)$ con $u\in S$, $v\in V\setminus S$, se elige $v$ para el que $d(u)+\ell_{(u,v)}$ es mínimo.\visto{Examen feb.~2026 Ej.~1(c): próximo vértice de $S$}
+
+\subsection{Correctitud}
+
+\begin{resultado}[(4.14)]
+En cualquier momento de la ejecución, para cada $u\in S$, el camino $P_u$ es un camino mínimo de $s$ a $u$. En consecuencia, al terminar, $d(u)$ es la distancia de $s$ a $u$ para todo $u$.
+\end{resultado}
+
+El paso inductivo de esta demostración se pidió aislado en el examen de julio de 2019: dados $S$ y caminos mínimos $P_u$ para $u\in S$, probar que la arista que minimiza $d(u)+\ell_{(u,v)}$ da un camino mínimo a $v$.\visto{Examen jul.~2019 Ej.~1: el argumento central}
+
+\begin{proof}
+Por inducción en $|S|$. Si $|S|=1$, $S=\{s\}$ y $d(s)=0$ es la distancia, porque las longitudes son no negativas.
+
+Supongamos que vale para $|S|=k\ge1$ y que el algoritmo agrega $v$ usando la arista $(u,v)$, con $u\in S$. El camino $P_v$ es $P_u$ seguido de $(u,v)$, y su longitud es $d(u)+\ell_{(u,v)}=d'(v)$. Falta ver que ningún camino de $s$ a $v$ es más corto.
+
+Sea $P$ un camino cualquiera de $s$ a $v$. Como $s\in S$ y $v\notin S$, $P$ sale de $S$ en algún punto. Sea $y$ el primer nodo de $P$ que no está en $S$ y sea $x\in S$ el nodo anterior. Entonces
+\begin{align*}
+\ell(P) &\ge \ell(P[s,x]) + \ell_{(x,y)} && \text{el tramo de $y$ a $v$ tiene longitud $\ge 0$}\\
+        &\ge d(x)+\ell_{(x,y)} && \text{hipótesis inductiva: $P_x$ es mínimo}\\
+        &\ge d'(y) && \text{definición de $d'(y)$}\\
+        &\ge d'(v) && \text{el algoritmo eligió $v$ como mínimo.}
+\end{align*}
+Por lo tanto $\ell(P)\ge d'(v)=\ell(P_v)$, y $P_v$ es mínimo.
+\end{proof}
+
+La no negatividad se usa en un solo lugar, la primera desigualdad, y la corrección pide señalarlo. Si hubiera aristas negativas, el tramo de $y$ a $v$ podría ``devolver'' longitud.
+
+\subsection{Por qué falla con longitudes negativas}
+
+Contraejemplo de la solución oficial de julio de 2019: aristas $(s,v)$ de longitud $1$, $(s,y)$ de longitud $2$ e $(y,v)$ de longitud $-2$. Con $S=\{s\}$, el mínimo de $d(u)+\ell_e$ es $1$ y se alcanza en $(s,v)$, así que Dijkstra fija $d(v)=1$. Sin embargo, el camino $s\,y\,v$ tiene longitud $0$.\visto{Examen jul.~2019 Ej.~1(b): con negativos no vale}
+
+\begin{center}
+\begin{tikzpicture}[scale=1]
+  \node[grv] (s) at (0,0) {$s$};
+  \node[grv] (y) at (1.6,1.0) {$y$};
+  \node[grv] (v) at (3.2,0) {$v$};
+  \draw[grdp] (s)--node[grl,below]{$1$}(v);
+  \draw[grd] (s)--node[grl,above left]{$2$}(y);
+  \draw[grd] (y)--node[grl,above right]{$-2$}(v);
+  \node[grt] at (1.6,-0.65) {Dijkstra fija $d(v)=1$, pero $\ell(s\,y\,v)=0$};
+\end{tikzpicture}
+\end{center}
+
+\begin{trampa}[longitudes negativas]
+\begin{itemize}
+  \item Para ``arreglar'' los negativos sumándole una constante $M$ a todas las aristas. No sirve: un camino de $k$ aristas aumenta $kM$, así que se favorecen los caminos con pocas aristas y el óptimo cambia. (En MST sí funciona, porque todos los árboles tienen $n-1$ aristas; ver sección~\ref{gr:transf}.)
+  \item Decir que Dijkstra falla ``si hay ciclos negativos''. Falla con una sola arista negativa, aunque no haya ciclos. Para negativos sin ciclos negativos se usa Bellman–Ford (programación dinámica), y en un DAG alcanza con el orden topológico (sección~\ref{gr:dag}).
+\end{itemize}
+\end{trampa}
+
+\subsection{Implementación y orden}
+
+\begin{resultado}[(4.15)]
+Con una cola de prioridad, Dijkstra se implementa en tiempo $\Oh(m)$ más el costo de $n$ operaciones \grop{ExtraerMin} y $m$ operaciones \grop{CambiarClave}. Con un heap binario, cada una cuesta $\Oh(\log n)$ y el total es $\Oh(m\log n)$.
+\end{resultado}
+
+\begin{algorithmic}[1]
+\Function{Dijkstra}{$G,\ell,s$} \Comment{versión con heap}
+  \ForAll{$v\in V$} \State $d[v]\gets\infty$; $\grpred[v]\gets\mathrm{nil}$ \EndFor
+  \State $d[s]\gets 0$; $Q\gets$ heap de mínimo con todos los nodos, clave $d[v]$
+  \While{$Q\neq\emptyset$}
+    \State $u\gets$ \Call{ExtraerMin}{$Q$} \Comment{$u$ entra a $S$}
+    \ForAll{arista $(u,v)$ con $v\in Q$}
+      \If{$d[u]+\ell_{(u,v)}<d[v]$}
+        \State $d[v]\gets d[u]+\ell_{(u,v)}$; $\grpred[v]\gets u$; \Call{CambiarClave}{$Q,v,d[v]$}
+      \EndIf
+    \EndFor
+  \EndWhile
+  \State \Return $d,\grpred$
+\EndFunction
+\end{algorithmic}
+
+\textbf{Análisis.} Inicializar cuesta $\Oh(n)$. Cada nodo sale del heap una sola vez, lo que da $n$ \grop{ExtraerMin} a $\Oh(\log n)$ cada una. Cada arista $(u,v)$ se examina una sola vez, cuando $u$ sale del heap, y provoca a lo sumo un \grop{CambiarClave} de $\Oh(\log n)$. Para \grop{CambiarClave} hace falta un arreglo de posiciones en el heap. El total es $\Oh((n+m)\log n)$, que es $\Oh(m\log n)$ si todos los nodos son alcanzables desde $s$, porque entonces $m\ge n-1$.
+
+En los exámenes de antes de 2017 la versión ``del teórico'' era la de matriz de costos: un arreglo $D$ que en cada una de las $n-1$ iteraciones se recorre entero para buscar el mínimo y actualizar. Eso da $\Theta(n^2)$, que es mejor que el heap en grafos densos ($m\approx n^2$).\visto{2P 2014 Ej.~2.5 y Examen jul.~2011 Ej.~3: escribir Dijkstra}
+
+\begin{trampa}[implementación]
+\begin{itemize}
+  \item Decir ``$\Oh(m\log n)$ por el heap'' sin contar \emph{cuántas} operaciones se hacen. La pauta pide $n$ extracciones y a lo sumo $m$ cambios de clave, cada uno $\Oh(\log n)$, y justificar que $n=\Oh(m)$.
+  \item Olvidar el arreglo de predecesores cuando se pide \emph{el camino} y no solo su costo.
+  \item Actualizar nodos que ya están en $S$. Su distancia es definitiva por (4.14).
+\end{itemize}
+\end{trampa}
+
+\subsection{Dijkstra a mano}
+
+Grafo del examen de diciembre de 2014 (no dirigido), con origen $2$: $c(1,2)=5$, $c(1,3)=3$, $c(1,5)=1$, $c(2,3)=2$, $c(2,4)=3$, $c(3,4)=1$, $c(4,5)=5$. La solución oficial muestra en cada paso $S$, $V\setminus S$, el arreglo $D$ y el mínimo elegido.\visto{Examen dic.~2014 Ej.~3: Dijkstra desde el vértice 2}
+
+\begin{center}
+\begin{tikzpicture}[scale=1.05]
+  \node[grv] (2) at (0,0) {$2$};
+  \node[grv] (1) at (2.2,1.3) {$1$};
+  \node[grv] (3) at (2.2,-1.1) {$3$};
+  \node[grv] (4) at (0,-2.2) {$4$};
+  \node[grv] (5) at (4.4,-0.4) {$5$};
+  \draw[grp] (2)--node[grl,above left]{$5$}(1);
+  \draw[grp] (2)--node[grl,above right]{$2$}(3);
+  \draw[gra] (1)--node[grl,right]{$3$}(3);
+  \draw[grp] (2)--node[grl,left]{$3$}(4);
+  \draw[gra] (3)--node[grl,below right]{$1$}(4);
+  \draw[grp] (1)--node[grl,above right]{$1$}(5);
+  \draw[gra] (4) to[bend right=28] node[grl,below right]{$5$}(5);
+  \node[grt,above=1pt of 1] {$d=5$};
+  \node[grt,right=1pt of 3] {$d=2$};
+  \node[grt,left=1pt of 4] {$d=3$};
+  \node[grt,right=1pt of 5] {$d=6$};
+  \node[grt,left=1pt of 2] {$d=0$};
+\end{tikzpicture}
+\end{center}
+
+\begin{center}
+\small
+\begin{tabularx}{\textwidth}{@{}c>{\raggedright\arraybackslash}p{1.9cm}>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}p{2.5cm}@{}}
+\toprule
+Paso & Elegido & Actualización de $D$ & $D=[1,3,4,5]$ \\
+\midrule
+0 & $2$, $d=0$ & inicial: aristas que salen de $2$ & $[5,2,3,\infty]$ \\
+1 & $3$, $d=2$ & $D[1]=\min\{5,2+3\}=5$, $D[4]=\min\{3,2+1\}=3$ & $[5,\cdot,3,\infty]$ \\
+2 & $4$, $d=3$ & $D[5]=\min\{\infty,3+5\}=8$ & $[5,\cdot,\cdot,8]$ \\
+3 & $1$, $d=5$ & $D[5]=\min\{8,5+1\}=6$, $\grpred(5)=1$ & $[\cdot,\cdot,\cdot,6]$ \\
+4 & $5$, $d=6$ & $S=V$, termina & \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+En el paso 1 hay un empate en $D[4]$: $2+1=3$ no mejora estrictamente, así que $\grpred(4)$ sigue siendo $2$. Con las dos opciones el camino es mínimo. Las aristas destacadas forman el árbol de caminos mínimos.
+
+\begin{receta}[ejecutar Dijkstra]
+\begin{enumerate}
+  \item Una fila por iteración, con el vértice elegido \emph{en el orden en que el algoritmo lo elige} y su costo. En el 1P 2025 la respuesta se consideró incorrecta si faltaba alguna de las dos cosas.
+  \item Mostrá las actualizaciones con la cuenta explícita $\min\{D[v],\,d(u)+\ell_{(u,v)}\}$. Es la ``justificación de cada paso'' que piden.
+  \item Si se piden caminos, llevá la columna de predecesores y al final dibujá el árbol.
+\end{enumerate}
+\end{receta}
+
+Otros enunciados de ejecución: febrero de 2010 (``costos y predecesores de cada nodo en cada iteración'') y el 1P de 2025, donde la respuesta esperada era la secuencia $x=3$, $z=5$, $y=6$, $w=10$.\visto{Examen feb.~2010 Ej.~3; 1P 2025 Ej.~1(e)}
+
+% =====================================================================
+\section{Variantes y modelado con caminos mínimos}
+% =====================================================================
+
+Casi todos los ejercicios de desarrollo con Dijkstra siguen el mismo patrón: modelar como grafo, decidir qué es la longitud de una arista, correr Dijkstra (a veces dos veces, o en el grafo invertido) y leer la respuesta. La pauta pide \emph{reescribir} el algoritmo del libro aunque se use tal cual.
+
+\subsection{Grillas y robots}
+
+En los parciales de 2021 y de 2024 se planteó una grilla de $n$ celdas libres u ocupadas, y un robot que se mueve a las 8 vecinas. Moverse en diagonal cuesta $\sqrt2$ y en línea recta $1$. Se pide el camino más corto en $\Oh(n\log n)$.\visto{1P 2021 Ej.~2 y 1P 2024 Ej.~2: robot en grilla}
+
+\begin{problema}{1P 2021, Ej.~2 (y 1P 2024, Ej.~2): camino más corto en una grilla}
+Matriz de celdas libres/ocupadas, posición inicial y destino. Dar un algoritmo para un camino transitable más corto y probar que es $\Oh(n\log n)$, con $n$ la cantidad de entradas.
+
+\smallskip
+\textbf{Solución.} Un nodo por celda libre y una arista entre celdas libres vecinas, de costo $1$ o $\sqrt2$. Dijkstra desde la celda inicial con predecesores, y al final se reconstruye el camino siguiendo $\grpred$ desde el destino. \emph{Orden:} hay $\Oh(n)$ nodos y cada uno tiene a lo sumo $8$ vecinos, así que $m=\Oh(n)$. Son $n$ extracciones del heap a $\Oh(\log n)$ y a lo sumo $8$ actualizaciones de $\Oh(\log n)$ por extracción. Reconstruir el camino es $\Oh(n)$. El total es $\Oh(n\log n)$.
+\end{problema}
+
+Si todos los pasos cuestan lo mismo, no hace falta Dijkstra: BFS da las distancias en $\Oh(m+n)$. Así se resolvió el examen de julio de 2020 (el robot más cercano a la zona $z$ en una grilla de $M\times M$ en $\Oh(M^2)$, con un BFS desde $z$). En el viñedo del 1P 2025 la pauta aclara que Dijkstra ``no cumple el orden requerido'' $\Oh(f\times c)$. Lo que hacía falta allí era un BFS con todas las plantas infectadas como fuentes iniciales.\visto{Examen dic.~2015 Ej.~3 y 1P 2025 Ej.~2: BFS alcanza}
+
+\subsection{Reconstruir el camino y cortar antes}
+
+En diciembre de 2016, además de las distancias, se pedía poder imprimir el recorrido y detener el algoritmo apenas se tuviera lo necesario.\visto{Examen dic.~2016 Probl.~A: predecesores y corte}
+
+\begin{problema}{Examen dic.~2016, Probl.~A: recorridos a las paradas}
+Matriz $C$ de tiempos por cuadra ($\infty$ si no hay cuadra), casa $K$ y conjunto $P$ de paradas. (I) Construir una estructura $E$ que permita obtener el recorrido más rápido de $K$ a cualquier $p\in P$ en tiempo $\Oh(r)$, siendo $r$ la cantidad de cuadras, y terminar apenas se tenga la información necesaria. (II) Imprimir el recorrido.
+
+\smallskip
+\textbf{Solución.} Grafo dirigido, porque nada dice que $C[i,j]=C[j,i]$. Se corre Dijkstra desde $K$ guardando $E[v]=\grpred(v)$, y el ciclo principal se corta cuando $P\subseteq S$. Por (4.14), un nodo que entra a $S$ ya tiene su camino definitivo. Para (II), \textsc{Recorrido}$(E,p)$: si $p\neq K$, llamar \textsc{Recorrido}$(E,E[p])$ y después imprimir $p$. Son $r+1$ llamadas, así que es $\Oh(r)$. Con la matriz, Dijkstra es $\Theta(n^2)$.
+\end{problema}
+
+\subsection{Dos Dijkstra: el comodín}
+
+\begin{problema}{1P 2019, Ej.~3: comodín que anula una arista}
+Grafo dirigido fuertemente conexo con longitudes positivas. Se puede poner en cero la longitud de \emph{una} arista. Hallar un camino mínimo de $s$ a $t$ usando el comodín de la mejor manera, en $\Oh(m\log n)$.
+
+\smallskip
+\textbf{Solución.} (b) Si $P$ es mínimo entre los caminos de $s$ a $t$ que usan $(v_i,v_{i+1})$, su tramo $s\leadsto v_i$ es mínimo y su tramo $v_{i+1}\leadsto t$ también. Si no, se reemplaza el tramo y se obtiene un camino más corto que sigue usando la arista. (c) Se corre Dijkstra desde $s$ en $G$, que da $d_s(u)$ y $P_u$, y Dijkstra desde $t$ en el grafo invertido $G^R$, que da $d_t(v)$, la distancia de $v$ a $t$ en $G$. Se elige la arista $(u,v)$ que minimiza $d_s(u)+0+d_t(v)$ y se concatena $P_u$, la arista y el camino de $v$ a $t$. (d) Dos Dijkstra cuestan $\Oh(m\log n)$. $G^R$ no se construye: se usan las listas de entrantes. Recorrer las aristas es $\Oh(m)$, y como el grafo es fuertemente conexo, $n=\Oh(m)$.
+\end{problema}
+
+El truco de \emph{Dijkstra desde $t$ en el grafo invertido} vale para cualquier pregunta del tipo ``el mejor camino que pasa por una arista o por un nodo''. La parte (b) es el principio de optimalidad de los caminos mínimos, que también se pidió por separado en febrero de 2013 y en el 2P 2013.\visto{1P 2019 Ej.~3: comodín, dos Dijkstra}
+
+\subsection{Camino que visita una secuencia}
+
+En el 2P de 2009 se pidió un camino de costo mínimo de $v_1$ a $v_k$ que visite $v_1,\dots,v_k$ en ese orden, pudiendo repetir vértices. La respuesta es concatenar caminos mínimos $v_i\leadsto v_{i+1}$, con $k-1$ corridas de Dijkstra si no hay aristas negativas o una de Floyd si solo se excluyen los ciclos negativos. La correctitud es por absurdo: si $C'$ fuera mejor, algún tramo de $C'$ entre $v_i$ y $v_{i+1}$ sería más corto que el mínimo.\visto{2P 2009 Ej.~3.1: camino por una secuencia}
+
+\subsection{Costos en los nodos}
+
+Si atravesar un nodo cuesta (en julio de 2023, un tiempo de procesamiento $TP(u)$ en cada router), se pasa el costo a las aristas salientes: $\ell_{(u,v)}=TP(u)+TT(u,v)$. Ese examen pedía resolverlo con Bellman–Ford (ver la parte de programación dinámica), pero con costos positivos Dijkstra también funciona.\visto{Examen jul.~2023 Ej.~2: costo en nodos y aristas}
+
+\subsection{Caminos mínimos en un DAG}\label{gr:dag}
+
+Si el grafo no tiene ciclos, no hace falta el heap: alcanza con recorrer los nodos en orden topológico.\visto{1P 2022 Ej.~3: caminos mínimos en un DAG}
+
+\begin{problema}{1P 2022, Ej.~3: DAG en $\Oh(m+n)$}
+$G$ dirigido acíclico con costos positivos y $s$ que alcanza a todos. Calcular los costos de los caminos mínimos desde $s$ en $\Oh(m+n)$. Sugerencia: orden topológico.
+
+\smallskip
+\textbf{Solución.} La recurrencia es $d[s]=0$ y $d[v]=\min_{(u,v)\in E}\{d[u]+c(u,v)\}$. En orden topológico $v_1=s,\dots,v_n$, cada $d[u]$ que aparece en el mínimo ya está calculado. Primero se calcula el orden con el algoritmo de los grados de entrada, en $\Oh(m+n)$. Después se recorre $v_2,\dots,v_n$ mirando las aristas entrantes de cada uno, y cada arista se mira una vez, en $\Oh(m+n)$. No hay heap ni $\log n$, y funciona aunque haya costos negativos.
+\end{problema}
+
+\subsection{Contar los caminos mínimos}
+
+El ejercicio del libro infantil ``Elige tu propia aventura'' cayó en diciembre de 2018 y en julio de 2019: calcular el largo mínimo de una historia y cuántas historias hay de ese largo, en $\Oh(n)$. Sin costos, el nivel BFS $L(w)$ es la distancia, y la cantidad de caminos mínimos cumple
+\[ N(1)=1,\qquad N(w)=\sum_{t:\,(t,w)\in E,\ L(t)=L(w)-1} N(t), \]
+porque los caminos mínimos a $w$ se parten según el último nodo antes de $w$. Se calcula durante el mismo BFS.\visto{Examen dic.~2018 Ej.~1 y jul.~2019 Ej.~2: contar historias}
+
+\subsection{Camino de cuello de botella (carga máxima)}
+
+En el 2P de 2011 se pidió, para cada par de ciudades, el camino que permite transportar la mayor carga, sabiendo que cada carretera admite un peso máximo $W(i,j)$. La capacidad de un camino es el \emph{mínimo} de sus aristas y se quiere \emph{maximizarla}. Se pidió con programación dinámica, al estilo de Floyd:\visto{2P 2011 Ej.~2: carga máxima entre ciudades}
+\[ f_0(i,j)=W(i,j),\qquad f_k(i,j)=\max\bigl\{f_{k-1}(i,j),\ \min\{f_{k-1}(i,k),f_{k-1}(k,j)\}\bigr\}. \]
+
+\subsection{Dijkstra no da un MST, y un MST no da caminos mínimos}
+
+Esta pregunta se repitió muchas veces: ¿existe un origen $v$ para el que el árbol de Dijkstra sea un MST? ¿Kruskal o Prim encuentran el camino de costo mínimo entre $u$ y $v$? ¿El camino mínimo está contenido en algún MST? A las tres se responde que no, con un contraejemplo.\visto{Examen dic.~2009 Ej.~2, dic.~2010 Ej.~1.2, 2P 2013 Ej.~2(d)}
+
+\begin{center}
+\begin{tikzpicture}[scale=1.05]
+  \node[grv] (u) at (0,1.6) {$u$}; \node[grv] (v) at (2.2,1.6) {$v$};
+  \node[grv] (w) at (0,0) {$w$};   \node[grv] (z) at (2.2,0) {$z$};
+  \draw[grp] (u)--node[grl,above]{$2$}(v);
+  \draw[gra] (w)--node[grl,below]{$2$}(z);
+  \draw[grp] (u)--node[grl,left]{$3$}(w);
+  \draw[gra] (v)--node[grl,right]{$3$}(z);
+  \draw[grp] (u)--node[grl,pos=0.3]{$2$}(z);
+  \draw[gra] (w)--node[grl,pos=0.3]{$2$}(v);
+  \node[grt] at (1.1,-0.75) {Dijkstra desde $u$: costo $7$};
+\end{tikzpicture}\hspace{1.2cm}%
+\begin{tikzpicture}[scale=1.05]
+  \node[grv] (u) at (0,1.6) {$u$}; \node[grv] (v) at (2.2,1.6) {$v$};
+  \node[grv] (w) at (0,0) {$w$};   \node[grv] (z) at (2.2,0) {$z$};
+  \draw[grp] (u)--node[grl,above]{$2$}(v);
+  \draw[grp] (w)--node[grl,below]{$2$}(z);
+  \draw[gra] (u)--node[grl,left]{$3$}(w);
+  \draw[gra] (v)--node[grl,right]{$3$}(z);
+  \draw[grp] (u)--node[grl,pos=0.3]{$2$}(z);
+  \draw[gra] (w)--node[grl,pos=0.3]{$2$}(v);
+  \node[grt] at (1.1,-0.75) {un MST: costo $6$};
+\end{tikzpicture}
+\end{center}
+
+Por simetría, desde cualquier origen Dijkstra devuelve las tres aristas que inciden en él, de costos $2,2,3$, y llega a $7$. Un MST cuesta $6$. Para el otro sentido sirve el triángulo $c(a,b)=c(a,c)=4$, $c(b,c)=5$: el único MST es $\{ab,ac\}$, en el que el camino de $b$ a $c$ cuesta $8$, mientras que la arista directa cuesta $5$.\visto{Examen dic.~2011 Ej.~1.1: V/F camino mínimo en MST}
+
+\begin{trampa}[caminos mínimos]
+\begin{itemize}
+  \item Usar BFS con costos distintos. BFS minimiza la \emph{cantidad} de aristas.
+  \item Modelar con un grafo no dirigido cuando la matriz no es simétrica (dic.~2016) o cuando las aristas tienen sentido.
+  \item En los ejercicios de orden, no justificar $m=\Oh(n)$ (grilla) o $n=\Oh(m)$ (grafo conexo). Sin eso, $\Oh((n+m)\log n)$ no es la cota pedida.
+\end{itemize}
+\end{trampa}
+
+% =====================================================================
+\section{Árboles de cubrimiento mínimo}
+% =====================================================================
+
+Sea $G=(V,E)$ conexo, no dirigido, con costos $c_e$. Un \emph{árbol de cubrimiento} es un subgrafo $(V,T)$, con $T\subseteq E$, que es conexo y acíclico. Equivalentemente, es conexo con $n-1$ aristas. Es \emph{de costo mínimo} (MST) si $\sum_{e\in T}c_e$ es mínima entre todos los árboles de cubrimiento. Estas dos definiciones se pidieron en 2P 2014 y en julio de 2013.\visto{2P 2014 Ej.~2.1 y Examen jul.~2013 Ej.~4: definir MST}
+
+\begin{resultado}[(4.16)]
+Si los costos son positivos, todo conjunto $T$ de costo mínimo tal que $(V,T)$ es conexo es un árbol.
+\end{resultado}
+Si $(V,T)$ tuviera un ciclo, se podría sacar una arista del ciclo sin desconectar y bajaría el costo. Por eso, cuando un enunciado pide ``conectar todo gastando lo menos posible'', la respuesta es un MST aunque no diga ``árbol''. Así se resolvió el examen de diciembre de 2020 (repavimentar caminos).
+
+\subsection{Propiedad de corte}
+
+\begin{resultado}[(4.17) Propiedad de corte]
+Supongamos que los costos son todos distintos. Sean $S$ un subconjunto de nodos con $\emptyset\neq S\neq V$ y $e=(v,w)$ la arista de menor costo con $v\in S$ y $w\in V\setminus S$. Entonces \emph{todo} MST contiene a $e$.
+\end{resultado}
+
+\begin{proof}[Demostración (intercambio)]
+Sea $T$ un árbol de cubrimiento que no contiene a $e$. Vamos a encontrar otro más barato. Como $T$ es conexo, tiene un camino $P$ de $v$ a $w$. Este camino empieza en $S$ y termina fuera, así que tiene una arista $e'=(v',w')$ con $v'\in S$ y $w'\notin S$. Sea $T'=(T\setminus\{e'\})\cup\{e\}$.
+\begin{itemize}
+  \item \emph{$T'$ es conexo.} Todo camino de $T$ que usaba $e'$ se puede desviar: de $v'$ a $v$ por $P$, después $e$, después de $w$ a $w'$ por $P$.
+  \item \emph{$T'$ es acíclico.} Es conexo y tiene $n-1$ aristas.
+  \item \emph{$T'$ es más barato.} $c(T')=c(T)-c_{e'}+c_e<c(T)$, porque $e'$ también cruza el corte y $e$ es la más barata que lo cruza.
+\end{itemize}
+Entonces ningún árbol sin $e$ es de costo mínimo.
+\end{proof}
+
+La arista $e'$ hay que tomarla \emph{en el camino $P$}. Si se elige cualquier arista de $T$ que cruce el corte, al cambiarla por $e$ puede quedar algo disconexo o con un ciclo. Ese es el error más común en esta demostración.
+
+En los exámenes viejos se le llamaba \emph{propiedad MST} a una versión de existencia, que vale también con empates: si $(u,v)$ es una arista de costo mínimo entre $U$ y $V\setminus U$, \emph{existe} un MST que la contiene. La demostración oficial es la misma. Se toma un MST $T$ sin $(u,v)$; al agregarla se forma un ciclo, que tiene otra arista $(u',v')$ entre $U$ y $V\setminus U$; y $T'=T-(u',v')+(u,v)$ cumple $c(T')\le c(T)$, así que es un MST que contiene a $(u,v)$.\visto{Examen dic.~2012, dic.~2013, jul.~2015: propiedad MST}
+
+\begin{problema}{Examen feb.~2017, P.~2: un enunciado incorrecto}
+Se propone: ``si $a$ cruza el corte y ninguna arista que lo cruza tiene costo \emph{menor estricto}, entonces $a$ está en todo MST''. Dar un contraejemplo y corregirlo.
+
+\smallskip
+\textbf{Solución.} Triángulo con $c(x,y)=c(x,z)=2$ y $c(y,z)=1$. Con $U=\{x\}$, la arista $(x,y)$ cumple la hipótesis, pero $\{(x,z),(y,z)\}$ es un MST que no la contiene. Hay dos versiones correctas: ``ninguna otra tiene costo \emph{menor o igual}, entonces está en todo MST'', o ``ninguna tiene costo menor, entonces \emph{existe} un MST que la contiene''.
+\end{problema}
+
+\subsection{Propiedad de ciclo}
+
+\begin{resultado}[(4.20) Propiedad de ciclo]
+Supongamos que los costos son todos distintos. Sean $C$ un ciclo de $G$ y $e=(v,w)$ la arista de mayor costo de $C$. Entonces $e$ no pertenece a \emph{ningún} MST.
+\end{resultado}
+
+Se pidió demostrarla en el 1P de 2017 y enunciarla en el de 2025. La demostración oficial es por absurdo y con intercambio, usando el corte que deja $T$ al sacar $e$.\visto{1P 2017 Ej.~2(a) y 1P 2025 Ej.~1(c): ciclo}
+
+\begin{proof}
+Sea $T$ un árbol de cubrimiento que contiene a $e$. Al sacar $e$, $T$ queda partido en dos componentes: $S$, con $v$, y $V\setminus S$, con $w$. El resto del ciclo, $C\setminus\{e\}$, es un camino de $v$ a $w$, así que tiene una arista $e'$ que cruza de $S$ a $V\setminus S$. Entonces $T'=(T\setminus\{e\})\cup\{e'\}$ es conexo (se reconectan las dos partes) y tiene $n-1$ aristas, o sea que es un árbol. Además $c(T')=c(T)-c_e+c_{e'}<c(T)$, porque $e$ es la más cara de $C$. Por lo tanto $T$ no es mínimo.
+\end{proof}
+
+\begin{receta}[``¿la arista $e$ está en algún MST, en todos o en ninguno?'']
+\begin{itemize}
+  \item \emph{Está en todos.} Exhibí un corte concreto del que $e$ es la más barata y citá (4.17). En el 1P 2025 el corte era $\{4\}$ contra $\{1,2,3\}$ para la arista $(3,4)$. Aislar uno de los extremos suele funcionar.
+  \item \emph{No está en ninguno.} Exhibí un ciclo concreto del que $e$ es la más cara y citá (4.20).
+  \item La pauta del 1P 2025 dice que \emph{no alcanza} con nombrar la propiedad sin mostrar su aplicación en el ejemplo, que tampoco alcanza con decir que Kruskal la incluye, y que mostrar un árbol de costo $13$ no prueba que sea mínimo si no se comparan todos.
+\end{itemize}
+\end{receta}
+
+El examen de diciembre de 2013 pedía usar la propiedad MST para probar que $(2,3)$ está en un MST. La solución elige $U=V\setminus\{3\}$, observa que solo dos aristas cruzan y que $(2,3)$ es la más barata de ellas.\visto{Examen dic.~2013 Ej.~1(b); 1P 2025 Ej.~1(d)}
+
+\subsection{Kruskal, Prim y borrado inverso}
+
+\begin{algorithmic}[1]
+\Function{Kruskal}{$G,c$}
+  \State ordenar $E$ por costo creciente; $T\gets\emptyset$
+  \ForAll{$e=(u,v)$ en ese orden}
+    \If{$u$ y $v$ están en componentes distintas de $(V,T)$} \State $T\gets T\cup\{e\}$ \EndIf
+  \EndFor
+  \State \Return $T$
+\EndFunction
+\end{algorithmic}
+
+\begin{algorithmic}[1]
+\Function{Prim}{$G,c,r$}
+  \State $U\gets\{r\}$; $T\gets\emptyset$
+  \While{$U\neq V$}
+    \State sea $(u,v)$ la arista de menor costo con $u\in U$, $v\in V\setminus U$
+    \State $T\gets T\cup\{(u,v)\}$; $U\gets U\cup\{v\}$
+  \EndWhile
+  \State \Return $T$
+\EndFunction
+\end{algorithmic}
+
+\begin{algorithmic}[1]
+\Function{BorradoInverso}{$G,c$}
+  \State $T\gets E$
+  \ForAll{$e$ en orden de costo \emph{decreciente}}
+    \If{$(V,T\setminus\{e\})$ es conexo} \State $T\gets T\setminus\{e\}$ \EndIf
+  \EndFor
+  \State \Return $T$
+\EndFunction
+\end{algorithmic}
+
+\begin{resultado}[(4.18), (4.19) y (4.21)]
+Kruskal, Prim y el borrado inverso (\emph{reverse-delete}) devuelven un MST de $G$.
+\end{resultado}
+
+En julio de 2015 se preguntó cómo se aplica la propiedad MST en estos algoritmos, y en 2P 2014 se pidió justificar por qué Prim puede usar la técnica greedy. La respuesta es la misma en los dos casos: cada decisión está respaldada por la propiedad de corte.\visto{Examen jul.~2015 Ej.~3.2 y 2P 2014 Ej.~2.3(c)}
+
+\begin{proof}[Prim (4.19)]
+En cada iteración, $U$ es un conjunto propio no vacío y la arista elegida es la más barata entre $U$ y $V\setminus U$. Por (4.17) está en todo MST, así que $T$ queda contenido en el MST. Termina con $n-1$ aristas que forman un árbol, porque cada una agrega un nodo nuevo. Ese árbol es el MST.
+\end{proof}
+
+\begin{proof}[Kruskal (4.18)]
+Sea $e=(v,w)$ una arista que Kruskal agrega, y sea $S$ el conjunto de nodos conectados a $v$ en $(V,T)$ justo antes. Entonces $w\notin S$, porque si no $e$ cerraría un ciclo. Ninguna arista entre $S$ y $V\setminus S$ fue examinada antes: si lo hubiera sido, no cerraba ciclo y se habría agregado, con lo que $S$ sería más grande. Por lo tanto $e$ es la más barata del corte $(S,V\setminus S)$ y está en todo MST por (4.17). La salida no tiene ciclos por construcción, y es conexa porque si quedaran dos componentes, alguna arista de $G$ las uniría y se habría agregado al examinarla.
+\end{proof}
+
+\begin{proof}[Borrado inverso (4.21)]
+Cuando se borra $e$, el grafo sigue conexo, así que $e$ está en un ciclo $C$ del grafo actual. Las aristas que se examinaron antes y no se borraron eran puentes, es decir que no están en ningún ciclo, y por eso no están en $C$. Las demás aristas de $C$ todavía no se examinaron y son más baratas que $e$. Entonces $e$ es la más cara de $C$ y no está en ningún MST por (4.20). La salida es conexa, porque nunca se borra un puente, y acíclica, porque la más cara de un ciclo que sobreviviera se habría borrado. Como contiene al MST y es un árbol, es el MST.
+\end{proof}
+
+\begin{problema}{Examen dic.~2017, Probl.~A: el algoritmo \textsc{HallarMST}}
+Se ordenan las aristas en forma decreciente. Para cada una, si $G-\{a\}$ sigue siendo conexo (con un BFS), se borra. (I) Peor caso, (II) orden, (III) ¿da un MST?, (IV) ¿es greedy?
+
+\smallskip
+\textbf{Solución.} Es el borrado inverso (4.21). (I) El peor caso es el grafo completo, que maximiza la cantidad de aristas. (II) Hay $m$ iteraciones, cada una con un BFS de $\Oh(m+n)$, así que el orden es $\Oh(m(m+n))$. (III) Sí, por (4.21). (IV) Sí, porque toma en cada paso la decisión localmente óptima.
+\end{problema}
+
+En el examen de febrero de 2015 se pedía elegir entre Prim y Kruskal con una condición: cada tendido nuevo tiene que mantener \emph{una única componente conexa}. Prim cumple esa condición porque crece un solo árbol. Kruskal no, porque construye un bosque.\visto{Examen feb.~2015 Ej.~3: una sola componente, Prim}
+
+\subsection{Prim y Kruskal a mano}
+
+Grafo del 2P de 2014: $c(1,2)=16$, $c(1,5)=19$, $c(1,6)=21$, $c(2,3)=3$, $c(2,4)=6$, $c(2,6)=11$, $c(3,4)=10$, $c(4,5)=18$, $c(4,6)=14$, $c(5,6)=33$. Se pedía Prim paso a paso, y la solución oficial arranca en el vértice $1$.\visto{2P 2014 Ej.~2.4: Prim paso a paso}
+
+\begin{center}
+\begin{tikzpicture}[scale=1.15]
+  \node[grv] (3) at (-2.4,0) {$3$};
+  \node[grv] (2) at (-1.1,1.1) {$2$};
+  \node[grv] (4) at (-1.1,-1.1) {$4$};
+  \node[grv] (1) at (0.6,2.0) {$1$};
+  \node[grv] (6) at (0.8,0) {$6$};
+  \node[grv] (5) at (2.6,0) {$5$};
+  \draw[grp] (3)--node[grl,above left]{$3$}(2);
+  \draw[gra] (3)--node[grl,below left]{$10$}(4);
+  \draw[grp] (2)--node[grl,left]{$6$}(4);
+  \draw[grp] (2)--node[grl,above,pos=0.55]{$11$}(6);
+  \draw[gra] (4)--node[grl,below,pos=0.55]{$14$}(6);
+  \draw[grp] (2)--node[grl,above left]{$16$}(1);
+  \draw[gra] (1)--node[grl,right,pos=0.4]{$21$}(6);
+  \draw[gra] (1)--node[grl,above right]{$19$}(5);
+  \draw[gra] (6)--node[grl,above]{$33$}(5);
+  \draw[grp] (4) to[bend right=22] node[grl,below right]{$18$}(5);
+\end{tikzpicture}
+\end{center}
+
+\begin{center}
+\small
+\begin{tabularx}{\textwidth}{@{}c>{\raggedright\arraybackslash}p{2.4cm}>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}p{1.9cm}@{}}
+\toprule
+Paso & $U$ & Aristas entre $U$ y $V\setminus U$ & Elegida \\
+\midrule
+1 & $\{1\}$ & $16,19,21$ & $(1,2)$, $16$ \\
+2 & $\{1,2\}$ & $19,21,3,6,11$ & $(2,3)$, $3$ \\
+3 & $\{1,2,3\}$ & $19,21,6,11,10$ & $(2,4)$, $6$ \\
+4 & $\{1,2,3,4\}$ & $19,21,11,14,18$ & $(2,6)$, $11$ \\
+5 & $\{1,2,3,4,6\}$ & $19,18,33$ & $(4,5)$, $18$ \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+Costo total $16+3+6+11+18=54$. Kruskal sobre el mismo grafo examina $3$ (agrega $(2,3)$), $6$ (agrega $(2,4)$), $10$ (descarta $(3,4)$ porque $3$ y $4$ ya están en $\{2,3,4\}$), $11$ (agrega $(2,6)$), $14$ (descarta $(4,6)$), $16$ (agrega $(1,2)$) y $18$ (agrega $(4,5)$). Con eso llega a $n-1=5$ aristas y termina. Da el mismo árbol, como tiene que ser: los costos son distintos y el MST es único. Los grafos de diciembre de 2011, julio de 2012 y julio de 2013 se resolvían de la misma manera.\visto{Examen dic.~2011 Ej.~2, jul.~2012 Ej.~3, jul.~2013 Ej.~4}
+
+\begin{problema}{Examen dic.~2025, Ej.~1(c): Prim desde $s$}
+Aristas $c(s,x)=2$, $c(s,t)=4$, $c(x,y)=3$, $c(x,t)=5$, $c(y,t)=1$. Ejecutar Prim desde $s$ indicando la arista de cada iteración.
+
+\smallskip
+\textbf{Solución.} Paso 1: entre $(s,x)=2$ y $(s,t)=4$, elige $(s,x)$. Paso 2: entre $(s,t)=4$, $(x,y)=3$ y $(x,t)=5$, elige $(x,y)$. Paso 3: entre $(s,t)=4$, $(x,t)=5$ e $(y,t)=1$, elige $(y,t)$. Ya están todos los vértices. El MST tiene costo $6$. La pauta muestra las candidatas de cada paso.
+\end{problema}
+
+\begin{receta}[ejecutar Prim o Kruskal]
+\begin{itemize}
+  \item \emph{Prim:} decí desde qué vértice arrancás. En cada paso escribí $U$, las aristas candidatas entre $U$ y $V\setminus U$ con su costo, y la elegida.
+  \item \emph{Kruskal:} listá las aristas ordenadas y marcá cada una como agregada o descartada, diciendo qué ciclo cerraría o qué componentes une. Cortá al llegar a $n-1$ aristas.
+  \item Terminá con el árbol dibujado y su costo total.
+\end{itemize}
+\end{receta}
+
+\subsection{Implementaciones}
+
+\begin{resultado}[(4.22) y (4.25)]
+Con un heap, Prim se implementa en $\Oh(m\log n)$. Con union-find, Kruskal también se implementa en $\Oh(m\log n)$.
+\end{resultado}
+
+\emph{Prim} es igual a Dijkstra, cambiando la clave. Para cada $v\notin U$ se guarda $a(v)=\min_{u\in U}c(u,v)$, que es el costo de \emph{una} arista, en vez de $d(u)+\ell$. Se hacen $n$ extracciones del mínimo y a lo sumo $m$ cambios de clave, lo que da $\Oh(m\log n)$. \emph{Kruskal}: ordenar cuesta $\Oh(m\log m)=\Oh(m\log n)$, porque $m\le n^2$. Después vienen $2m$ \grop{Find} y $n-1$ \grop{Union}, y con union-find (unión por tamaño: \grop{Find} en $\Oh(\log n)$, \grop{Union} en $\Oh(1)$) eso es $\Oh(m\log n)$. En diciembre de 2020 había que \emph{repetir} este análisis.\visto{Examen dic.~2020 Ej.~1: MST en $\Oh(m\log n)$}
+
+\begin{problema}{Examen dic.~2020, Ej.~1: repavimentar caminos}
+$n$ centros urbanos y $m$ caminos con longitud. Elegir caminos a repavimentar de modo que se pueda ir entre cualquier par usando solo caminos repavimentados, con la menor cantidad total de km. Dar un algoritmo $\Oh(m\log n)$ y probar la cota.
+
+\smallskip
+\textbf{Solución.} Un nodo por centro y una arista por camino, con costo igual a la longitud. El grafo es conexo por hipótesis. Lo que se busca es $T$ con $(V,T)$ conexo y costo mínimo, que es la definición de MST. Construir las listas de adyacencia es $\Oh(m+n)=\Oh(m)$ porque $n\le m+1$, y Prim o Kruskal (reescrito) agrega $\Oh(m\log n)$.
+\end{problema}
+
+\subsection{Unicidad y empates}
+
+En julio de 2018 se pidió enunciar la propiedad de corte y después responder dos preguntas: con costos distintos, ¿puede haber dos MST distintos? ¿Pueden Prim y Kruskal dar resultados distintos?\visto{Examen jul.~2018 P.~3: corte y unicidad}
+
+\begin{resultado}[Unicidad (KT Ej.~4.8)]
+Si los costos son todos distintos, el MST es único.
+\end{resultado}
+
+\begin{proof}
+Sean $T$ un MST y $e=(u,w)\in T$. Al sacar $e$, $T$ queda partido en $S\ni u$ y $V\setminus S\ni w$. La arista $e$ es la más barata del corte $(S,V\setminus S)$: si otra $f$ fuera más barata, $T-e+f$ sería un árbol más barato. Por (4.17), $e$ está en todo MST. Como $e$ era cualquiera, $T\subseteq T^*$ para todo MST $T^*$, y como los dos tienen $n-1$ aristas, $T=T^*$.
+\end{proof}
+
+De la unicidad sale la otra respuesta: con costos distintos, Prim y Kruskal devuelven el mismo árbol. Con empates, en cambio, pueden diferir. En febrero de 2016 se pidió un ejemplo. En un triángulo con las tres aristas de costo $1$, Kruskal con el orden $xy,yz,xz$ da $\{xy,yz\}$, y Prim desde $z$ que desempata eligiendo $zx$ y después $xy$ da $\{zx,xy\}$.\visto{Examen feb.~2016 Ej.~3.2: MST distintos con empates}
+
+\begin{trampa}[MST]
+\begin{itemize}
+  \item Usar (4.17) o (4.20) sin decir que los costos son distintos, o aplicarlas con empates. Con empates vale la versión de \emph{existencia}.
+  \item En la demostración del corte, cambiar $e$ por \emph{cualquier} arista que cruce el corte. Tiene que ser una del camino de $v$ a $w$ en $T$.
+  \item Confundir ``la más barata del corte'' con ``la más barata incidente a un nodo'' cuando el corte no es $\{v\}$.
+\end{itemize}
+\end{trampa}
+
+% =====================================================================
+\section{Modificar un MST}
+% =====================================================================
+
+Son ejercicios cortos que salen todos de las dos propiedades. Se suponen costos distintos.
+
+\subsection{Agregar una arista}
+
+\begin{problema}{1P 2017, Ej.~2(b) : agregar una arista}
+$T$ es MST de $G$ y se agrega $e=(v,w)$ de costo $c$. Verificar eficientemente si $T$ sigue siendo MST.
+
+\smallskip
+\textbf{Solución.} Se busca el único camino $P$ de $v$ a $w$ en $T$, con un DFS o BFS sobre $T$ en $\Oh(n)$. Con $e$, ese camino forma un ciclo. Si todas las aristas de $P$ son más baratas que $c$, $e$ es la más cara del ciclo, no está en ningún MST por (4.20) y $T$ sigue siendo MST. Si alguna es más cara, la más cara del ciclo, $e_{\max}$, está en $T$ y no está en ningún MST, así que $T$ ya no es MST. El nuevo es $T'=T+e-e_{\max}$. Para probarlo, toda arista fuera de $T'$ es la más cara de algún ciclo: $e_{\max}$ lo es del ciclo $P+e$, y cada $f\notin T$ lo es de su ciclo fundamental en $T$, porque $T$ era MST. Entonces el MST nuevo está contenido en $T'$, y como los dos tienen $n-1$ aristas, son iguales.
+\end{problema}
+
+La solución oficial de 2017 escribe un DFS recursivo sobre $T$ que devuelve el par (¿sigue siendo MST?, ¿llegué a $w$?) y va comparando $c$ con cada arista del camino al volver de la recursión.\visto{1P 2017 Ej.~2(b): agregar arista al MST}
+
+\subsection{Quitar una arista}
+
+\begin{problema}{1P 2020, Ej.~3: quitar una arista del MST}
+$T$ es MST de $G$, $(u,v)\in T$ y $G'=G-(u,v)$ es conexo. Sabiendo que $T\setminus\{(u,v)\}\subseteq T'$, el MST de $G'$: (1) $S\gets$ componente de $u$ en $T\setminus\{(u,v)\}$; (2) $(u',v')\gets$ la arista más barata de $G'$ entre $S$ y $V\setminus S$; (3) $T'\gets T\setminus\{(u,v)\}\cup\{(u',v')\}$. Probar que es correcto y que es $\Oh(m)$.
+
+\smallskip
+\textbf{Solución.} (a) Por (4.17) aplicada en $G'$, $(u',v')\in T'$. Por hipótesis, también $T\setminus\{(u,v)\}\subseteq T'$. Además $(u',v')\notin T$, porque une $S$ con $V\setminus S$ igual que $(u,v)$ y cerraría un ciclo. Entonces el conjunto del paso 3 tiene $n-1$ aristas y está contenido en $T'$, que también tiene $n-1$, así que coinciden. (b) Para $S$ se arman las listas de $T\setminus\{(u,v)\}$ y se corre un BFS en $\Oh(n)$, dejando un arreglo booleano. Para el paso 2 se recorren las $m$ aristas chequeando en $\Oh(1)$ si cruzan. El total es $\Oh(m+n)=\Oh(m)$.
+\end{problema}
+
+\subsection{¿Es la más cara de algún ciclo?}
+
+\begin{problema}{1P 2020, Ej.~1: la arista más cara de algún ciclo}
+Costos distintos. Determinar si $(u,v)$ es la arista de mayor costo de algún ciclo, en $\Oh(m+n)$.
+
+\smallskip
+\textbf{Solución.} Sea $G'$ el grafo que resulta de borrar las aristas más caras que $(u,v)$. Entonces $(u,v)$ es la más cara de un ciclo de $G$ si y solo si está en un ciclo de $G'$: ese ciclo no usa aristas borradas, y en $G'$ la más cara es $(u,v)$. A su vez, $(u,v)$ está en un ciclo de $G'$ si y solo si $u$ y $v$ quedan conectados en $G'-(u,v)$. Algoritmo: borrar las aristas de costo $\ge c(u,v)$ en $\Oh(m+n)$ y hacer un BFS desde $u$ en $\Oh(m+n)$ para ver si llega a $v$.
+\end{problema}
+
+Con costos distintos, ``$e$ es la más cara de algún ciclo'' equivale a ``$e$ no está en el MST''. Si es la más cara de un ciclo, (4.20) dice que no está. Si no está, al agregarla al MST se forma un ciclo del que es la más cara, por el argumento del ejercicio anterior. Así que este algoritmo decide en $\Oh(m+n)$ si una arista pertenece al MST, sin construirlo.\visto{1P 2020 Ej.~1: más cara de un ciclo}
+
+\subsection{Pocos ciclos: \texorpdfstring{$m=n$}{m=n}}
+
+En julio de 2015 (problema 2) se pedía el MST de un grafo conexo con $m=n$ \emph{sin} usar la propiedad MST. Un grafo así tiene exactamente un ciclo: se lo encuentra con un DFS que guarda los padres, se busca su arista más cara y se la saca. Cualquier arista del ciclo que se saque deja un árbol de cubrimiento, y el más barato de esos árboles es el que resulta de sacar la más cara.\visto{Examen jul.~2015 Probl.~2: MST con $m=n$}
+
+\subsection{Transformar los costos}\label{gr:transf}
+
+Kruskal solo compara costos. Por eso cualquier transformación estrictamente creciente de los costos ($c_e^2$ con costos positivos, $c_e+k$, $\log c_e$) deja el mismo MST. Una decreciente lo convierte en árbol de peso \emph{máximo}. Con caminos mínimos no pasa lo mismo, porque se \emph{suman} costos de caminos de distinto largo.
+
+\begin{problema}{Examen feb.~2024, Ej.~1: red de cableado de largo máximo}
+Distancias $d_{ij}$ entre $n$ proveedores. Se busca una red conexa sin ciclos que \emph{maximice} el largo total, en $\Oh(n^2\log n)$, y demostrar la correctitud.
+
+\smallskip
+\textbf{Solución.} Grafo completo con costo $c_{ij}=M-d_{ij}$, donde $M>\max d_{ij}$, y $T=\textsc{MST}(G)$. Para cualquier árbol $T'$:
+\[ \textstyle\sum_{T}d_{ij}=\sum_{T}(M-c_{ij})=(n-1)M-\sum_T c_{ij}\ \ge\ (n-1)M-\sum_{T'}c_{ij}=\sum_{T'}d_{ij}. \]
+Las igualdades valen porque todo árbol tiene $n-1$ aristas, y la desigualdad porque $T$ es MST. Con $m=\Theta(n^2)$, el MST cuesta $\Oh(n^2\log n)$.
+\end{problema}
+
+La pauta valora que se diga en qué paso se usa ``todo árbol tiene $n-1$ aristas''. Es justamente lo que falla en caminos mínimos.\visto{Examen feb.~2024 Ej.~1: árbol de peso máximo}
+
+% =====================================================================
+\section{Árbol de cuello de botella mínimo}
+% =====================================================================
+
+La \emph{arista cuello de botella} de un árbol de cubrimiento es la más cara. Un árbol es \emph{de cuello de botella mínimo} (ACBM) si ningún otro árbol de cubrimiento tiene una arista cuello de botella más barata.
+
+\begin{problema}{Examen feb.~2026, Ej.~2: MST y ACBM}
+Costos positivos y distintos. (a) Probar por contradicción que todo MST es ACBM (sugerencia: propiedad de ciclo). (b) Mostrar con un contraejemplo que el recíproco es falso.
+
+\smallskip
+\textbf{Solución.} (a) Sean $T$ el MST, $e$ su arista más cara, y supongamos que existe un árbol $T'$ con todas sus aristas más baratas que $c_e$. Entonces $e\notin T'$. Al agregar $e$ a $T'$ se forma un ciclo en el que todas las demás aristas son de $T'$, o sea más baratas, y $e$ es la más cara. Por (4.20), $e$ no está en ningún MST, lo que contradice $e\in T$. (b) Aristas $c(a,b)=4$, $c(b,c)=1$, $c(b,d)=2$, $c(c,d)=3$. Todo árbol contiene a $(a,b)$, porque es la única arista de $a$, así que todos tienen cuello de botella $4$ y son ACBM. Pero solo $\{ab,bc,bd\}$, de costo $7$, es MST.
+\end{problema}
+
+\begin{center}
+\begin{tikzpicture}[scale=1.05]
+  \node[grv] (a) at (0,0) {$a$};
+  \node[grv] (b) at (1.8,0) {$b$};
+  \node[grv] (c) at (3.3,0.9) {$c$};
+  \node[grv] (d) at (3.3,-0.9) {$d$};
+  \draw[grp] (a)--node[grl,above]{$4$}(b);
+  \draw[grp] (b)--node[grl,above left]{$1$}(c);
+  \draw[grp] (b)--node[grl,below left]{$2$}(d);
+  \draw[gra] (c)--node[grl,right]{$3$}(d);
+  \node[grt] at (1.6,-1.25) {MST de costo $7$; $\{ab,bc,cd\}$ cuesta $8$ y también es ACBM};
+\end{tikzpicture}
+\end{center}
+
+La pauta marca dos errores. Uno es agregar la arista cuello de botella de $T'$ a $T$ en lugar de $e$ a $T'$: puede que no se forme ciclo, o que $e$ no esté en él. El otro es concluir que ``$e$ está en un ciclo'' sin probar que es la \emph{más cara} de ese ciclo, que es lo que garantiza que las demás aristas sean de $T'$. También vale una prueba con la propiedad de corte. Se toma el corte que deja $T$ al sacar $e$: por (4.17), $e$ es la más barata de ese corte, y $T'$ tiene que cruzarlo con alguna arista de costo $\ge c_e$.\visto{Examen feb.~2026 Ej.~2: MST implica ACBM}
+
+% =====================================================================
+\section{Mapa de lo que se preguntó}
+% =====================================================================
+
+Relevamiento de los primeros y segundos parciales 2008--2025 y de los exámenes 2009--2026.
+
+\begin{center}
+\small
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{2.8cm}>{\raggedright\arraybackslash}p{2.4cm}>{\raggedright\arraybackslash}X@{}}
+\toprule
+Fuente & Tema & Qué se pedía \\
+\midrule
+2P 2009 Ej.~3.1 & Caminos mínimos & Camino mínimo que visita una secuencia en orden; condiciones sobre los costos. \\
+Ex.\ dic.~2009 Ej.~2 & Dijkstra vs.\ MST & ¿Algún origen hace que Dijkstra dé un MST? No, contraejemplo. \\
+Ex.\ dic.~2009 Ej.~4 & Esquema greedy & Forma general del greedy y correspondencias con Prim. \\
+Ex.\ feb.~2010 Ej.~3 & Dijkstra a mano & Explicar y ejecutar desde $1$ con costos y predecesores. \\
+Ex.\ dic.~2010 Ej.~1--2 & Prim, Dijkstra & Prim a mano desde $A$; Dijkstra no da MST; el camino mínimo no está en el MST. \\
+2P 2011 Ej.~2 & Cuello de botella & Carga máxima entre todo par de ciudades, con PD al estilo Floyd. \\
+Ex.\ jul.~2011 Ej.~3 & Dijkstra & Esquema greedy; qué resuelve Dijkstra y pseudocódigo. \\
+Ex.\ dic.~2011 Ej.~1--2 & MST & V/F sobre caminos mínimos en el MST; Kruskal y Prim paso a paso. \\
+2P 2012 Ej.~2(a) & Kruskal & Qué resuelve, estrategia, correspondencia con el esquema. \\
+Ex.\ jul.~2012 Ej.~3 & Kruskal & Qué resuelven Prim y Kruskal; Kruskal paso a paso. \\
+Ex.\ dic.~2012 Ej.~1 & Propiedad MST & Enunciar, demostrar y decir para qué sirve. \\
+Ex.\ feb.~2013 Ej.~2 & Caminos mínimos & Principio de optimalidad para el camino de costo mínimo. \\
+2P 2013 Ej.~2 & Caminos y MST & ¿Kruskal o Prim dan caminos mínimos?; optimalidad; Floyd; ¿Dijkstra da MST? \\
+Ex.\ jul.~2013 Ej.~1, 4 & MST & V/F ``Prim y Kruskal son greedy''; definir MST y ejecutar Kruskal. \\
+Ex.\ dic.~2013 Ej.~1 & Propiedad MST & Enunciar y demostrar; usarla para probar que $(2,3)$ está en un MST. \\
+2P 2014 Ej.~2 & MST, Dijkstra & Definiciones, propiedad MST, Prim (código, técnica, a mano), Dijkstra. \\
+Ex.\ dic.~2014 Ej.~3 & Dijkstra a mano & Ejecutar desde el vértice $2$ justificando cada paso. \\
+Ex.\ feb.~2015 Ej.~3 & Prim & Tendido eléctrico con una sola componente conexa en cada paso. \\
+Ex.\ jul.~2015 Ej.~3, Probl.~2 & Propiedad MST & Demostrar y aplicarla en Prim y Kruskal; MST con $m=n$. \\
+Ex.\ dic.~2015 Ej.~3 & BFS vs.\ Dijkstra & BFS sin costos; con costos no sirve, se usa Dijkstra. \\
+Ex.\ feb.~2016 Ej.~3 & Empates & Grafo en el que Prim y Kruskal dan MST distintos. \\
+Ex.\ jul.~2016 Ej.~4 & Técnicas & Qué resuelven Dijkstra y Prim y con qué técnica. \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\begin{center}
+\small
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{2.8cm}>{\raggedright\arraybackslash}p{2.4cm}>{\raggedright\arraybackslash}X@{}}
+\toprule
+Fuente & Tema & Qué se pedía \\
+\midrule
+Ex.\ dic.~2016 Probl.~A & Dijkstra & Recorridos a paradas: predecesores, corte temprano, camino en $\Oh(r)$. \\
+Ex.\ feb.~2017 P.~2 & Propiedad MST & Enunciado con empates incorrecto: contraejemplo y versión correcta. \\
+1P 2017 Ej.~2 & Ciclo, modificar & Demostrar la propiedad de ciclo; ¿$T$ sigue siendo MST al agregar una arista? \\
+Ex.\ dic.~2017 Probl.~A & Borrado inverso & Peor caso, orden $\Oh(m(m+n))$, ¿da MST?, ¿es greedy? \\
+Ex.\ feb.~2018 P.~4 & Técnicas & Qué resuelven Dijkstra y Kruskal y con qué técnica. \\
+Ex.\ jul.~2018 P.~3 & Corte, unicidad & Enunciar (4.17); unicidad con costos distintos; Prim vs.\ Kruskal. \\
+Ex.\ dic.~2018 Ej.~1 & Contar caminos & Largo mínimo de las historias y cuántas hay: BFS con conteo. \\
+1P 2019 Ej.~3 & Dijkstra & Comodín que anula una arista: dos Dijkstra, $\Oh(m\log n)$. \\
+Ex.\ jul.~2019 Ej.~1 & Correctitud & Paso central de (4.14); falla con longitudes negativas. \\
+Ex.\ jul.~2019 Ej.~2 & Contar caminos & El mismo ejercicio de diciembre de 2018. \\
+1P 2020 Ej.~1 & Ciclo & ¿$(u,v)$ es la arista más cara de algún ciclo?, en $\Oh(m+n)$. \\
+1P 2020 Ej.~3 & Modificar & Quitar una arista del MST y reemplazarla: correctitud y $\Oh(m)$. \\
+Ex.\ jul.~2020 Ej.~1 & BFS & Robot más cercano en una grilla, en $\Oh(M^2)$. \\
+Ex.\ dic.~2020 Ej.~1 & MST & Repavimentar caminos: modelar como MST y probar $\Oh(m\log n)$. \\
+1P 2021 Ej.~2 & Dijkstra & Robot en grilla con diagonales, en $\Oh(n\log n)$. \\
+1P 2022 Ej.~3 & DAG & Caminos mínimos en un DAG en $\Oh(m+n)$ con orden topológico. \\
+Ex.\ jul.~2023 Ej.~2 & Costos en nodos & Procesamiento más transmisión (con Bellman–Ford; ver PD). \\
+Ex.\ feb.~2024 Ej.~1 & Árbol máximo & Árbol de peso máximo vía MST con costos $M-d_{ij}$. \\
+1P 2024 Ej.~2 & Dijkstra & Aspiradora en grilla, igual que 1P 2021. \\
+1P 2025 Ej.~1(c--e) & Ciclo, corte, Dijkstra & Enunciar la propiedad de ciclo; arista en todo MST; Dijkstra a mano. \\
+1P 2025 Ej.~2 & BFS & Viñedo: BFS con varias fuentes; Dijkstra no da el orden. \\
+Ex.\ dic.~2025 Ej.~1(c) & Prim a mano & Ejecutar Prim desde $s$ indicando la arista de cada paso. \\
+Ex.\ feb.~2026 Ej.~1(c), 2 & Dijkstra, ACBM & Propiedad del próximo vértice de $S$; MST implica ACBM, no al revés. \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\textbf{Lectura rápida.} Lo que más se repite es la propiedad de corte (enunciarla, demostrarla o aplicarla a un ejemplo), con nueve apariciones, y las ejecuciones a mano de Dijkstra, Prim o Kruskal, también con nueve. Le siguen la pregunta ``¿Dijkstra da un MST? ¿un MST da caminos mínimos?'' y los problemas de modelado que se resuelven con Dijkstra o con un MST reescribiendo el algoritmo y su análisis de $\Oh(m\log n)$. Desde 2017 se agregan las modificaciones de un MST (agregar o quitar una arista, la más cara de un ciclo) y las variantes de cuello de botella.

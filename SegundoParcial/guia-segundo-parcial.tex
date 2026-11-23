@@ -1,0 +1,76 @@
+% Guía del segundo parcial — Programación 3
+% Compilar con: pdflatex guia-segundo-parcial.tex (dos veces)
+\input{estilo2p}
+
+\titleformat{\part}[display]{\sans\bfseries}{}{0pt}{}
+\addto\captionsspanish{\renewcommand{\contentsname}{Contenido}}
+
+\begin{document}
+
+% ---------------- portada ----------------
+\thispagestyle{empty}
+\begin{tikzpicture}[remember picture,overlay]
+  \foreach \c [count=\i from 0] in {grafos,dyc,pd,flujo,np}
+    \fill[\c] ([xshift=\i*0.34cm]current page.north west) rectangle
+              ([xshift=\i*0.34cm+0.34cm]current page.south west);
+\end{tikzpicture}
+\vspace*{4.5cm}
+
+{\sans\fontsize{40}{44}\selectfont\bfseries\color{tinta}Segundo parcial\par}
+\vspace{0.6em}
+{\sans\LARGE\color{gris}Programación 3 — guía de estudio\par}
+\vspace{3cm}
+
+\begin{minipage}{0.92\textwidth}
+\large\linespread{1.35}\selectfont
+Todo lo que se evalúa desde Dijkstra en adelante: greedy en grafos,
+dividir y conquistar, programación dinámica, flujo en redes y reducciones. Cada tema está acá porque se
+preguntó algo de él en algún parcial o examen. Al margen figura dónde, y al
+final de cada parte hay un mapa con todas las apariciones.
+\end{minipage}
+
+\vfill
+{\sans\small\color{gris}
+\begin{tabular}{@{}l@{\hspace{0.8em}}l@{}}
+\textcolor{grafos}{\rule{1.6em}{0.7em}} & Greedy en grafos\\[2pt]
+\textcolor{dyc}{\rule{1.6em}{0.7em}} & Dividir y conquistar\\[2pt]
+\textcolor{pd}{\rule{1.6em}{0.7em}} & Programación dinámica\\[2pt]
+\textcolor{flujo}{\rule{1.6em}{0.7em}} & Flujo en redes\\[2pt]
+\textcolor{np}{\rule{1.6em}{0.7em}} & Reducciones y NP-completitud
+\end{tabular}}
+\clearpage
+
+% ---------------- cómo leer ----------------
+\section*{Cómo usar esta guía}
+Cada parte abre con la fórmula que la resume. Adentro, cada tema tiene la
+teoría que hay que saber citar, los problemas que se tomaron y tres
+tipos de recuadro:
+
+\begin{resultado}[Resultado del teórico]
+Lo que se puede citar en el parcial sin demostrar, con su número del libro de
+Kleinberg y Tardos.
+\end{resultado}
+
+\begin{receta}
+Cómo estructurar la respuesta para que tenga todo lo que piden los criterios
+de corrección.
+\end{receta}
+
+\begin{trampa}
+Errores que aparecen una y otra vez en las correcciones.
+\end{trampa}
+
+Las referencias al margen indican dónde se preguntó cada cosa\visto{2P 2019
+Ej. 2: así se ve una referencia}. «2P» es segundo parcial y «Ex» o
+«Examen» es examen, con mes y año.
+
+\vspace{1.5em}
+\tableofcontents
+
+\input{parte-0-grafos}
+\input{parte-1-dyc}
+\input{parte-2-pd}
+\input{parte-3-flujo}
+\input{parte-4-np}
+
+\end{document}

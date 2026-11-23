@@ -1,0 +1,429 @@
+\input{preambulo}
+\setlength{\emergencystretch}{2em}
+
+\newcommand{\IS}{\textsc{Independent Set}}
+\newcommand{\VC}{\textsc{Vertex Cover}}
+\newcommand{\SP}{\textsc{Set Packing}}
+\newcommand{\PSP}{\textsc{PSP}}
+\newcommand{\IPROG}{\textsc{(0--1) IPROG}}
+\newcommand{\SATMON}{\textsc{SAT-MON}}
+\newcommand{\SAT}{\textsc{SAT}}
+\newcommand{\leP}{\le_P}
+\newcommand{\SI}{S\'I}
+
+\title{Práctico 12 --- Problemas NP-Completos}
+\author{Programación 3 -- FING, UdelaR}
+\date{}
+
+\begin{document}
+\maketitle
+
+\section*{Esquema de prueba}
+
+Un problema de decisión $X$ es \emph{NP-completo} si (1) $X\in\NP$ y (2) para todo $Y\in\NP$, $Y\leP X$.
+Como $\leP$ es transitiva, para (2) alcanza con elegir un problema $Z$ que ya sabemos NP-completo y probar
+$Z\leP X$ (¡en ese sentido: \emph{desde} el conocido \emph{hacia} el nuevo!). Siguiendo el formato de las
+soluciones oficiales de los parciales:
+
+\begin{enumerate}
+  \item \textbf{$X\in\NP$.} Definir un certificado $t$ y un certificador $B(s,t)$ y mostrar que: $B$ corre en
+  tiempo polinomial en $|s|+|t|$; para instancias \SI{} existe un certificado de largo polinomial en $|s|$ con el
+  que $B$ responde \SI{}; y si $B(s,t)$ responde \SI{} para algún $t$, entonces $s$ es \SI.
+  \item \textbf{$Z\leP X$.} Describir una transformación de una instancia genérica $s$ de $Z$ en una instancia
+  $f(s)$ de $X$, mostrar que es polinomial, y probar las dos direcciones: $s$ \SI{} $\Rightarrow$ $f(s)$ \SI, y
+  $f(s)$ \SI{} $\Rightarrow$ $s$ \SI.
+  \item \textbf{Concluir} por transitividad.
+\end{enumerate}
+
+%======================================================================
+\section{Ejercicio 1}
+
+\begin{enunciado}
+Consideramos un sistema \textbf{lineal} de inecuaciones sobre un conjunto de variables
+$\{x_1,x_2,\dots,x_n\}$. El \emph{Problema de la Programación Entera Binaria, (0--1) IPROG}, consiste en
+decidir si existe una asignación de valores enteros en $\{0,1\}$ a las variables tal que el sistema se
+satisface. Por ejemplo, para el sistema
+\[
+\begin{cases}
+2x_1+x_2+x_3 \le 3\\
+x_1 \le 1\\
+x_1-2x_2+x_3 \ge 2
+\end{cases}
+\]
+la respuesta al problema de decisión es SÍ, porque la asignación $x_1=1$, $x_2=0$, $x_3=1$ satisface todas
+las inecuaciones.
+\begin{enumerate}[label=(\alph*)]
+  \item Demuestre que (0--1) IPROG pertenece a la clase $\NP$.
+  \item Demuestre que $\mathit{SAT}\leP$ (0--1) IPROG, donde recordamos que SAT es el problema de
+  \emph{Satisfacción Booleana}.
+
+  \textbf{Sugerencia:} Para construir una reducción de tiempo polinomial
+  \begin{itemize}
+    \item Construya una instancia de (0--1) IPROG con la misma cantidad de variables que la de SAT.
+    \item Interprete los valores de verdad como enteros del conjunto $\{0,1\}$.
+    \item Exprese cada cláusula de la instancia de SAT como una inecuación entre variables de la instancia de (0--1) IPROG.
+  \end{itemize}
+  \item Concluya que (0--1) IPROG es NP-Completo.
+\end{enumerate}
+\end{enunciado}
+
+\examref{No aparece literalmente. El formato de la prueba de pertenencia a $\NP$ (certificado = tira de
+valores para las variables, evaluación de cada restricción) sigue al del Segundo parcial 2024, Ej.~2 (4-SAT) y
+del Segundo parcial 2020, Ej.~3 (casiSAT); la reducción desde SAT es análoga a la de Examen febrero 2022,
+Ej.~2 (FALSABLE, $\SAT\leP\text{FALSABLE}$).}
+
+\paragraph{Representación.} Una instancia de \IPROG{} es un sistema de $r$ inecuaciones
+\[
+  \sum_{j=1}^n a_{ij}\,x_j \ \bowtie_i\ b_i, \qquad 1\le i\le r,\quad \bowtie_i\in\{\le,\ge\},
+\]
+dado por la matriz entera $A=(a_{ij})$ ($r\times n$), el vector $b$ y los $r$ símbolos $\bowtie_i$. Su tamaño es
+$N=\Theta(rn)$ números, cada uno con a lo sumo $L$ bits.
+
+\subsection*{(a) \IPROG{} $\in\NP$}
+
+\paragraph{Certificado.} Una tira $t=t_1t_2\cdots t_n$ de $n$ bits, donde $t_j$ es el valor asignado a $x_j$.
+Su largo, $n$, es menor o igual que el tamaño de la instancia (la matriz tiene $n$ columnas), así que es
+polinomial en $|s|$.
+
+\paragraph{Certificador.} Recibe la instancia y el certificado y evalúa cada inecuación con los valores
+dados por el certificado:
+\begin{algorithm}[H]
+\caption{Certificador de \IPROG}
+\begin{algorithmic}[1]
+\Require Instancia $s=(A,b,\bowtie)$ con $r$ inecuaciones y $n$ variables; certificado $t\in\{0,1\}^n$
+\If{$|t|\neq n$} \State \Return NO \EndIf
+\For{$i\gets 1$ \textbf{a} $r$}
+  \State $S\gets 0$
+  \For{$j\gets 1$ \textbf{a} $n$}
+    \If{$t_j=1$} \State $S\gets S+a_{ij}$ \EndIf
+  \EndFor
+  \If{no se cumple $S\bowtie_i b_i$} \State \Return NO \EndIf
+\EndFor
+\State \Return SÍ
+\end{algorithmic}
+\end{algorithm}
+
+\paragraph{Tiempo.} Se hacen $rn$ sumas. Cada suma parcial es la suma de a lo sumo $n$ enteros de $L$ bits,
+así que tiene $\Oh(L+\log n)$ bits y cada suma o comparación cuesta $\Oh(L+\log n)$. El tiempo total es
+$\Oh(rn(L+\log n))$, polinomial en $|s|+|t|$.
+
+\paragraph{Correctitud.}
+\begin{itemize}
+  \item Si $s$ es \SI{}, existe una asignación $x\in\{0,1\}^n$ que satisface todas las inecuaciones. Con el
+  certificado $t=x$, para cada $i$ el valor $S$ calculado es $\sum_j a_{ij}x_j$, que cumple $S\bowtie_i b_i$;
+  el certificador no retorna NO en ninguna iteración y responde SÍ.
+  \item Si existe $t$ con el que el certificador responde SÍ, entonces $|t|=n$ y para cada $i$ se cumplió
+  $\sum_j a_{ij}t_j\bowtie_i b_i$. Luego la asignación $x_j=t_j\in\{0,1\}$ satisface el sistema y $s$ es \SI.
+\end{itemize}
+Por lo tanto existe un certificador eficiente y $\IPROG\in\NP$.
+
+\subsection*{(b) $\SAT\leP\IPROG$}
+
+Sea $(X,\mathcal C)$ una instancia de \SAT{} con variables $X=\{x_1,\dots,x_n\}$ y cláusulas
+$\mathcal C=\{C_1,\dots,C_k\}$. Para cada cláusula $C_i$ sean
+$P_i$ la lista (multiconjunto) de índices $j$ tales que $x_j$ aparece como término positivo en $C_i$, y $N_i$ la
+lista de índices $j$ tales que $\overline{x_j}$ aparece en $C_i$.
+
+\paragraph{Transformación.} Construimos un sistema sobre las mismas $n$ variables $x_1,\dots,x_n$
+(interpretando $1=$ verdadero, $0=$ falso), con una inecuación por cláusula:
+\[
+  (I_i)\qquad \sum_{j\in P_i} x_j \;+\; \sum_{j\in N_i} (1-x_j)\ \ge\ 1,
+\]
+que, pasando las constantes al lado derecho para que quede en la forma lineal estándar, es
+\[
+  (I_i)\qquad \sum_{j\in P_i} x_j \;-\; \sum_{j\in N_i} x_j\ \ge\ 1-|N_i|.
+\]
+(Si una variable aparece varias veces se suman los coeficientes; por ejemplo
+$x_1\vee\overline{x_2}\vee\overline{x_3}$ se traduce en $x_1-x_2-x_3\ge -1$.)
+
+\paragraph{Tiempo polinomial.} Se recorre cada cláusula una vez y, por cada término, se suma $+1$ o $-1$ a un
+coeficiente y se cuenta $|N_i|$. Con la matriz $k\times n$ de coeficientes (inicializada en 0), el tiempo es
+$\Oh(kn+\ell)$, donde $\ell$ es la cantidad total de términos. Los coeficientes tienen valor absoluto a lo sumo
+$\ell$. Todo es polinomial en el tamaño de la instancia de \SAT.
+
+\paragraph{Lema clave.} Sea $\sigma$ una asignación de verdad y $x^\sigma\in\{0,1\}^n$ el vector con
+$x^\sigma_j=1\iff\sigma(x_j)=$ verdadero. Para cada término: un término positivo $x_j$ es verdadero si y solo si
+$x^\sigma_j=1$, y un término negativo $\overline{x_j}$ es verdadero si y solo si $1-x^\sigma_j=1$. Como cada
+sumando vale 0 o 1, el lado izquierdo de la primera forma de $(I_i)$ evaluado en $x^\sigma$ es
+\emph{exactamente la cantidad de términos verdaderos de $C_i$} (contados con multiplicidad). Por lo tanto
+\[
+  \sigma \text{ satisface } C_i \iff \text{hay al menos un término verdadero en } C_i \iff x^\sigma \text{ satisface } (I_i).
+\]
+
+\paragraph{Equivalencia.} La correspondencia $\sigma\mapsto x^\sigma$ es una biyección entre asignaciones de
+verdad y vectores de $\{0,1\}^n$.
+\begin{enumerate}[label=(\roman*)]
+  \item Si $(X,\mathcal C)$ es \SI{}, existe $\sigma$ que satisface todas las cláusulas; por el lema $x^\sigma$
+  satisface todas las inecuaciones $(I_1),\dots,(I_k)$ y el sistema es \SI.
+  \item Si el sistema es \SI{}, existe $x\in\{0,1\}^n$ que satisface todas las $(I_i)$; sea $\sigma$ la
+  asignación con $x^\sigma=x$. Por el lema, $\sigma$ satisface cada $C_i$, y $(X,\mathcal C)$ es \SI.
+\end{enumerate}
+Así \SAT{} se resuelve construyendo el sistema en tiempo polinomial y llamando una vez a la caja negra de
+\IPROG: $\SAT\leP\IPROG$.
+
+\paragraph{Ejemplo.} La instancia $(x_1\vee x_2)\wedge(\overline{x_1}\vee x_3)\wedge(\overline{x_2}\vee\overline{x_3})$
+se transforma en
+\[
+  x_1+x_2\ge1,\qquad -x_1+x_3\ge 0,\qquad -x_2-x_3\ge -1,
+\]
+y la asignación $x_1=1,x_2=0,x_3=1$ satisface ambas instancias.
+
+\subsection*{(c) \IPROG{} es NP-completo}
+
+Por (a), $\IPROG\in\NP$. Por el teorema de Cook--Levin, \SAT{} es NP-completo, es decir, $Y\leP\SAT$ para todo
+$Y\in\NP$. Por (b), $\SAT\leP\IPROG$, y por transitividad de $\leP$, $Y\leP\IPROG$ para todo $Y\in\NP$. Ambas
+condiciones juntas dicen que \IPROG{} es NP-completo.
+
+%======================================================================
+\section{Ejercicio 2}
+
+\begin{enunciado}
+(Kleinberg \& Tardos, Ex.~8.9.) Consideramos una red de comunicaciones, modelada por un grafo dirigido
+$G=(V,E)$. Hay $c$ usuarios a los cuales les interesa usar la red. Cada usuario $i$, $1\le i\le c$, hace un
+requerimiento para reservar un camino específico $P_i$ en $G$ sobre el cual transmitir sus datos. Al operador
+de la red le interesa aceptar la máxima cantidad de solicitudes de caminos posible, bajo la restricción de
+que no puede haber nodos en común entre ningún par de caminos que sean aceptados.
+
+Definimos el \emph{Path Selection Problem} (PSP) de la siguiente manera. Dado un grafo dirigido $G=(V,E)$, un
+conjunto de caminos $\{P_1,P_2,\dots,P_c\}$ en $G$ y un entero $k$, $0\le k\le c$, ¿es posible seleccionar al
+menos $k$ de dichos caminos de modo que ningún par de ellos tenga nodos en común? Muestre que PSP es
+NP-completo.
+
+\textbf{Sugerencia:} Busque una reducción desde el problema \emph{Set Packing}.
+\end{enunciado}
+
+\examref{Muy parecido al Segundo parcial 2025, Ej.~2 (UnionEsV: ¿hay $k$ caminos cuya unión de vértices es
+$V$?), donde la solución oficial reduce desde \emph{Set Cover} con la misma idea: un vértice por elemento del
+universo y un camino por subconjunto. Aquí la condición es de \emph{disjunción} en lugar de
+\emph{cubrimiento}, por eso se reduce desde \SP.}
+
+\paragraph{Problema de referencia.} \SP{} (K\&T, Sección~8.2): dado un conjunto $U=\{u_1,\dots,u_n\}$, una
+colección $S_1,\dots,S_\ell$ de subconjuntos de $U$ y un entero $k$, ¿existen al menos $k$ de esos conjuntos
+que sean disjuntos dos a dos? \SP{} es NP-completo: está en $\NP$ y $\IS\leP\SP$ (K\&T, Cap.~8) tomando
+$U=E$ y, por cada vértice $v$, el conjunto $S_v$ de aristas incidentes a $v$ (dos vértices son adyacentes si y
+solo si sus conjuntos se intersecan).
+
+\subsection*{\PSP{} $\in\NP$}
+
+Una instancia $s$ es el grafo $G=(V,E)$, los caminos $P_1,\dots,P_c$ (cada uno como lista de nodos) y $k$.
+
+\paragraph{Certificado.} Una tira $t$ de $c$ bits, $t_i=1$ si y solo si el camino $P_i$ es seleccionado.
+Su largo $c$ es a lo sumo el tamaño de la instancia.
+
+\paragraph{Certificador.} Recibe la instancia y el certificado, verifica la cantidad de caminos elegidos y
+marca los nodos usados por los caminos elegidos, rechazando si un nodo se usa dos veces:
+\begin{algorithm}[H]
+\caption{Certificador de \PSP}
+\begin{algorithmic}[1]
+\Require $s=(G,\{P_1,\dots,P_c\},k)$, $t\in\{0,1\}^c$
+\If{$|t|\ne c$ \textbf{o} la cantidad de unos de $t$ es menor que $k$} \State \Return NO \EndIf
+\State $\mathit{usado}[v]\gets\mathit{false}$ para todo $v\in V$
+\For{$i\gets1$ \textbf{a} $c$ \textbf{tal que} $t_i=1$}
+  \ForAll{nodo $v$ de $P_i$}
+     \If{$\mathit{usado}[v]$} \State \Return NO \EndIf
+     \State $\mathit{usado}[v]\gets\mathit{true}$
+  \EndFor
+\EndFor
+\State \Return SÍ
+\end{algorithmic}
+\end{algorithm}
+(Suponemos, como es usual, que los caminos son simples, es decir, que no repiten nodos.)
+
+\paragraph{Tiempo.} $\Oh(|V|+c+\sum_i|P_i|)$, lineal en el tamaño de la entrada.
+
+\paragraph{Correctitud.} Si $s$ es \SI{}, sea $J$ un conjunto de al menos $k$ índices de caminos disjuntos dos
+a dos en nodos; con $t_i=1\iff i\in J$ el certificador pasa el chequeo de cardinal y nunca encuentra un nodo ya
+usado (eso pasaría solo si dos caminos de $J$ compartieran un nodo), así que responde SÍ. Recíprocamente, si
+responde SÍ con $t$, el conjunto $J=\{i:t_i=1\}$ tiene al menos $k$ elementos y ningún nodo fue marcado dos
+veces, es decir, los caminos de $J$ son disjuntos en nodos dos a dos: $s$ es \SI. Luego $\PSP\in\NP$.
+
+\subsection*{$\SP\leP\PSP$}
+
+\paragraph{Transformación.} Sea $(U,\{S_1,\dots,S_\ell\},k)$ una instancia de \SP{} con $U=\{u_1,\dots,u_n\}$.
+\begin{itemize}
+  \item Si $k>\ell$ la instancia es trivialmente NO. Como \PSP{} exige $k\le c$, devolvemos una instancia NO
+  fija de \PSP: el grafo con nodos $\{a,b\}$ y la arista $(a,b)$, los caminos $P_1=P_2=(a,b)$ y $k=2$ (los
+  únicos dos caminos comparten nodos). Si $k\le 0$ ambas instancias son \SI{} y la construcción de abajo sirve.
+  \item Si $0\le k\le\ell$ construimos $(G,\{P_1,\dots,P_\ell\},k)$ así:
+  \begin{enumerate}
+    \item \textbf{Nodos.} Un nodo $w_j$ por cada elemento $u_j\in U$, y dos nodos \emph{privados} $a_i$, $z_i$ por
+    cada conjunto $S_i$:
+    $V=\{w_1,\dots,w_n\}\cup\{a_1,z_1,\dots,a_\ell,z_\ell\}$.
+    \item \textbf{Caminos y aristas.} Si $S_i=\{u_{j_1},\dots,u_{j_r}\}$ con $j_1<j_2<\dots<j_r$, el camino es
+    \[
+      P_i = a_i \to w_{j_1}\to w_{j_2}\to\cdots\to w_{j_r}\to z_i
+    \]
+    (si $S_i=\emptyset$, $P_i=a_i\to z_i$), y $E$ es el conjunto de todas las aristas dirigidas usadas por
+    algún $P_i$.
+    \item $c=\ell$ y el mismo $k$.
+  \end{enumerate}
+\end{itemize}
+
+Cada $P_i$ es un camino dirigido \emph{simple} de $G$: sus aristas están en $E$ por definición, y no repite
+nodos porque los índices $j_1<\dots<j_r$ son estrictamente crecientes y $a_i,z_i$ aparecen una vez. Los nodos
+privados garantizan que todo camino tenga al menos una arista aun si $S_i$ es vacío o unitario. Además:
+\begin{equation}\label{eq:nodos}
+  \text{nodos}(P_i) = \{a_i,z_i\}\cup\{w_j : u_j\in S_i\}. \tag{$*$}
+\end{equation}
+
+\begin{center}
+\begin{tikzpicture}[>=Stealth, v/.style={circle,draw,inner sep=1pt,minimum size=6mm}, p/.style={rectangle,draw,inner sep=2pt,minimum size=5mm,fill=gray!15}]
+  \node[v] (w1) at (0,0) {$w_1$};
+  \node[v] (w2) at (2,0) {$w_2$};
+  \node[v] (w3) at (4,0) {$w_3$};
+  \node[v] (w4) at (6,0) {$w_4$};
+  \node[p] (a1) at (-1.5,1.3) {$a_1$}; \node[p] (z1) at (3.5,1.6) {$z_1$};
+  \node[p] (a2) at (0.5,-1.6) {$a_2$}; \node[p] (z2) at (7.5,-1.3) {$z_2$};
+  \node[p] (a3) at (4.5,1.6) {$a_3$}; \node[p] (z3) at (7.5,1.3) {$z_3$};
+  \draw[->,thick,blue] (a1)--(w1); \draw[->,thick,blue] (w1)--(w2); \draw[->,thick,blue] (w2)--(z1);
+  \draw[->,thick,red] (a2)--(w2); \draw[->,thick,red] (w2) to[bend right=25] (w4); \draw[->,thick,red] (w4)--(z2);
+  \draw[->,thick,green!50!black] (a3)--(w3); \draw[->,thick,green!50!black] (w3) to[bend left=25] (z3);
+  \node[align=left,anchor=west] at (8.5,0) {\small$S_1=\{u_1,u_2\}$ \textcolor{blue}{(azul)}\\
+    \small$S_2=\{u_2,u_4\}$ \textcolor{red}{(rojo)}\\ \small$S_3=\{u_3\}$ \textcolor{green!50!black}{(verde)}};
+\end{tikzpicture}
+\end{center}
+En el ejemplo, $S_1$ y $S_3$ son disjuntos y también lo son $P_1$ y $P_3$; $S_1\cap S_2=\{u_2\}$ y $P_1$, $P_2$
+comparten el nodo $w_2$.
+
+\paragraph{Tiempo polinomial.} $|V|=n+2\ell$; cada camino tiene $|S_i|+2$ nodos y $|S_i|+1$ aristas. Ordenar
+los elementos de cada $S_i$ (o recorrerlos con un arreglo de marcas de tamaño $n$) y escribir los caminos lleva
+$\Oh(\sum_i |S_i|\log|S_i| + n+\ell)$, y $|E|\le\sum_i(|S_i|+1)$. Todo es polinomial en el tamaño de la
+instancia de \SP.
+
+\paragraph{Lema clave.} Para $i\ne i'$: $P_i$ y $P_{i'}$ tienen un nodo en común $\iff$ $S_i\cap S_{i'}\ne\emptyset$.
+
+\emph{Prueba.} Por \eqref{eq:nodos}, y como los nodos privados $a_i,z_i$ no pertenecen a ningún otro camino,
+$\text{nodos}(P_i)\cap\text{nodos}(P_{i'}) = \{w_j : u_j\in S_i\cap S_{i'}\}$, que es no vacío si y solo si
+$S_i\cap S_{i'}\neq\emptyset$. \qed
+
+\paragraph{Equivalencia} (caso $k\le\ell$; el caso $k>\ell$ es NO en ambos lados por construcción).
+\begin{enumerate}[label=(\roman*)]
+  \item Si $(U,\{S_i\},k)$ es \SI{} de \SP, existe $J\subseteq\{1,\dots,\ell\}$, $|J|\ge k$, con los $S_i$,
+  $i\in J$, disjuntos dos a dos. Por el lema, los caminos $P_i$, $i\in J$, son disjuntos en nodos dos a dos, y son
+  al menos $k$: la instancia de \PSP{} es \SI.
+  \item Si la instancia de \PSP{} es \SI, existe $J$, $|J|\ge k$, con los $P_i$, $i\in J$, sin nodos en común dos a
+  dos. Por el lema, los $S_i$, $i\in J$, son disjuntos dos a dos: la instancia de \SP{} es \SI.
+\end{enumerate}
+Luego $\SP\leP\PSP$.
+
+\paragraph{Conclusión.} $\PSP\in\NP$, \SP{} es NP-completo y $\SP\leP\PSP$; por transitividad todo problema de
+$\NP$ se reduce polinomialmente a \PSP, así que \PSP{} es NP-completo.
+
+\begin{observacion}
+También se puede reducir directamente desde \IS{} (componiendo $\IS\leP\SP\leP\PSP$): un nodo $w_e$ por
+arista $e$ de $G$ y un camino por vértice $v$ que pasa por los $w_e$ de las aristas incidentes a $v$. Como en la
+solución oficial de UnionEsV, en lugar de agregar sólo las aristas usadas se podría tomar el grafo dirigido
+completo sobre los $w_j$; lo importante es que cada $P_i$ sea efectivamente un camino de $G$.
+\end{observacion}
+
+%======================================================================
+\section{Ejercicio 3}
+
+\begin{enunciado}
+(Kleinberg \& Tardos, Ex.~8.6.) Consideramos el problema de \emph{Satisfacción Booleana} (SAT),
+especificado por un conjunto de cláusulas, $C_1,\dots,C_k$, cada una de las cuales es una disyunción de
+términos sobre variables booleanas $x_1,\dots,x_n$. Se dice que una instancia es \emph{monótona} si cada
+término de cada cláusula consiste en una variable no negada, esto es, ningún término es de la forma
+$\overline{x_i}$.
+
+Las instancias monótonas de SAT son muy fáciles de resolver, ya que asignándole valor de verdad 1 a todas
+las variables las cláusulas siempre se satisfacen. Por ejemplo, el conjunto de cláusulas
+$\{(x_1\vee x_2),(x_1\vee x_3),(x_2\vee x_3)\}$ define una instancia monótona de SAT, y la asignación de 1 a
+todas las variables satisface todas las cláusulas. Sin embargo, observamos que asignar el valor 1 a las
+variables $x_1$ y $x_2$ es suficiente para satisfacer las tres cláusulas, independientemente del valor que
+asignemos a $x_3$. Resulta entonces natural preguntarse cuál es la cantidad mínima de variables $x_i$ que es
+necesario fijar en 1 para satisfacer una determinada instancia monótona de SAT.
+
+Dada una instancia monótona de SAT y un entero $k$, el problema de decisión \emph{Satisfacción Monótona
+con Pocas Variables Verdaderas} (SAT-MON) pregunta: ¿hay alguna asignación de valores de verdad en la cual a
+lo sumo a $k$ variables se les asigna el valor 1 y todas las cláusulas se satisfacen? Muestre que SAT-MON es
+NP-completo.
+
+\textbf{Sugerencia:} Busque una reducción desde un problema sobre grafos.
+\end{enunciado}
+
+\examref{Es esencialmente la misma reducción que la del Segundo parcial 2022, Ej.~3 (CONTRATAR, con
+sugerencia ``use Vertex Cover''): allí cada arista $(v_j,v_k)$ se transforma en una tarea con aplicantes
+calificados $\{a_j,a_k\}$; aquí, en una cláusula $(x_j\vee x_k)$. La prueba de pertenencia a $\NP$ sigue el
+formato de 4-SAT (Segundo parcial 2024, Ej.~2).}
+
+\subsection*{\SATMON{} $\in\NP$}
+
+Una instancia $s$ consiste en las variables $x_1,\dots,x_n$, las cláusulas $C_1,\dots,C_k$ (listas de índices
+de variables, todas no negadas) y el entero $K$ (lo llamamos $K$ para no confundirlo con la cantidad de
+cláusulas).
+
+\paragraph{Certificado.} Una tira $t$ de $n$ bits: $t_j$ es el valor asignado a $x_j$. Su largo es polinomial
+(a lo sumo el tamaño de la instancia, suponiendo, como en la solución oficial de 4-SAT, que toda variable aparece
+en alguna cláusula o en la lista de variables).
+
+\paragraph{Certificador.} $B(s,t)$: (1) si $|t|\ne n$ o la cantidad de unos de $t$ es mayor que $K$, responde
+NO; (2) para cada cláusula $C_i$, recorre sus términos y verifica que alguno $x_j$ tenga $t_j=1$; si alguna
+cláusula no tiene ninguno, responde NO; (3) si no, responde SÍ.
+
+\paragraph{Tiempo.} $\Oh(n+\ell)$, donde $\ell$ es la cantidad total de términos: polinomial en $|s|+|t|$.
+
+\paragraph{Correctitud.} Si $s$ es \SI{}, existe una asignación con a lo sumo $K$ variables en 1 que satisface
+todas las cláusulas; tomándola como $t$, el paso (1) no rechaza y en cada cláusula hay un término verdadero,
+así que $B$ responde SÍ. Si $B(s,t)$ responde SÍ, entonces $t$ tiene a lo sumo $K$ unos y satisface toda
+cláusula; es una asignación que prueba que $s$ es \SI. Luego $\SATMON\in\NP$.
+
+\subsection*{$\VC\leP\SATMON$}
+
+\paragraph{Transformación.} Sea $(G,K)$ una instancia de \VC{} con $G=(V,E)$, $V=\{v_1,\dots,v_n\}$,
+$E=\{e_1,\dots,e_q\}$. Construimos la instancia monótona:
+\begin{enumerate}
+  \item una variable $x_j$ por cada vértice $v_j$, $1\le j\le n$;
+  \item una cláusula $C_i=(x_a\vee x_b)$ por cada arista $e_i=(v_a,v_b)$, $1\le i\le q$;
+  \item el mismo entero $K$.
+\end{enumerate}
+Todas las cláusulas tienen solo términos no negados: la instancia es monótona.
+
+\paragraph{Tiempo polinomial.} Se crean $n$ variables y se recorre $E$ una vez escribiendo una cláusula de dos
+términos por arista: $\Oh(n+q)$ con listas de adyacencia ($\Oh(n^2)$ con matriz). Polinomial.
+
+\paragraph{Correspondencia.} A cada $S\subseteq V$ le asociamos la asignación $\sigma_S$ con
+$\sigma_S(x_j)=1\iff v_j\in S$, y viceversa (es una biyección). El número de variables en 1 de $\sigma_S$ es
+$|S|$, y
+\[
+  \sigma_S \text{ satisface } C_i=(x_a\vee x_b) \iff v_a\in S \text{ o } v_b\in S \iff S \text{ cubre } e_i.
+\]
+
+\paragraph{Equivalencia.}
+\begin{enumerate}[label=(\roman*)]
+  \item Si $(G,K)$ es \SI{} de \VC, existe un vertex cover $S$ con $|S|\le K$. Cada arista $e_i=(v_a,v_b)$ tiene
+  un extremo en $S$, así que $\sigma_S$ satisface $C_i$; como $i$ es arbitrario, $\sigma_S$ satisface todas las
+  cláusulas con $|S|\le K$ variables en 1: la instancia de \SATMON{} es \SI.
+  \item Si la instancia de \SATMON{} es \SI{}, existe una asignación $\sigma$ con a lo sumo $K$ variables en 1 que
+  satisface todas las cláusulas. Sea $S=\{v_j:\sigma(x_j)=1\}$, de modo que $\sigma=\sigma_S$ y $|S|\le K$. Para
+  cada arista $e_i=(v_a,v_b)$, $\sigma$ satisface $C_i=(x_a\vee x_b)$, luego $v_a\in S$ o $v_b\in S$: $S$ es un
+  vertex cover de tamaño $\le K$ y $(G,K)$ es \SI.
+\end{enumerate}
+
+\paragraph{Ejemplo.} El ejemplo del enunciado es exactamente la imagen del triángulo $v_1v_2v_3$: las cláusulas
+$(x_1\vee x_2),(x_1\vee x_3),(x_2\vee x_3)$ corresponden a sus tres aristas, y la asignación
+$x_1=x_2=1$ corresponde al vertex cover $\{v_1,v_2\}$ (mínimo, de tamaño 2).
+
+\begin{center}
+\begin{tikzpicture}[v/.style={circle,draw,inner sep=1pt,minimum size=6mm}, sel/.style={v,fill=blue!20}]
+  \node[sel] (1) at (0,0) {$v_1$};
+  \node[sel] (2) at (2,0) {$v_2$};
+  \node[v] (3) at (1,1.6) {$v_3$};
+  \draw (1)--node[below]{\small$x_1\vee x_2$}(2);
+  \draw (1)--node[left]{\small$x_1\vee x_3$}(3);
+  \draw (2)--node[right]{\small$x_2\vee x_3$}(3);
+\end{tikzpicture}
+\end{center}
+
+\paragraph{Conclusión.} $\SATMON\in\NP$, \VC{} es NP-completo y $\VC\leP\SATMON$ (transformación polinomial
+más una llamada a la caja negra). Por transitividad, $Y\leP\SATMON$ para todo $Y\in\NP$: \SATMON{} es
+NP-completo.
+
+\begin{observacion}
+La restricción ``a lo sumo $K$ variables en 1'' es la que da la dificultad: sin ella, una instancia monótona
+siempre es satisfacible (todas en 1). Notar también que la reducción va \emph{desde} \VC{} \emph{hacia}
+\SATMON; la transformación inversa (cada cláusula como ``arista'') no sirve directamente porque las cláusulas
+pueden tener más de dos términos (serían hiperaristas), y además iría en el sentido equivocado.
+\end{observacion}
+
+\end{document}

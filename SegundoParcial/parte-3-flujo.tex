@@ -1,0 +1,654 @@
+% =====================================================================
+%  Parte 3 — Flujo en redes (Kleinberg–Tardos, cap. 7)
+%  Fragmento: se incluye con \input desde el documento maestro.
+% =====================================================================
+
+% ---------- macros y estilos locales (prefijo fl) ----------
+\newcommand{\flout}{f^{\mathrm{out}}}
+\newcommand{\flin}{f^{\mathrm{in}}}
+\newcommand{\flGf}{G_f}
+\newcommand{\flcuello}{\operatorname{cuello}}
+\tikzset{
+  flv/.style={circle,draw=tinta,fill=white,inner sep=1pt,minimum size=5.6mm,font=\small},
+  fla/.style={-{Stealth[length=2.1mm]},draw=gris,semithick},
+  flp/.style={-{Stealth[length=2.3mm]},draw=flujo,line width=1.3pt},
+  flr/.style={-{Stealth[length=2.1mm]},draw=gris,semithick,dashed},
+  flrp/.style={-{Stealth[length=2.3mm]},draw=flujo,line width=1.3pt,dashed},
+  fll/.style={font=\scriptsize,fill=white,inner sep=0.8pt,text=tinta},
+  flt/.style={font=\footnotesize\sffamily,text=gris},
+}
+% nodos del ejemplo s, a, b, t (Examen jul. 2023)
+\newcommand{\flnodosej}{%
+  \node[flv] (s) at (0,0) {$s$};
+  \node[flv] (a) at (1.55,0.95) {$a$};
+  \node[flv] (b) at (1.55,-0.95) {$b$};
+  \node[flv] (t) at (3.1,0) {$t$};}
+
+\parte{flujo}{Flujo en redes}
+  {\max_{f}\, v(f) \;=\; \min_{(A,B)}\, c(A,B)}
+  {Mandamos la mayor cantidad posible de algo de $s$ a $t$ sin pasarnos de las capacidades. Lo que frena al flujo es siempre un corte, y casi todos los ejercicios de parcial consisten en armar la red adecuada y leer la respuesta en el flujo máximo.}
+
+% =====================================================================
+\section{Redes, flujos y cortes}
+% =====================================================================
+
+Este capítulo del libro (KT cap.~7) entra en los parciales de dos maneras. Por un lado están las preguntas de teórico: dar definiciones, demostrar $v(f)\le c(A,B)$ o la proposición (7.9), explicar la cota $\Oh(mC)$ o correr Ford–Fulkerson a mano. Por otro, los ejercicios de modelado, que son la mayoría de los puntos: se arma una red cuyo flujo máximo resuelve un problema de asignación y se prueba la equivalencia en los dos sentidos.\visto{2P 2022 Ej.~2: definiciones y $v(f)\le c(A,B)$}
+
+\begin{definicion}[red de flujo]
+Una \emph{red de flujo} es un grafo dirigido $G=(V,E)$ con un nodo \emph{fuente} $s$ sin aristas entrantes, un nodo \emph{sumidero} $t$ sin aristas salientes y una \emph{capacidad} entera $c_e\ge 0$ en cada arista. Se supone además que todo nodo tiene alguna arista incidente, así que $m\ge n/2$.
+\end{definicion}
+
+\begin{definicion}[flujo $s$-$t$ y valor]
+Un \emph{flujo $s$-$t$} es una función $f:E\to\mathbb{R}_{\ge 0}$ que cumple
+\begin{enumerate}[label=(\roman*)]
+  \item \emph{capacidad}: $0\le f(e)\le c_e$ para toda $e\in E$;
+  \item \emph{conservación}: para todo $v\ne s,t$, $\displaystyle\sum_{e\text{ entra a }v} f(e)=\sum_{e\text{ sale de }v} f(e)$, es decir, $\flin(v)=\flout(v)$.
+\end{enumerate}
+El \emph{valor} del flujo es lo que sale de la fuente: $v(f)=\flout(s)$.
+\end{definicion}
+
+En el examen de diciembre de 2025 pidieron exactamente esta definición, y en el de julio de 2020 preguntaron qué cotas tiene que cumplir $f(e)$. Las dos condiciones tienen nombre, y conviene escribirlo: en las correcciones se pide nombrar ``capacidad'' y ``conservación'' cada vez que se usan.\visto{Examen dic.~2025 Ej.~1(d): definir flujo}
+
+\begin{definicion}[corte y capacidad]
+Un \emph{corte $s$-$t$} es una partición $(A,B)$ de $V$ con $s\in A$ y $t\in B$. Su \emph{capacidad} es la suma de las capacidades de las aristas que \emph{salen} de $A$:
+\[ c(A,B)=\sum_{e\text{ sale de }A} c_e . \]
+Las aristas que entran a $A$ no cuentan.
+\end{definicion}
+
+Para un conjunto $S$ de nodos escribimos $\flout(S)$ para la suma del flujo en las aristas que salen de $S$ y $\flin(S)$ para las que entran. La definición de corte y de capacidad se pidió tal cual en el segundo parcial de 2025.\visto{2P 2025 Ej.~1(b): corte y capacidad}
+
+\begin{resultado}[(7.6) y (7.7)]
+Sean $f$ un flujo $s$-$t$ y $(A,B)$ un corte $s$-$t$ cualesquiera. Entonces
+\[ v(f)=\flout(A)-\flin(A) \qquad\text{y también}\qquad v(f)=\flin(B)-\flout(B). \]
+\end{resultado}
+
+\begin{proof}[Idea]
+Por definición $v(f)=\flout(s)-\flin(s)$, porque $\flin(s)=0$. Para $v\in A$, $v\neq s$, la conservación da $\flout(v)-\flin(v)=0$. Sumando sobre todos los nodos de $A$:
+$v(f)=\sum_{v\in A}\bigl(\flout(v)-\flin(v)\bigr)$. Una arista con los dos extremos en $A$ aparece una vez con $+$ y otra con $-$, así que se cancela; una que sale de $A$ aparece solo con $+$ y una que entra solo con $-$. Lo que queda es $\flout(A)-\flin(A)$.
+\end{proof}
+
+\begin{resultado}[(7.8)]
+Sean $f$ un flujo $s$-$t$ y $(A,B)$ un corte $s$-$t$ cualesquiera. Entonces $v(f)\le c(A,B)$.
+\end{resultado}
+
+Esta es la demostración que pidieron en el 2P de 2022 y en el examen de julio de 2020, en ambos casos con (7.6) como dato. La corrección espera que se justifique cada desigualdad con la propiedad que se usa.\visto{Examen jul.~2020 Ej.~2: cota y $v(f)\le c(A,B)$}
+
+\begin{proof}
+\begin{align*}
+v(f) &= \flout(A)-\flin(A) && \text{por (7.6)}\\
+     &\le \flout(A) && \text{porque } \flin(A)\ge 0 \text{ (los flujos son no negativos)}\\
+     &= \sum_{e\text{ sale de }A} f(e) && \text{definición de } \flout(A)\\
+     &\le \sum_{e\text{ sale de }A} c_e = c(A,B) && \text{condición de capacidad.}
+\end{align*}
+La primera desigualdad es igualdad si y solo si ninguna arista que entra a $A$ lleva flujo. La segunda lo es si y solo si todas las que salen de $A$ están saturadas.
+\end{proof}
+
+\begin{trampa}
+\begin{itemize}
+  \item Contar en $c(A,B)$ las aristas que entran a $A$. Solo cuentan las salientes, y esa asimetría es justamente lo que hace funcionar la demostración de (7.8).
+  \item Escribir la conservación también para $s$ y $t$. Vale solo para $v\ne s,t$.
+  \item Demostrar (7.8) sin decir en qué paso se usa la no negatividad y en cuál la capacidad.
+\end{itemize}
+\end{trampa}
+
+% =====================================================================
+\section{Grafo residual y algoritmo de Ford–Fulkerson}
+% =====================================================================
+
+\subsection{Grafo residual}
+
+Dado un flujo $f$ en $G$, el \emph{grafo residual} $\flGf$ tiene los mismos nodos que $G$ y, por cada arista $e=(u,v)$ de $G$:
+\begin{itemize}
+  \item si $f(e)<c_e$, una \emph{arista hacia adelante} $(u,v)$ con capacidad residual $c_e-f(e)$: lo que todavía podemos empujar;
+  \item si $f(e)>0$, una \emph{arista hacia atrás} $(v,u)$ con capacidad residual $f(e)$: lo que podemos ``deshacer'' devolviendo flujo.
+\end{itemize}
+Cada arista de $G$ genera a lo sumo dos aristas en $\flGf$, así que $\flGf$ tiene a lo sumo $2m$ aristas.
+
+La definición del grafo residual se pidió como parte (a) del examen de diciembre de 2021, y con esa misma redacción (adelante/atrás, sobrante/deshacer) aparece en la solución oficial. Las aristas con capacidad residual $0$ no se dibujan.\visto{Examen dic.~2021 Ej.~3(a): definir grafo residual}
+
+\subsection{Aumentar a lo largo de un camino}
+
+Sea $P$ un camino simple de $s$ a $t$ en $\flGf$ (un \emph{camino de aumento}). Su \emph{cuello de botella}, $\flcuello(P,f)$, es la menor capacidad residual de las aristas de $P$.
+
+\begin{algorithmic}[1]
+\Function{Aumentar}{$f,P$}
+  \State $b\gets \flcuello(P,f)$
+  \ForAll{arista $(u,v)\in P$}
+    \If{$(u,v)$ es arista hacia adelante}
+      \State $f(u,v)\gets f(u,v)+b$ \Comment{empujamos más}
+    \Else
+      \State $f(v,u)\gets f(v,u)-b$ \Comment{devolvemos flujo de $(v,u)\in E$}
+    \EndIf
+  \EndFor
+  \State \Return $f$
+\EndFunction
+\end{algorithmic}
+
+\begin{resultado}[(7.1) y (7.3)]
+Si $P$ es un camino simple $s$-$t$ en $\flGf$, entonces $f'=\textsc{Aumentar}(f,P)$ es un flujo en $G$ y
+$v(f')=v(f)+\flcuello(P,f)>v(f)$.
+\end{resultado}
+
+Que $f'$ sea flujo se ve en dos partes. La capacidad se cumple porque $b$ no supera la capacidad residual de ninguna arista del camino. La conservación vale porque cada nodo interno de $P$ tiene una arista entrante y una saliente en $P$, y en los cuatro casos posibles (adelante/adelante, adelante/atrás, etc.) el cambio neto en ese nodo es $0$. El valor crece porque la primera arista de $P$ sale de $s$ y tiene que ser hacia adelante, ya que $s$ no tiene aristas entrantes en $G$.
+
+\subsection{El algoritmo}
+
+\begin{algorithmic}[1]
+\Function{FordFulkerson}{$G,s,t,c$}
+  \State $f(e)\gets 0$ para toda $e\in E$
+  \While{existe un camino simple $P$ de $s$ a $t$ en $\flGf$}
+    \State $f\gets$ \Call{Aumentar}{$f,P$}
+    \State actualizar $\flGf$
+  \EndWhile
+  \State \Return $f$
+\EndFunction
+\end{algorithmic}
+
+\begin{resultado}[(7.2) Integralidad durante la ejecución]
+Si todas las capacidades son enteras, en toda etapa del algoritmo los valores $f(e)$ y las capacidades residuales de $\flGf$ son enteros.
+\end{resultado}
+Se prueba por inducción en las iteraciones. Al principio $f\equiv 0$. Si en una etapa todo es entero, el cuello de botella es entero y \textsc{Aumentar} suma o resta un entero.
+
+\begin{resultado}[(7.4) y (7.5)]
+Sea $C=\sum_{e\text{ sale de }s}c_e$. Con capacidades enteras, Ford–Fulkerson termina en a lo sumo $C$ iteraciones del \textbf{mientras}, y puede implementarse en tiempo $\Oh(mC)$.
+\end{resultado}
+
+En el examen de febrero de 2026 preguntaron qué cota es esa y qué significa cada símbolo. En el de julio de 2020 pidieron justificar que el algoritmo corre en $\Oh(mC)$ si el flujo máximo está acotado por $C$.\visto{Examen feb.~2026 Ej.~1(e): explicar $\Oh(mC)$}
+
+\begin{proof}[Por qué $\Oh(mC)$]
+\emph{$C$ acota las iteraciones.} Por (7.2) y (7.3) cada iteración aumenta $v(f)$ en al menos una unidad, y por (7.8) $v(f)\le c(\{s\},V\setminus\{s\})=C$. Por lo tanto hay a lo sumo $C$ iteraciones. Sirve también la capacidad de \emph{cualquier} otro corte, y en los ejercicios conviene elegir el de menor capacidad que se pueda acotar.
+
+\emph{$m$ acota el costo de cada iteración.} Construir $\flGf$ cuesta $\Oh(m+n)$, porque tiene $n$ nodos y a lo sumo $2m$ aristas. Buscar el camino con BFS o DFS cuesta $\Oh(m+n)$ y aumentar cuesta $\Oh(n)$. Como $m\ge n/2$, todo esto es $\Oh(m)$.
+\end{proof}
+
+\begin{trampa}
+\begin{itemize}
+  \item $\Oh(mC)$ es \emph{pseudopolinomial}: si $C$ depende de números de la entrada (cupos, dosis, capacidades), la cota no es polinomial en el tamaño. En los ejercicios donde se pide ``polinomial en $|A|$ y $|E|$'' hay que encontrar un corte cuya capacidad dependa solo de \emph{cantidades}, típicamente uno formado por aristas de capacidad $1$.
+  \item Decir que el algoritmo termina ``porque el flujo aumenta''. Hace falta que aumente al menos $1$, y eso es integralidad.
+  \item Con capacidades reales (irracionales), Ford–Fulkerson puede no terminar. La cota es solo para capacidades enteras.
+\end{itemize}
+\end{trampa}
+
+% =====================================================================
+\section{Ford–Fulkerson a mano}
+% =====================================================================
+
+Se pide seguido: ``ejecute paso a paso, dibujando la red $G$ y el grafo residual $\flGf$''. En cada paso hay que mostrar el par $(G\text{ con } f,\ \flGf)$, marcar el camino de aumento elegido con su cuello de botella y, al final, justificar que el flujo es máximo con un corte.\visto{Examen jul.~2023 Ej.~3(a): FF paso a paso}
+
+\subsection{Ejemplo completo}
+
+Red del examen de julio de 2023: $c(s,a)=2$, $c(s,b)=4$, $c(a,b)=3$, $c(a,t)=1$, $c(b,t)=5$. A la izquierda va $G$ con la notación $f(e)/c_e$; a la derecha $\flGf$, con las aristas hacia atrás punteadas y el camino de aumento en verde.
+
+\begin{center}
+\begin{tikzpicture}[scale=0.95]
+  \flnodosej
+  \draw[fla] (s)--node[fll,above left]{0/2}(a);
+  \draw[fla] (s)--node[fll,below left]{0/4}(b);
+  \draw[fla] (a)--node[fll,right]{0/3}(b);
+  \draw[fla] (a)--node[fll,above right]{0/1}(t);
+  \draw[fla] (b)--node[fll,below right]{0/5}(t);
+  \node[flt] at (1.55,-1.75) {$G$, $v(f)=0$};
+\end{tikzpicture}\hspace{1.3cm}%
+\begin{tikzpicture}[scale=0.95]
+  \flnodosej
+  \draw[fla] (s)--node[fll,above left]{2}(a);
+  \draw[flp] (s)--node[fll,below left]{4}(b);
+  \draw[fla] (a)--node[fll,right]{3}(b);
+  \draw[fla] (a)--node[fll,above right]{1}(t);
+  \draw[flp] (b)--node[fll,below right]{5}(t);
+  \node[flt] at (1.55,-1.75) {$\flGf$: $P_1=s\,b\,t$, cuello $4$};
+\end{tikzpicture}
+\end{center}
+
+\begin{center}
+\begin{tikzpicture}[scale=0.95]
+  \flnodosej
+  \draw[fla] (s)--node[fll,above left]{0/2}(a);
+  \draw[flp] (s)--node[fll,below left]{4/4}(b);
+  \draw[fla] (a)--node[fll,right]{0/3}(b);
+  \draw[fla] (a)--node[fll,above right]{0/1}(t);
+  \draw[flp] (b)--node[fll,below right]{4/5}(t);
+  \node[flt] at (1.55,-1.75) {$G$, $v(f)=4$};
+\end{tikzpicture}\hspace{1.3cm}%
+\begin{tikzpicture}[scale=0.95]
+  \flnodosej
+  \draw[flp] (s)--node[fll,above left]{2}(a);
+  \draw[flr] (b)--node[fll,below left]{4}(s);
+  \draw[fla] (a)--node[fll,right]{3}(b);
+  \draw[flp] (a)--node[fll,above right]{1}(t);
+  \draw[fla] (b) to[bend left=25] node[fll]{1}(t);
+  \draw[flr] (t) to[bend left=25] node[fll]{4}(b);
+  \node[flt] at (1.55,-1.75) {$\flGf$: $P_2=s\,a\,t$, cuello $1$};
+\end{tikzpicture}
+\end{center}
+
+\begin{center}
+\begin{tikzpicture}[scale=0.95]
+  \flnodosej
+  \draw[flp] (s)--node[fll,above left]{1/2}(a);
+  \draw[flp] (s)--node[fll,below left]{4/4}(b);
+  \draw[fla] (a)--node[fll,right]{0/3}(b);
+  \draw[flp] (a)--node[fll,above right]{1/1}(t);
+  \draw[flp] (b)--node[fll,below right]{4/5}(t);
+  \node[flt] at (1.55,-1.75) {$G$, $v(f)=5$};
+\end{tikzpicture}\hspace{1.3cm}%
+\begin{tikzpicture}[scale=0.95]
+  \flnodosej
+  \draw[flp] (s) to[bend left=25] node[fll]{1}(a);
+  \draw[flr] (a) to[bend left=25] node[fll]{1}(s);
+  \draw[flr] (b)--node[fll,below left]{4}(s);
+  \draw[flp] (a)--node[fll,right]{3}(b);
+  \draw[flr] (t)--node[fll,above right]{1}(a);
+  \draw[flp] (b) to[bend left=25] node[fll]{1}(t);
+  \draw[flr] (t) to[bend left=25] node[fll]{4}(b);
+  \node[flt] at (1.55,-1.75) {$\flGf$: $P_3=s\,a\,b\,t$, cuello $1$};
+\end{tikzpicture}
+\end{center}
+
+\begin{center}
+\begin{tikzpicture}[scale=0.95]
+  \flnodosej
+  \draw[flp] (s)--node[fll,above left]{2/2}(a);
+  \draw[flp] (s)--node[fll,below left]{4/4}(b);
+  \draw[flp] (a)--node[fll,right]{1/3}(b);
+  \draw[flp] (a)--node[fll,above right]{1/1}(t);
+  \draw[flp] (b)--node[fll,below right]{5/5}(t);
+  \node[flt] at (1.55,-1.75) {$G$, $v(f)=6$};
+\end{tikzpicture}\hspace{1.3cm}%
+\begin{tikzpicture}[scale=0.95]
+  \flnodosej
+  \draw[flr] (a)--node[fll,above left]{2}(s);
+  \draw[flr] (b)--node[fll,below left]{4}(s);
+  \draw[fla] (a) to[bend left=25] node[fll]{2}(b);
+  \draw[flr] (b) to[bend left=25] node[fll]{1}(a);
+  \draw[flr] (t)--node[fll,above right]{1}(a);
+  \draw[flr] (t)--node[fll,below right]{5}(b);
+  \node[flt] at (1.55,-1.75) {$\flGf$: no hay camino $s$-$t$};
+\end{tikzpicture}
+\end{center}
+
+En el último residual $s$ no tiene aristas salientes, así que el conjunto de nodos alcanzables desde $s$ es $A^*=\{s\}$. El corte $(\{s\},\{a,b,t\})$ tiene capacidad $2+4=6=v(f)$, y por (7.8) el flujo es máximo. La solución oficial elige los caminos en este mismo orden, pero cualquier orden lleva al mismo valor, $6$.
+
+\subsection{Cuando hay que deshacer flujo}
+
+En el ejemplo anterior nunca se usó una arista hacia atrás. Los dos ejercicios que siguen están pensados para que sí haga falta.\visto{2P 2017 Ej.~3(a): FF desde un flujo dado}
+
+\begin{problema}{2P 2017, Ej.~3(a): partir de un flujo dado}
+Capacidades todas $1$. El flujo inicial manda una unidad por $s\,u\,x\,t$ y otra por $s\,w\,z\,t$, así que $v(f)=2$. Encontrar el flujo máximo con Ford–Fulkerson, mostrando grafos residuales y grafos con flujo.
+
+\smallskip
+\textbf{Solución.} En $\flGf$ las aristas $(u,x)$ y $(w,z)$ quedan invertidas. El único camino de aumento es $s\,y\,z\,w\,x\,u\,v\,t$: usa $(z,w)$ y $(x,u)$ hacia atrás y tiene cuello $1$. Al aumentar, se ``deshacen'' $(u,x)$ y $(w,z)$ y quedan los tres caminos $s\,u\,v\,t$, $s\,w\,x\,t$ y $s\,y\,z\,t$. En el nuevo residual no hay camino $s$-$t$, así que el flujo máximo es $3$ (además, el corte $(\{s\},V\setminus\{s\})$ tiene capacidad $3$).
+\end{problema}
+
+\begin{center}
+\begin{tikzpicture}[scale=0.92]
+  \node[flv] (s) at (0,0) {$s$};
+  \node[flv] (u) at (1.4,1.2) {$u$}; \node[flv] (v) at (2.8,1.2) {$v$};
+  \node[flv] (w) at (1.4,0) {$w$};   \node[flv] (x) at (2.8,0) {$x$};
+  \node[flv] (y) at (1.4,-1.2) {$y$}; \node[flv] (z) at (2.8,-1.2) {$z$};
+  \node[flv] (t) at (4.2,0) {$t$};
+  \draw[fla] (s)--(u); \draw[fla] (s)--(w); \draw[fla] (s)--(y);
+  \draw[fla] (u)--(v); \draw[fla] (u)--(x); \draw[fla] (w)--(x);
+  \draw[fla] (w)--(z); \draw[fla] (y)--(z);
+  \draw[fla] (v)--(t); \draw[fla] (x)--(t); \draw[fla] (z)--(t);
+  \draw[flp] (s)--(u); \draw[flp] (u)--(x); \draw[flp] (x)--(t);
+  \draw[flp] (s)--(w); \draw[flp] (w)--(z); \draw[flp] (z)--(t);
+  \node[flt] at (2.1,-1.95) {$G$ con el flujo inicial ($v=2$)};
+\end{tikzpicture}\hspace{0.9cm}%
+\begin{tikzpicture}[scale=0.92]
+  \node[flv] (s) at (0,0) {$s$};
+  \node[flv] (u) at (1.4,1.2) {$u$}; \node[flv] (v) at (2.8,1.2) {$v$};
+  \node[flv] (w) at (1.4,0) {$w$};   \node[flv] (x) at (2.8,0) {$x$};
+  \node[flv] (y) at (1.4,-1.2) {$y$}; \node[flv] (z) at (2.8,-1.2) {$z$};
+  \node[flv] (t) at (4.2,0) {$t$};
+  \draw[flr] (u)--(s); \draw[flr] (w)--(s); \draw[flp] (s)--(y);
+  \draw[flp] (u)--(v); \draw[flrp] (x)--(u); \draw[flp] (w)--(x);
+  \draw[flrp] (z)--(w); \draw[flp] (y)--(z);
+  \draw[flp] (v)--(t); \draw[flr] (t)--(x); \draw[flr] (t)--(z);
+  \node[flt] at (2.1,-1.95) {$\flGf$: $s\,y\,z\,w\,x\,u\,v\,t$};
+\end{tikzpicture}
+\end{center}
+
+El segundo ejercicio es el del 2P de 2025: dada la red con un flujo de valor $7$, dibujar el residual y una red con flujo máximo.\visto{2P 2025 Ej.~1(d): residual y flujo máximo}
+
+\begin{problema}{2P 2025, Ej.~1(d): residual y flujo máximo}
+Flujo/capacidad: $s\to u$ $5/5$, $u\to t$ $0/4$, $u\to w$ $5/8$, $w\to t$ $7/7$, $s\to v$ $2/15$, $v\to w$ $2/10$. Dibujar $\flGf$ y una red con flujo de valor máximo.
+
+\smallskip
+\textbf{Solución.} En $\flGf$: $u\to s$ (5), $u\to t$ (4), $u\to w$ (3) y $w\to u$ (5), $t\to w$ (7), $s\to v$ (13) y $v\to s$ (2), $v\to w$ (8) y $w\to v$ (2). El camino $s\,v\,w\,u\,t$ usa $(w,u)$ hacia atrás y tiene cuello $\min\{13,8,5,4\}=4$. El flujo resultante es $s\to u$ $5/5$, $u\to t$ $4/4$, $u\to w$ $1/8$, $w\to t$ $7/7$, $s\to v$ $6/15$, $v\to w$ $6/10$, de valor $11$. Es máximo porque el corte $(\{s,u,v,w\},\{t\})$ tiene capacidad $4+7=11$.
+\end{problema}
+
+\begin{receta}[ejecutar Ford–Fulkerson]
+\begin{enumerate}
+  \item Dibujá $G$ con $f(e)/c_e$ y al lado $\flGf$. Poné las aristas hacia atrás punteadas y no dibujes las de capacidad residual $0$.
+  \item Nombrá el camino elegido (por ejemplo $P_2=s\,a\,t$), su cuello de botella y el nuevo $v(f)$.
+  \item Repetí hasta que no haya camino. En el último residual marcá el conjunto $A^*$ de nodos alcanzables desde $s$.
+  \item Cerrá con el certificado: ``el corte $(A^*,V\setminus A^*)$ tiene capacidad $c=v(f)$; por (7.8) ningún flujo supera $c$, luego $f$ es máximo''.
+\end{enumerate}
+\end{receta}
+
+\begin{trampa}
+\begin{itemize}
+  \item Olvidar las aristas hacia atrás, o dibujarlas con capacidad $c_e-f(e)$ en lugar de $f(e)$.
+  \item Calcular el cuello de botella con las capacidades de $G$ en vez de las residuales.
+  \item Terminar sin justificar que el flujo es máximo. ``No encuentro más caminos'' no alcanza: hay que exhibir el residual sin camino o el corte.
+  \item Usar un camino que repite nodos. El camino de aumento tiene que ser simple.
+\end{itemize}
+\end{trampa}
+
+% =====================================================================
+\section{Flujo máximo y corte mínimo}
+% =====================================================================
+
+\begin{resultado}[(7.9)]
+Si $f$ es un flujo $s$-$t$ tal que no hay camino $s$-$t$ en $\flGf$, entonces existe un corte $(A^*,B^*)$ con $v(f)=c(A^*,B^*)$. En consecuencia, $f$ tiene valor máximo entre todos los flujos y $(A^*,B^*)$ tiene capacidad mínima entre todos los cortes.
+\end{resultado}
+
+En el examen de julio de 2025 se pidió demostrar esto, y la pauta lista lo que se espera: identificar el corte, probar que es un corte, probar que las aristas salientes están saturadas y las entrantes vacías, concluir con (7.6) y deducir la consecuencia con (7.8).\visto{Examen jul.~2025 Ej.~2: demostrar (7.9)}
+
+\begin{proof}
+Sea $A^*$ el conjunto de nodos $v$ para los que hay un camino $s$-$v$ en $\flGf$, y sea $B^*=V\setminus A^*$.
+
+\emph{Es un corte.} Es una partición; $s\in A^*$ por el camino trivial y $t\notin A^*$ por hipótesis.
+
+\emph{Aristas que salen de $A^*$.} Sea $e=(u,v)\in E$ con $u\in A^*$, $v\in B^*$. Si fuera $f(e)<c_e$, $e$ sería arista hacia adelante de $\flGf$. Pegándola al camino $s$-$u$ obtendríamos un camino $s$-$v$, contra $v\in B^*$. Entonces $f(e)=c_e$.
+
+\emph{Aristas que entran a $A^*$.} Sea $e=(u,v)\in E$ con $u\in B^*$, $v\in A^*$. Si fuera $f(e)>0$, $(v,u)$ sería arista hacia atrás de $\flGf$ y tendríamos un camino $s$-$u$, contra $u\in B^*$. Entonces $f(e)=0$.
+
+\emph{Conclusión.} Por (7.6),
+$v(f)=\flout(A^*)-\flin(A^*)=\sum_{e\text{ sale de }A^*}c_e-0=c(A^*,B^*)$.
+Por (7.8), cualquier flujo $f'$ cumple $v(f')\le c(A^*,B^*)=v(f)$ y cualquier corte $(A,B)$ cumple $c(A,B)\ge v(f)=c(A^*,B^*)$.
+\end{proof}
+
+\begin{resultado}[(7.10)--(7.14)]
+\begin{itemize}
+  \item (7.10) El flujo que devuelve Ford–Fulkerson es un flujo máximo.
+  \item (7.11) Dado un flujo de valor máximo, se puede calcular un corte de capacidad mínima en tiempo $\Oh(m)$.
+  \item (7.12)--(7.13) En toda red, el valor máximo de un flujo $s$-$t$ es igual a la capacidad mínima de un corte $s$-$t$.
+  \item (7.14) Si todas las capacidades son enteras, existe un flujo máximo con $f(e)$ entero en toda arista.
+\end{itemize}
+\end{resultado}
+
+(7.14) es la \emph{propiedad de integralidad}, y todos los ejercicios de modelado la usan. Garantiza que Ford–Fulkerson devuelve un flujo entero, así que una arista de capacidad $1$ lleva $0$ o $1$ y se la puede leer como ``asignado / no asignado''.
+
+\subsection{Encontrar el corte mínimo}
+
+Se preguntó en el examen de diciembre de 2018 (``¿cómo calcularía un corte de capacidad mínima en tiempo $\Oh(m)$ a partir de $\flGf$?'') y en el 2P de 2025. La respuesta es la construcción de la demostración de (7.9).\visto{Examen dic.~2018 Ej.~4: corte mínimo en $\Oh(m)$}
+
+\begin{algorithmic}[1]
+\Function{CorteMínimo}{$\flGf$} \Comment{$f$ flujo máximo}
+  \State $A\gets$ nodos alcanzados por un BFS (o DFS) desde $s$ en $\flGf$
+  \State \Return $(A,\,V\setminus A)$
+\EndFunction
+\end{algorithmic}
+
+Es correcto por (7.9): como $f$ es máximo, no hay camino $s$-$t$ en $\flGf$, y el conjunto de alcanzables da un corte de capacidad $v(f)$, que es mínima. El BFS cuesta $\Oh(m+n)=\Oh(m)$ porque $\flGf$ tiene a lo sumo $2m$ aristas y $m\ge n/2$.\visto{2P 2025 Ej.~1(c): corte mínimo desde $G_r$}
+
+\subsection{Verdadero o falso sobre cortes y flujos}
+
+En las preguntas de verdadero o falso casi siempre la respuesta es ``falso'' y se justifica con un contraejemplo chico con capacidades $1$. Si es verdadero, se argumenta con flujo máximo = corte mínimo o con integralidad.\visto{Examen feb.~2018 P.~1: unicidad de cortes y flujos}
+
+\begin{problema}{Examen feb.~2018, P.~1: ¿unicidad?}
+(a) Dado un flujo máximo, ¿existe un único corte mínimo? (b) ¿Un corte mínimo determina un único flujo máximo?
+
+\smallskip
+\textbf{Solución.} (a) Falso. En $s\xrightarrow{1}u\xrightarrow{1}t$, los cortes $(\{s\},\{u,t\})$ y $(\{s,u\},\{t\})$ tienen capacidad $1$. (b) Falso. Con $s\to u\to w$, $s\to v\to w$ y $w\to t$, todas de capacidad $1$, se puede mandar la unidad por $u$ o por $v$. Son dos flujos máximos distintos y en ambos el corte mínimo es $(\{s,u,v,w\},\{t\})$.
+\end{problema}
+
+\begin{problema}{Examen jul.~2023, Ej.~3(b): sumar 1 a cada capacidad}
+Si $(A,B)$ es un corte mínimo con capacidades $c_e$, ¿sigue siéndolo con capacidades $c_e+1$?
+
+\smallskip
+\textbf{Solución.} Falso. Con $s\xrightarrow{3}a$, $s\xrightarrow{4}b$, $a\xrightarrow{1}b$, $a\xrightarrow{1}t$, $b\xrightarrow{5}t$, el corte $(\{s,a\},\{b,t\})$ tiene capacidad $4+1+1=6$ y es mínimo. Al sumar $1$ pasa a valer $5+2+2=9$, mientras que $(\{s,a,b\},\{t\})$ vale $2+6=8$. Sumar $1$ penaliza a los cortes con muchas aristas. Multiplicar todas las capacidades por $\lambda>0$, en cambio, sí conserva los cortes mínimos, porque multiplica todas las capacidades de corte por $\lambda$.
+\end{problema}
+
+El ejercicio 1 del 2P de 2020 juega con la paridad: hay que construir un ejemplo y después demostrar una propiedad con flujo máximo = corte mínimo.\visto{2P 2020 Ej.~1: capacidades impares, pares}
+
+\begin{problema}{2P 2020, Ej.~1: paridad}
+(a) Red con todas las capacidades impares y flujo máximo par. (b) Si todas las capacidades son pares, el flujo máximo es par.
+
+\smallskip
+\textbf{Solución.} (a) $s\to u\to t$ y $s\to v\to t$, todas de capacidad $1$. El flujo que manda $1$ por cada arista cumple capacidad y conservación (en $u$ y en $v$ entra $1$ y sale $1$), y vale $2$. Es máximo porque $c(\{s\},\{u,v,t\})=2$ y vale (7.8). (b) El flujo máximo es igual a la capacidad de un corte mínimo (7.13), que es una suma de capacidades pares y por lo tanto es par. Lo mismo vale para múltiplos de cualquier $k$.
+\end{problema}
+
+Otra forma de usar cortes aparece en el examen de febrero de 2023: para probar que \emph{no} se puede satisfacer una demanda alcanza con exhibir un corte de capacidad menor que la demanda, sin correr ningún algoritmo.\visto{Examen feb.~2023 Ej.~1(b): corte que prueba insuficiencia}
+
+\begin{trampa}
+\begin{itemize}
+  \item Confundir ``el flujo máximo es único'' con ``el valor del flujo máximo es único''. El valor es único; el flujo y el corte no tienen por qué serlo.
+  \item Para el corte mínimo, tomar los nodos alcanzables en $G$ en lugar de en $\flGf$.
+  \item Decir ``integralidad'' sin aclarar qué da: existe un flujo máximo entero, y Ford–Fulkerson lo encuentra.
+\end{itemize}
+\end{trampa}
+
+% =====================================================================
+\section{Matching bipartito}
+% =====================================================================
+
+Sea $G=(X\cup Y,E)$ bipartito. Un \emph{matching} es un conjunto de aristas en el que ningún nodo aparece dos veces. La red $G'$ se arma así: todas las aristas se orientan de $X$ a $Y$, se agrega $s$ con aristas $(s,x)$ para todo $x\in X$ y $t$ con aristas $(y,t)$ para todo $y\in Y$, y todas las capacidades valen $1$.
+
+\begin{center}
+\begin{tikzpicture}[scale=0.95]
+  \node[flv] (s) at (0,0) {$s$};
+  \foreach \i/\y in {1/1.1,2/0,3/-1.1}{
+    \node[flv] (x\i) at (1.7,\y) {$x_\i$};
+    \node[flv] (y\i) at (3.5,\y) {$y_\i$};}
+  \node[flv] (t) at (5.2,0) {$t$};
+  \foreach \i in {1,2,3}{\draw[fla] (s)--(x\i); \draw[fla] (y\i)--(t);}
+  \draw[fla] (x1)--(y2); \draw[fla] (x2)--(y1); \draw[fla] (x3)--(y3);
+  \draw[flp] (x1)--(y1); \draw[flp] (x2)--(y3); \draw[fla] (x3)--(y2);
+  \draw[flp] (s)--(x1); \draw[flp] (s)--(x2); \draw[flp] (y1)--(t); \draw[flp] (y3)--(t);
+  \node[flt] at (2.6,-1.85) {todas las capacidades valen $1$};
+\end{tikzpicture}
+\end{center}
+
+\begin{resultado}[(7.37) y (7.38)]
+El tamaño de un matching máximo en $G$ es igual al valor de un flujo máximo en $G'$, y las aristas del matching son las aristas de $X$ a $Y$ que llevan flujo. Ford–Fulkerson encuentra un matching máximo en tiempo $\Oh(mn)$.
+\end{resultado}
+
+\begin{proof}[Idea]
+\emph{De matching a flujo:} un matching de $k$ aristas $(x_i,y_i)$ induce el flujo que manda $1$ por cada camino $s\,x_i\,y_i\,t$, de valor $k$. \emph{De flujo a matching:} por (7.14) hay un flujo máximo entero, de valor $k$. Cada arista lleva $0$ o $1$. Cada $x$ recibe a lo sumo $1$ (una sola arista entrante de capacidad $1$), así que por conservación manda flujo por a lo sumo una arista; lo mismo vale para cada $y$. Las aristas $X\to Y$ con flujo $1$ forman entonces un matching, y hay $k$ de ellas porque el corte $(\{s\}\cup X,\,Y\cup\{t\})$ lo atraviesa todo el flujo. \emph{Tiempo:} $C\le|X|\le n$, así que $\Oh(mC)=\Oh(mn)$.
+\end{proof}
+
+En el 2P de 2017 se preguntó cuánto puede medir un camino de aumento en esta red. La respuesta sale de mirar cómo alterna el camino entre $X$ e $Y$.\visto{2P 2017 Ej.~3(b): largo máximo de camino de aumento}
+
+\begin{problema}{2P 2017, Ej.~3(b): largo máximo de un camino de aumento}
+Con $|U|=m$ y $|W|=n$, acotar el largo de los caminos de aumento que puede encontrar Ford–Fulkerson.
+
+\smallskip
+\textbf{Solución.} El camino va $s\to U\to W\to\cdots\to t$. Para pasar por más de dos nodos del bipartito tiene que volver de $W$ a $U$, y eso solo se puede por aristas hacia atrás. Por lo tanto alterna $U,W,U,W,\dots$ sin repetir nodos, y visita a lo sumo $\min\{m,n\}$ nodos de cada lado. Tiene como máximo $2\min\{m,n\}+2$ nodos, es decir, largo $2\min\{m,n\}+1$. Si $m=n$ puede recorrer todos los nodos ($2m+1$ aristas); el ejemplo de la parte (a) lo alcanza con $m=3$.
+\end{problema}
+
+\begin{trampa}
+\begin{itemize}
+  \item Dejar las aristas del bipartito sin orientar, o sin capacidad. Van de $X$ a $Y$ con capacidad $1$; también sirve $\infty$, pero hay que decirlo.
+  \item Leer el matching del flujo sin invocar integralidad. Un flujo fraccionario de $1/2$ en dos aristas no es un matching.
+\end{itemize}
+\end{trampa}
+
+% =====================================================================
+\section{Modelado: asignaciones con capacidades}
+% =====================================================================
+
+Este es \emph{el} ejercicio de flujo de los parciales recientes. Aparece con cualquier historia (estudiantes y asignaturas, personas y tareas, laboratorios y países, actividades y días, turnos y departamentos, empresas y trabajos, tipos de sangre), pero la estructura es siempre la misma: matching bipartito generalizado con capacidades en los extremos.\visto{2P 2018 Ej.~1: estudiantes y asignaturas con cupo}
+
+\begin{center}
+\begin{tikzpicture}[scale=0.95]
+  \node[flv] (s) at (0,0) {$s$};
+  \foreach \i/\y in {1/1.2,2/0,3/-1.2}{\node[flv] (p\i) at (2,\y) {$p_\i$};}
+  \foreach \j/\y in {1/0.6,2/-0.6}{\node[flv] (q\j) at (4.2,\y) {$q_\j$};}
+  \node[flv] (t) at (6.2,0) {$t$};
+  \draw[flp] (s)--node[fll,above left]{$a_1$}(p1);
+  \draw[flp] (s)--node[fll]{$a_2$}(p2);
+  \draw[flp] (s)--node[fll,below left]{$a_3$}(p3);
+  \draw[fla] (p1)--node[fll]{1}(q1); \draw[fla] (p2)--node[fll,pos=0.3]{1}(q1);
+  \draw[fla] (p2)--node[fll,pos=0.3]{1}(q2); \draw[fla] (p3)--node[fll]{1}(q2);
+  \draw[flp] (q1)--node[fll,above right]{$b_1$}(t);
+  \draw[flp] (q2)--node[fll,below right]{$b_2$}(t);
+  \node[flt,align=center] at (2,-1.95) {elementos de un lado\\(capacidad propia)};
+  \node[flt,align=center] at (4.2,-1.95) {elementos del otro\\(cupo)};
+\end{tikzpicture}
+\end{center}
+
+Hay una arista $(p_i,q_j)$ de capacidad $1$ si y solo si el par $(i,j)$ está permitido. La capacidad $1$ impide que el mismo par se use dos veces. Cada unidad de flujo por $s\,p_i\,q_j\,t$ representa ``se asigna $i$ a $j$''. La capacidad $a_i$ de $(s,p_i)$ es cuánto puede tomar $i$, y la capacidad $b_j$ de $(q_j,t)$ es cuánto admite $j$.
+
+\begin{receta}[modelado con flujo (estilo de las soluciones oficiales)]
+\begin{enumerate}
+  \item \textbf{Red.} Definí $V$: $s$, $t$ y un nodo por cada elemento. Definí $E$ con su capacidad, separando por tipo de arista: ``para cada $e\in E$ agregamos $(s,v_e)$ con capacidad $k$\ldots''. Decí qué representa una unidad de flujo.
+  \item \textbf{Algoritmo.} (1) Construir $G$. (2) Obtener con Ford–Fulkerson un flujo máximo \emph{entero} $f$. (3) Si se pregunta factibilidad, comparar $v(f)$ con la cota $D$ (suma de demandas). (4) Leer la solución: asignar $i$ a $j$ si $f(p_i,q_j)=1$ (o $>0$).
+  \item \textbf{Flujo $\Rightarrow$ solución.} Tomá el flujo entero de valor $D$ y verificá cada restricción del enunciado, citando lo que usás. Integralidad (7.2)/(7.14): las aristas de capacidad $1$ llevan $0$ o $1$. Capacidad: no se supera ningún cupo. Conservación: lo que entra a $p_i$ sale por sus aristas. Saturación: $v(f)=D$ y $D$ es la capacidad del corte junto a $t$ (o junto a $s$), así que esas aristas están llenas.
+  \item \textbf{Solución $\Rightarrow$ flujo.} Dada una solución válida, definí $f$ explícitamente ($1$ en cada par asignado; en $(s,p_i)$, lo asignado a $i$; en $(q_j,t)$, lo asignado a $j$) y verificá capacidad y conservación. Como Ford–Fulkerson da un flujo máximo (7.10) y $v\le c(\cdot)=D$ (7.8), el algoritmo encuentra valor $D$ y responde que sí.
+  \item \textbf{Complejidad.} Contá $|V|$ y $|E|$. Elegí un corte de capacidad $C$ \emph{acotada por cantidades}, por ejemplo $(\{s\}\cup P,\,Q\cup\{t\})$ con aristas de capacidad $1$, que da $C\le|P||Q|$. Aplicá (7.5): $\Oh(|E|\,C)$. Construir la red y leer la solución cuesta $\Oh(|E|)$. Como son una cantidad constante de pasos, domina el más caro.
+\end{enumerate}
+\end{receta}
+
+Los enunciados siguientes están resumidos. Para cada uno, la solución dice la red, cómo se lee la respuesta y la cota de tiempo.\visto{2P 2019 Ej.~1: personas y tareas, $\Oh(k^2q^2)$}
+
+\begin{problema}{2P 2018, Ej.~1: estudiantes y asignaturas}
+Cada asignatura $a$ tiene cupo $q_a$; cada estudiante $e$ se inscribió en $S_e$ y puede cursar a lo sumo $k$. Maximizar el total de asignaciones en tiempo polinomial en $|A|$ y $|E|$.
+
+\smallskip
+\textbf{Solución.} $(s,v_e)$ con capacidad $k$; $(v_e,w_a)$ con capacidad $1$ si $a\in S_e$; $(w_a,t)$ con capacidad $q_a$. Se asigna $e$ a $a$ si $f(v_e,w_a)=1$. Hay $x$ asignaciones factibles si y solo si hay un flujo de valor $x$. Cota: $C=k|E|$ por el corte $(\{s\},\dots)$, $m+n=\Oh(|E||A|)$, total $\Oh(|E|^2|A|\,k)$, que es polinomial porque se puede suponer $k\le|A|$.
+\end{problema}
+
+\begin{problema}{2P 2019, Ej.~1: personas y tareas con mínimos}
+Persona $p_i$ hace tareas de $T_i$, a lo sumo $C_i\le k$. La tarea $t_j$ necesita \emph{al menos} $R_j$ personas. Asignar o informar que no hay solución, en $\Oh(k^2q^2)$.
+
+\smallskip
+\textbf{Solución.} $(s,p_i)$ con capacidad $C_i$; $(p_i,t_j)$ con capacidad $1$ si $t_j\in T_i$; $(t_j,t)$ con capacidad $R_j$. Sea $R=\sum_j R_j$. Hay solución si y solo si $v(f)=R$. La clave está en la vuelta: si una solución asigna más de $R_j$ personas a $t_j$, se liberan las sobrantes y queda una con \emph{exactamente} $R_j$, que da un flujo de valor $R$. Cota: $m=\Oh(qk)$ y el corte $(\{s\}\cup P,\,T\cup\{t\})$ tiene capacidad $\le qk$, así que el total es $\Oh(q^2k^2)$. (También sirve $(\{s\},\dots)$ con $\sum C_i\le qk$.)
+\end{problema}
+
+\begin{problema}{Examen dic.~2020, Ej.~2: vacunas}
+El laboratorio $\ell_i$ produce $c(\ell_i)$ dosis; el país $p_j$ demanda $d(p_j)$; solo algunos pares $(\ell_i,p_j)$ están permitidos. Decidir si se cubre toda la demanda y dar la matriz $A_{ij}$ de dosis.
+
+\smallskip
+\textbf{Solución.} $(s,\ell_i)$ con capacidad $c(\ell_i)$; $(\ell_i,p_j)$ con capacidad $d(p_j)$ (o $\infty$) si el par está permitido; $(p_j,t)$ con capacidad $d(p_j)$. Se responde que sí si $f(p_j,t)=d(p_j)$ para todo $j$, y entonces $A_{ij}=f(\ell_i,p_j)$. Corrección: por conservación, a cada país llegan $d(p_j)$ dosis y de cada laboratorio salen a lo sumo $c(\ell_i)$; solo se usan pares permitidos. Acá las aristas del medio \emph{no} tienen capacidad $1$, porque se mandan muchas dosis por el mismo par.
+\end{problema}
+
+En este último caso la cota $\Oh(mC)$ con $C=\sum_j d(p_j)$ es pseudopolinomial. La letra no pedía tiempo polinomial, así que no hacía falta más.\visto{Examen dic.~2020 Ej.~2: laboratorios y países}
+
+\begin{problema}{Examen jul.~2021, Ej.~1: actividades y días}
+La actividad $i$ dura $d_i$ días, que tienen que caer en $[s_i,f_i]$; cada día se trabaja en una sola actividad. Asignar días o decir que no se puede, en $\Oh(kn^2)$.
+
+\smallskip
+\textbf{Solución.} $(s,i)$ con capacidad $d_i$; $(i,j)$ con capacidad $1$ para cada día $j\in[s_i,f_i]$; $(j,t)$ con capacidad $1$. Sea $D=\sum d_i$. Hay solución si y solo si $v(f)=D$, y a la actividad $i$ le tocan los días $j$ con $f(i,j)=1$. Cota: $|E|=\Oh(kn)$ y el corte $(V\setminus\{t\},\{t\})$ tiene capacidad $n$, así que el total es $\Oh(kn^2)$.
+\end{problema}
+
+El ejercicio de julio de 2021 muestra bien la elección del corte para la complejidad. El corte junto a $s$ tiene capacidad $D=\sum d_i$, que depende de números de la entrada; el corte junto a $t$ tiene capacidad $n$ y da la cota exacta que se pedía.\visto{Examen jul.~2021 Ej.~1: actividades y días}
+
+\begin{problema}{Examen dic.~2021, Ej.~3(b): enfermeros por turno y departamento}
+El turno $T_i$ tiene $E_i$ enfermeros; el departamento $D_j$ recibe a lo sumo $R_j$ por día; en el turno $i$, el departamento $j$ recibe a lo sumo $M_{ij}$. Maximizar el personal asignado y dar cuántos de cada turno van a cada departamento.
+
+\smallskip
+\textbf{Solución.} $(s,T_i)$ con capacidad $E_i$; $(T_i,D_j)$ con capacidad $M_{ij}$; $(D_j,t)$ con capacidad $R_j$. Con Ford–Fulkerson, la cantidad del turno $i$ asignada a $D_j$ es $f(T_i,D_j)$. Con tres turnos y tres departamentos la red tiene tamaño constante.
+\end{problema}
+
+\begin{problema}{2P 2023, Ej.~2: directivos y trabajos comunitarios}
+La empresa $e_i$ tiene $d_i$ directivos, que tienen que ir a trabajos \emph{distintos}; el trabajo $t_j$ tiene cupo $c_j$. ¿Existe una asignación válida? Tiempo polinomial en $h$ y $k$.
+
+\smallskip
+\textbf{Solución.} $(s,e_i)$ con capacidad $d_i$; $(e_i,t_j)$ con capacidad $1$ para todo par (la capacidad $1$ obliga a que los trabajos sean distintos); $(t_j,z)$ con capacidad $c_j$. Hay solución si y solo si $v(f)=n=\sum_i d_i$. La solución oficial prueba la ida con la saturación de $(s,e_i)$ más integralidad, capacidad y conservación, y la vuelta construyendo el flujo y usando (7.10) y (7.8). Cota: el corte $(\{s,e_1,\dots,e_h\},\{t_1,\dots,t_k,z\})$ tiene capacidad $hk$ y $|E|=\Oh(hk)$, así que el total es $\Oh(h^2k^2)$.
+\end{problema}
+
+La solución del 2P de 2023 es la más completa de las oficiales. Sigue paso a paso la receta: (a.1) saturación de las aristas de $s$, (a.2) flujo $0$ o $1$ en el medio por integralidad, (a.3) cupos respetados por capacidad, y después la verificación de cada condición de la asignación.\visto{2P 2023 Ej.~2: empresas, trabajos distintos}
+
+\begin{problema}{Examen feb.~2023, Ej.~1: transfusiones de sangre}
+Hay oferta $s_O,s_A,s_B,s_{AB}$ y demanda $d_O,d_A,d_B,d_{AB}$. $O$ dona a todos, $A$ dona a $A$ y $AB$, $B$ dona a $B$ y $AB$, y $AB$ solo a $AB$. (a) Modelar y decidir si alcanza. (b) Con oferta $50,36,11,8$ y demanda $45,42,10,3$, mostrar con un corte que no alcanza y dar una asignación máxima.
+
+\smallskip
+\textbf{Solución.} (a) $(s,\text{oferta}_X)$ con capacidad $s_X$; $(\text{oferta}_X,\text{demanda}_Y)$ con capacidad $\infty$ si $Y$ puede recibir de $X$; $(\text{demanda}_Y,t)$ con capacidad $d_Y$. Alcanza si y solo si todas las aristas hacia $t$ quedan saturadas. (b) Sea $A=\{s,\text{of}_B,\text{of}_{AB},\text{dem}_B,\text{dem}_{AB}\}$. Las aristas que salen de $A$ son $(s,\text{of}_O)$, $(s,\text{of}_A)$, $(\text{dem}_B,t)$ y $(\text{dem}_{AB},t)$, de capacidad $50+36+10+3=99<100$. Una asignación de $99$: $O\to O$ $45$, $O\to A$ $5$, $A\to A$ $36$, $B\to B$ $10$, $B\to AB$ $1$, $AB\to AB$ $2$.
+\end{problema}
+
+La parte (b) del ejercicio de sangre es el uso típico de un corte como certificado. Las capacidades $\infty$ obligan a que el corte no deje una oferta del lado de $s$ si la demanda que esa oferta puede cubrir queda del lado de $t$. Por eso se elige $A$ cerrado ``hacia adelante'': $B$ y $AB$ solo donan a $B$ y $AB$.\visto{Examen feb.~2023 Ej.~1: tipos de sangre}
+
+El ejercicio de febrero de 2024 agrega una restricción que no se puede expresar solo con capacidades en los extremos. Se resuelve con una capa intermedia de nodos.\visto{Examen feb.~2024 Ej.~3: cursos con horarios superpuestos}
+
+\begin{problema}{Examen feb.~2024, Ej.~3: cursos con superposición horaria}
+Como en 2P 2018, pero el estudiante $e$ puede cursar a lo sumo $p_e$ cursos y hay una partición $\mathcal S$ de los cursos en franjas horarias: a cada estudiante se le asigna a lo sumo un curso por franja. Sugerencia: $V=\{s,t\}\cup\mathcal E\cup W\cup C$ con $W=\mathcal E\times\mathcal S$.
+
+\smallskip
+\textbf{Solución.} $(s,e)$ con capacidad $p_e$; $(e,(e,S))$ con capacidad $1$ si $S\cap C_e\ne\emptyset$; $((e,S_c),c)$ con capacidad $1$ para cada $c\in C_e$; $(c,t)$ con capacidad $q_c$. Como por cada nodo $(e,S)$ entra a lo sumo $1$, por conservación sale a lo sumo $1$, y eso da ``a lo sumo un curso por franja''. Cota: $|W|\le|\mathcal E||C|$ y el corte $(\{s\}\cup\mathcal E,\dots)$ tiene capacidad $\le|\mathcal E||\mathcal S|\le|\mathcal E||C|$, así que es polinomial.
+\end{problema}
+
+\begin{center}
+\begin{tikzpicture}[scale=0.95]
+  \node[flv] (s) at (0,0) {$s$};
+  \node[flv] (e) at (1.6,0) {$e$};
+  \node[flv,minimum size=7mm,font=\scriptsize] (w1) at (3.4,0.8) {$e,S_1$};
+  \node[flv,minimum size=7mm,font=\scriptsize] (w2) at (3.4,-0.8) {$e,S_2$};
+  \node[flv] (c1) at (5.2,1.3) {$c_1$};
+  \node[flv] (c2) at (5.2,0.3) {$c_2$};
+  \node[flv] (c3) at (5.2,-0.8) {$c_3$};
+  \node[flv] (t) at (6.8,0.2) {$t$};
+  \draw[flp] (s)--node[fll,above]{$p_e$}(e);
+  \draw[flp] (e)--node[fll,above left]{1}(w1);
+  \draw[flp] (e)--node[fll,below left]{1}(w2);
+  \draw[fla] (w1)--node[fll]{1}(c1); \draw[fla] (w1)--node[fll]{1}(c2);
+  \draw[fla] (w2)--node[fll]{1}(c3);
+  \draw[fla] (c1)--node[fll,above right]{$q_{c_1}$}(t);
+  \draw[fla] (c2)--node[fll]{$q_{c_2}$}(t);
+  \draw[fla] (c3)--node[fll,below right]{$q_{c_3}$}(t);
+  \node[flt] at (3.4,-1.6) {franja $S_1=\{c_1,c_2\}$, franja $S_2=\{c_3\}$};
+\end{tikzpicture}
+\end{center}
+
+Este truco (un nodo por par ``elemento $\times$ grupo'' con una arista de capacidad $1$ que entra) sirve para cualquier restricción del tipo ``a lo sumo $r$ por grupo'': la arista que entra a $(e,S)$ lleva capacidad $r$.
+
+\begin{trampa}
+\begin{itemize}
+  \item Probar una sola dirección. La equivalencia ``hay solución $\iff$ $v(f)=D$'' se demuestra en los dos sentidos, salvo que la letra diga lo contrario (como en dic.~2020, que pedía solo una).
+  \item En la vuelta, decir ``la solución induce un flujo'' sin definirlo arista por arista ni verificar capacidad y conservación.
+  \item No invocar integralidad al leer la asignación de un flujo.
+  \item Usar capacidad $\infty$ en las aristas del medio cuando el par no se puede repetir (directivos, estudiantes). La capacidad $1$ es la que impide repetir.
+  \item Cota de tiempo con $C=\sum$ (cupos) cuando se pide polinomial en las cantidades: no es polinomial. Buscá el corte con aristas de capacidad $1$ o el corte junto a $t$.
+  \item ``Al menos $R_j$'' modelado con capacidad $\infty$: así no se fuerza nada. Se exige exactamente $R_j$ y se argumenta que alcanza.
+\end{itemize}
+\end{trampa}
+
+% =====================================================================
+\section{Mapa de lo que se preguntó}
+% =====================================================================
+
+Relevamiento de los segundos parciales 2008--2025 y de los exámenes 2009--2026. En los parciales y exámenes anteriores a noviembre de 2017 no aparece flujo, y en los segundos parciales de 2021 y 2024 tampoco hubo.
+
+\begin{center}
+\small
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{2.75cm}>{\raggedright\arraybackslash}p{2.5cm}>{\raggedright\arraybackslash}X@{}}
+\toprule
+Fuente & Tema & Qué se pedía \\
+\midrule
+2P 2017 Ej.~3(a) & FF a mano & Flujo máximo desde un flujo dado, con residuales; necesita aristas hacia atrás. \\
+2P 2017 Ej.~3(b) & Matching bipartito & Largo máximo de un camino de aumento: $2\min\{m,n\}+1$. \\
+Ex.\ feb.~2018 P.~1 & Cortes (V/F) & ¿Corte mínimo único? ¿Flujo máximo único dado el corte? Contraejemplos. \\
+2P 2018 Ej.~1 & Modelado & Estudiantes y asignaturas con cupo y máximo $k$; complejidad polinomial. \\
+Ex.\ dic.~2018 Ej.~4 & Corte mínimo & Calcular un corte mínimo desde $\flGf$ en $\Oh(m)$, es (7.11). \\
+2P 2019 Ej.~1 & Modelado & Personas y tareas, mínimo $R_j$ por tarea, máximo $C_i$; $\Oh(k^2q^2)$. \\
+2P 2020 Ej.~1 & Max-flujo/min-corte & Capacidades impares con máximo par; capacidades pares implican máximo par. \\
+Ex.\ jul.~2020 Ej.~2 & Teoría & Condición de capacidad; probar $v(f)\le c(A,B)$; FF en $\Oh(mC)$. \\
+Ex.\ dic.~2020 Ej.~2 & Modelado & Laboratorios y países (vacunas); probar el sentido flujo $\Rightarrow$ solución. \\
+Ex.\ jul.~2021 Ej.~1 & Modelado & Actividades en ventanas de días; $\Oh(kn^2)$ con el corte junto a $t$. \\
+Ex.\ dic.~2021 Ej.~3 & Residual y modelado & Definir grafo residual; enfermeros por turno y departamento. \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\begin{center}
+\small
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{2.75cm}>{\raggedright\arraybackslash}p{2.5cm}>{\raggedright\arraybackslash}X@{}}
+\toprule
+Fuente & Tema & Qué se pedía \\
+\midrule
+2P 2022 Ej.~2 & Teoría & Definir red, flujo, valor, corte y capacidad; demostrar (7.8). \\
+Ex.\ feb.~2023 Ej.~1 & Modelado y cortes & Tipos de sangre; corte de capacidad $99<100$ como certificado; asignación máxima. \\
+Ex.\ jul.~2023 Ej.~3 & FF a mano y V/F & Ejecutar FF con $G$ y $\flGf$; ¿sumar $1$ a las capacidades conserva el corte mínimo? \\
+2P 2023 Ej.~2 & Modelado & Directivos y trabajos distintos con cupos; ida, vuelta y $\Oh(h^2k^2)$. \\
+Ex.\ feb.~2024 Ej.~3 & Modelado & Cursos con franjas horarias: capa intermedia $\mathcal E\times\mathcal S$. \\
+Ex.\ jul.~2025 Ej.~2 & Teoría & Demostrar (7.9): sin camino en $\flGf$ hay un corte con $v(f)=c(A,B)$. \\
+2P 2025 Ej.~1(b--d) & Teoría y FF & Definir corte; corte mínimo desde $G_r$; residual y flujo máximo de una red. \\
+Ex.\ dic.~2025 Ej.~1(d) & Teoría & Definición de flujo $s$-$t$. \\
+Ex.\ feb.~2026 Ej.~1(e) & Complejidad & Cota $\Oh(mC)$ de FF: qué es $m$, qué es $C$ y por qué aparecen. \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\textbf{Lectura rápida.} En los segundos parciales el flujo vale entre 10 y 17 puntos. Casi siempre es un ejercicio de modelado (2018, 2019, 2023) o un bloque de teoría y ejecución (2017, 2020, 2022, 2025). En los exámenes alternan las mismas dos cosas. Lo que más se repite: armar la red de asignación, probar los dos sentidos con integralidad, acotar el tiempo con un corte bien elegido, demostrar (7.8) o (7.9) y obtener el corte mínimo desde el residual.

@@ -1,0 +1,303 @@
+% Programación 3 - Ejercicio 2 (panificados)
+% Compilar con:  pdflatex ejercicio2-panificados.tex
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish]{babel}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+
+\theoremstyle{plain}
+\newtheorem{lema}{Lema}
+\newtheorem{teorema}{Teorema}
+
+\theoremstyle{definition}
+\newtheorem{definicion}{Definición}
+
+\theoremstyle{remark}
+\newtheorem*{observacion}{Observación}
+
+\newcommand{\inv}{\operatorname{inv}}
+
+\title{Ejercicio 2 --- Panificados}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+\vspace{-2.5em}
+
+%======================================================================
+\section*{Enunciado (resumen)}
+
+Una panadería elabora $n$ panificados. Cada uno requiere una preparación de
+duración $p_i$ y un horneado inmediato posterior de duración $h_i$. Las
+preparaciones son independientes entre sí y pueden realizarse simultáneamente;
+el horneado no, porque solo se puede hornear un panificado a la vez. Todos los
+tiempos son distintos. Se busca el orden de horneado que minimiza el tiempo
+total de elaboración.
+
+%======================================================================
+\section*{(a) Algoritmo}
+
+\subsection*{Modelado}
+
+Las preparaciones no compiten por ningún recurso: son ilimitadamente paralelas,
+de modo que todas pueden comenzar en el instante $0$. Y aunque el horneado deba
+ser inmediatamente posterior a la preparación, esto no agrega ninguna
+restricción efectiva: siempre se puede retrasar el inicio de la preparación
+para que termine justo cuando el horno queda libre.
+
+En consecuencia, si $b_i$ denota el instante en que el panificado $i$ entra al
+horno, su preparación comienza en $b_i - p_i$ y la única restricción es
+\[
+  b_i \;\geq\; p_i .
+\]
+
+El problema se reduce entonces a secuenciar $n$ tareas en una sola máquina (el
+horno), donde la tarea $i$ tiene \emph{tiempo de liberación} $r_i = p_i$ y
+\emph{duración} $h_i$, minimizando el instante en que termina la última. En
+notación de scheduling, $1 \mid r_j \mid C_{\max}$.
+
+\subsection*{Criterio}
+
+\begin{quote}
+\textbf{Hornear en orden creciente de tiempo de preparación $p_i$.}
+\end{quote}
+
+La intuición es directa tras el modelado: como todas las preparaciones arrancan
+juntas, el panificado de preparación más corta es el primero en estar
+disponible, y el de preparación más larga conviene hornearlo al final, porque
+mientras se hornean los otros él se sigue preparando sin costo.
+
+Obsérvese que los tiempos de horneado $h_i$ \emph{no} intervienen en el
+criterio. Ordenar por $h$ decreciente, por ejemplo, es incorrecto:
+\[
+  n = 2, \quad p = (10,\,1), \quad h = (10,\,1)
+\]
+\begin{center}
+\begin{tabular}{lll}
+  Por $h$ decreciente: & hornea $1$ en $[10,20]$, luego $2$ en $[20,21]$
+    & total $21$ \\
+  Por $p$ creciente:   & hornea $2$ en $[1,2]$, \; luego $1$ en $[10,20]$
+    & total $20$
+\end{tabular}
+\end{center}
+
+\subsection*{Algoritmo}
+
+\begin{verbatim}
+    PANIFICADOS(p[1..n], h[1..n]):
+        ordenar los índices por p ascendente
+        t <- 0                        # instante en que el horno queda libre
+        para cada i en ese orden:
+            t <- max(t, p_i) + h_i    # espera si aún no está preparado
+        devolver el orden y t
+\end{verbatim}
+
+El orden de horneado es la salida y $t$ es el tiempo total de elaboración. Si se
+desea el schedule explícito, el panificado que entra al horno en $b_i$ comienza
+su preparación en $b_i - p_i$.
+
+\medskip
+\noindent
+\textbf{Complejidad.} $O(n\log n)$, dominada por el ordenamiento; el barrido
+posterior es $O(n)$.
+
+\medskip
+\noindent
+\textbf{Tiempo total.} Si $(1),(2),\dots,(n)$ denota el orden por $p$ creciente,
+\[
+  T \;=\; \max_{1\leq k\leq n}\;\Bigl(\, p_{(k)} + \sum_{j\geq k} h_{(j)} \Bigr).
+\]
+
+%======================================================================
+\section*{(b) Demostración de corrección}
+
+\subsection*{Formalización}
+
+Como el horno procesa un panificado a la vez, toda solución factible determina
+un orden de horneado, es decir una permutación $\sigma$ de $\{1,\dots,n\}$.
+Dada $\sigma$, defino el \emph{schedule más temprano} por la recurrencia
+\[
+  C_0(\sigma) = 0, \qquad
+  C_k(\sigma) = \max\bigl( C_{k-1}(\sigma),\, p_{\sigma(k)} \bigr) + h_{\sigma(k)},
+  \qquad k = 1,\dots,n,
+\]
+y escribo $T(\sigma) = C_n(\sigma)$. Esto es exactamente lo que computa el
+algoritmo. Una inducción inmediata muestra que cualquier schedule con el mismo
+orden de horneado tiene tiempos de finalización $\geq C_k(\sigma)$ para todo
+$k$; por lo tanto, para cada orden el schedule más temprano es el de menor
+tiempo total, y basta comparar permutaciones. Denoto
+$\mathrm{OPT} = \min_\sigma T(\sigma)$ y $\sigma_{\mathrm{alg}}$ a la
+permutación que devuelve el algoritmo.
+
+\begin{definicion}
+Una \textbf{inversión} de $\sigma$ es un par de posiciones $k < l$ tal que
+$p_{\sigma(k)} > p_{\sigma(l)}$; es decir, un panificado de preparación más
+larga horneado antes que uno de preparación más corta. Se denota $\inv(\sigma)$
+a la cantidad de inversiones de $\sigma$.
+\end{definicion}
+
+Como todos los tiempos de preparación son distintos, $\sigma_{\mathrm{alg}}$ es
+la \emph{única} permutación con $\inv(\sigma) = 0$.
+
+\subsection*{Lema de monotonía}
+
+\begin{lema}\label{lema:mono}
+Fijada una secuencia de panificados, el tiempo total de hornearla es una función
+no decreciente del instante en que el horno queda libre al comenzar.
+\end{lema}
+
+\begin{proof}
+Para un solo panificado de datos $(p,h)$, la función es
+$g(t) = \max(t,p) + h$, que es no decreciente en $t$. Hornear una secuencia es
+componer estas funciones una tras otra, y la composición de funciones no
+decrecientes es no decreciente.
+\end{proof}
+
+Este lema es el que permite razonar localmente: si un cambio no aumenta el
+instante en que el horno queda libre tras los panificados afectados, tampoco
+aumenta el tiempo total.
+
+\subsection*{Lema de la inversión adyacente}
+
+\begin{lema}\label{lema:adyacente}
+Si $\inv(\sigma) > 0$, entonces $\sigma$ tiene una inversión en posiciones
+consecutivas.
+\end{lema}
+
+\begin{proof}
+Por el contrarrecíproco. Si ninguna posición consecutiva forma inversión, vale
+$p_{\sigma(1)} < p_{\sigma(2)} < \dots < p_{\sigma(n)}$, y por transitividad
+$p_{\sigma(k)} < p_{\sigma(l)}$ para todo $k < l$: no hay ninguna inversión.
+\end{proof}
+
+\subsection*{Lema de intercambio}
+
+\begin{lema}\label{lema:intercambio}
+Sea $\sigma$ con una inversión en las posiciones consecutivas $k$ y $k+1$, y sea
+$\sigma'$ la permutación que resulta de intercambiar esos dos panificados.
+Entonces
+\[
+  T(\sigma') \leq T(\sigma)
+  \qquad\text{y}\qquad
+  \inv(\sigma') = \inv(\sigma) - 1 .
+\]
+\end{lema}
+
+\begin{proof}
+Sean $a = \sigma(k)$ y $b = \sigma(k+1)$, de modo que $p_a > p_b$ por ser
+inversión, y sea $t = C_{k-1}(\sigma)$ el instante en que el horno queda libre
+antes de la posición $k$ (con $t = 0$ si $k = 1$). Ese valor es el mismo en
+$\sigma$ y en $\sigma'$, porque las posiciones anteriores no se modifican.
+
+Aplicando la recurrencia dos veces, el horno queda libre tras las posiciones $k$
+y $k+1$ en los instantes
+\[
+  F(\sigma)  = \max\bigl( \max(t,p_a) + h_a,\; p_b \bigr) + h_b,
+  \qquad
+  F(\sigma') = \max\bigl( \max(t,p_b) + h_b,\; p_a \bigr) + h_a .
+\]
+
+En la primera expresión se tiene $\max(t,p_a) + h_a \geq p_a > p_b$, de modo que
+el máximo externo se alcanza en el primer argumento:
+\[
+  F(\sigma) = \max(t,p_a) + h_a + h_b .
+\]
+
+Para acotar $F(\sigma')$ basta ver que
+$\max\bigl( \max(t,p_b) + h_b,\, p_a \bigr) \leq \max(t,p_a) + h_b$, lo cual se
+verifica argumento por argumento:
+\begin{itemize}
+  \item $\max(t,p_b) + h_b \leq \max(t,p_a) + h_b$, porque $p_b < p_a$;
+  \item $p_a \leq \max(t,p_a) \leq \max(t,p_a) + h_b$.
+\end{itemize}
+Por lo tanto
+\[
+  F(\sigma') \;\leq\; \max(t,p_a) + h_b + h_a \;=\; F(\sigma).
+\]
+
+Los panificados de las posiciones $k+2,\dots,n$ son los mismos y en el mismo
+orden en ambas permutaciones; como el horno queda libre en $\sigma'$ no más
+tarde que en $\sigma$, el Lema~\ref{lema:mono} da $T(\sigma') \leq T(\sigma)$.
+
+Para el conteo de inversiones: intercambiar dos elementos \emph{consecutivos} no
+altera el orden relativo de ningún otro par, ya que cada uno de los demás pares
+conserva sus dos elementos en el mismo orden. El único par afectado es $(a,b)$,
+que era inversión en $\sigma$ y deja de serlo en $\sigma'$. Luego
+$\inv(\sigma') = \inv(\sigma) - 1$.
+\end{proof}
+
+\begin{observacion}
+El Lema~\ref{lema:intercambio} es exactamente la desigualdad que justifica el
+criterio de ordenamiento: conviene hornear primero al de menor tiempo de
+preparación. Nótese que los tiempos de horneado $h_a$ y $h_b$ no intervienen en
+la comparación.
+\end{observacion}
+
+\subsection*{Teorema}
+
+\begin{teorema}
+$T(\sigma_{\mathrm{alg}}) = \mathrm{OPT}$: el algoritmo minimiza el tiempo total
+de elaboración.
+\end{teorema}
+
+\begin{proof}
+Sea $\sigma^{*}$ una solución óptima, es decir
+$T(\sigma^{*}) = \mathrm{OPT}$. Construyo una sucesión de permutaciones
+\[
+  \sigma^{*} = \sigma_0,\; \sigma_1,\; \sigma_2,\; \dots
+\]
+de la siguiente manera: mientras $\inv(\sigma_r) > 0$, el
+Lema~\ref{lema:adyacente} garantiza que $\sigma_r$ tiene una inversión en
+posiciones consecutivas, y se define $\sigma_{r+1}$ como el resultado de
+intercambiarla.
+
+Por el Lema~\ref{lema:intercambio}, en cada paso se cumple
+\[
+  T(\sigma_{r+1}) \leq T(\sigma_r)
+  \qquad\text{e}\qquad
+  \inv(\sigma_{r+1}) = \inv(\sigma_r) - 1 .
+\]
+
+Como $\inv$ es un entero no negativo que decrece exactamente en $1$ por paso, el
+proceso termina tras exactamente $\inv(\sigma^{*}) \leq \binom{n}{2}$
+intercambios, en una permutación $\sigma_N$ con $\inv(\sigma_N) = 0$. Siendo
+todos los tiempos de preparación distintos, la única permutación sin inversiones
+es la que ordena por $p$ creciente, o sea
+$\sigma_N = \sigma_{\mathrm{alg}}$.
+
+Encadenando las desigualdades de todos los pasos,
+\[
+  T(\sigma_{\mathrm{alg}}) = T(\sigma_N) \leq T(\sigma_{N-1}) \leq \dots
+  \leq T(\sigma_0) = T(\sigma^{*}) = \mathrm{OPT},
+\]
+y como $\sigma_{\mathrm{alg}}$ es una solución factible vale también
+$T(\sigma_{\mathrm{alg}}) \geq \mathrm{OPT}$. Por lo tanto
+$T(\sigma_{\mathrm{alg}}) = \mathrm{OPT}$.
+\end{proof}
+
+%======================================================================
+\section*{Comentarios sobre la redacción}
+
+Tres puntos que conviene no omitir, porque son donde suelen perderse puntos:
+
+\begin{itemize}
+  \item \textbf{El Lema~\ref{lema:mono}.} Sin él, el Lema~\ref{lema:intercambio}
+  solo prueba que el intercambio no empeora el instante en que terminan esos dos
+  panificados, no el tiempo total. Es el puente entre lo local y lo global.
+
+  \item \textbf{La terminación.} El argumento no es ``intercambio hasta que
+  quede ordenado'', sino que $\inv$ decrece estrictamente y está acotada
+  inferiormente por $0$, luego el proceso es finito. Eso es lo que garantiza que
+  la cadena de desigualdades tenga largo finito.
+
+  \item \textbf{La unicidad de la permutación sin inversiones.} Se apoya en que
+  los $p_i$ son todos distintos, dato que el enunciado provee explícitamente. Si
+  hubiera empates, $\sigma_{\mathrm{alg}}$ sería \emph{una} de las permutaciones
+  sin inversiones y habría que agregar que todas ellas tienen el mismo costo.
+\end{itemize}
+
+\end{document}

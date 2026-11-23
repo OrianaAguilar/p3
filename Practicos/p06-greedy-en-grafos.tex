@@ -1,0 +1,269 @@
+\input{preambulo}
+
+\title{Práctico 6 --- Aplicación de algoritmos greedy en problemas de grafos}
+\author{Programación 3 --- FING, UdelaR}
+\date{}
+
+\begin{document}
+\maketitle
+
+\paragraph{Resultados del libro que usamos.} Sea $G=(V,E)$ un grafo conexo no dirigido con costos $c_e$ en las aristas, todos distintos.
+\begin{itemize}
+\item \textbf{Propiedad de corte (4.17).} Sea $S$ un subconjunto de vértices con $\emptyset\neq S\neq V$ y sea $e=(v,w)$ la arista de menor costo con $v\in S$, $w\in V\setminus S$. Entonces \emph{todo} árbol de cubrimiento de costo mínimo (MST) de $G$ contiene a $e$.
+\item \textbf{Propiedad de ciclo (4.20).} Sea $C$ un ciclo de $G$ y $e$ la arista de mayor costo de $C$. Entonces $e$ no pertenece a \emph{ningún} MST de $G$.
+\end{itemize}
+Usamos también los hechos básicos sobre árboles: un grafo con $n$ vértices es un árbol si y solo si cumple dos cualesquiera de \emph{(i)} conexo, \emph{(ii)} acíclico, \emph{(iii)} tiene $n-1$ aristas; y en un árbol hay un único camino entre cada par de vértices.
+
+%======================================================================
+\section{Ejercicio 1}
+\begin{enunciado}
+(Kleinberg \& Tardos, Ex.~4.8). Mostrar que un grafo conexo con costos en las aristas que son todos distintos entre sí tiene un único árbol de cubrimiento mínimo.
+\end{enunciado}
+
+\examref{Examen julio 2018, Pregunta 3(b) (``¿Puede haber dos árboles de cubrimiento de costo mínimo diferentes?''). La demostración de abajo sigue la de la solución oficial, basada en la propiedad de corte.}
+
+\textbf{Existencia.} Como $G$ es conexo, tiene al menos un árbol de cubrimiento (por ejemplo, el árbol de BFS), y como la cantidad de árboles de cubrimiento es finita, alguno tiene costo mínimo. Falta ver que es único.
+
+\textbf{Unicidad.} Sea $T$ un MST de $G$ y sea $e=(u,w)\in T$ una arista cualquiera de $T$. Vamos a ver que $e$ pertenece a \emph{todo} MST de $G$.
+
+Si sacamos $e$ de $T$, el grafo $(V,T\setminus\{e\})$ tiene exactamente dos componentes conexas (sacar una arista de un árbol lo desconecta en dos partes): sea $S$ la que contiene a $u$; la otra es $V\setminus S$ y contiene a $w$. Así $(S,V\setminus S)$ es un corte de $G$ y $e$ lo cruza.
+
+\emph{Afirmación: $e$ es la arista de menor costo que cruza el corte $(S,V\setminus S)$.} Supongamos que no, y sea $f\neq e$ una arista que cruza el corte con $c_f<c_e$. Entonces $T'=(T\setminus\{e\})\cup\{f\}$ tiene $n-1$ aristas y es conexo: $S$ y $V\setminus S$ son conexos por separado usando aristas de $T\setminus\{e\}$ y $f$ los une. Por lo tanto $T'$ es un árbol de cubrimiento con
+\[ c(T') = c(T) - c_e + c_f < c(T), \]
+lo que contradice que $T$ es MST. Esto prueba la afirmación.
+
+Por la propiedad de corte (4.17), la arista de menor costo del corte $(S,V\setminus S)$, que es $e$, pertenece a todo MST de $G$.
+
+Como $e$ era una arista genérica de $T$, toda arista de $T$ está en todo MST. Entonces, si $T^\ast$ es cualquier MST de $G$, tenemos $T\subseteq T^\ast$; y como ambos son árboles de cubrimiento tienen exactamente $n-1$ aristas, por lo que $T=T^\ast$. Luego el MST es único. \qed
+
+\begin{observacion}
+La hipótesis de costos distintos es necesaria: en un triángulo con las tres aristas de costo $1$, cualquier par de aristas es un MST, y hay tres MST distintos. (En la prueba, la hipótesis se usa en la propiedad de corte: con empates ``la'' arista de menor costo del corte no está bien definida.)
+\end{observacion}
+
+%======================================================================
+\section{Ejercicio 2}
+\begin{enunciado}
+(Kleinberg \& Tardos, Ex.~4.21). Llamamos \emph{casi árbol} a un grafo conexo con $n$ vértices y $m$ aristas tal que $m\le n+8$.
+\begin{enumerate}[label=(\alph*)]
+\item Dé un algoritmo que construye un árbol de cubrimiento mínimo para un grafo casi árbol. Su algoritmo debe admitir una implementación cuyo tiempo de ejecución sea $\Oh(n)$.
+\item Demuestre la corrección de su algoritmo.
+\item Demuestre que su algoritmo admite una implementación con tiempo de ejecución que es $\Oh(n)$.
+\end{enumerate}
+Sugerencia: use el enunciado (4.20) del libro de referencia.
+\end{enunciado}
+
+Suponemos, como en (4.20), que los costos de las aristas son distintos (al final del ejercicio mostramos que el algoritmo es correcto incluso con empates). Suponemos además que $G$ es simple (sin aristas múltiples ni lazos) y que viene dado por listas de adyacencia (o por la lista de sus $m$ aristas, a partir de la cual se arman las listas en $\Oh(n+m)$).
+
+\subsection*{(a) Algoritmo}
+
+La idea es la del algoritmo \emph{Reverse-Delete}, pero sin ordenar las aristas: mientras quede un ciclo, encontramos uno cualquiera y eliminamos su arista de mayor costo. Como un casi árbol tiene a lo sumo $9$ aristas ``de más'' respecto a un árbol, esto se repite a lo sumo $9$ veces.
+
+\begin{algorithm}[H]
+\caption{MST de un casi árbol}
+\begin{algorithmic}[1]
+\Require $G=(V,E)$ conexo, $|V|=n$, $|E|=m\le n+8$, costos $c_e$ distintos
+\Ensure Un MST de $G$
+\State $H \gets (V,E)$ \Comment{copia en listas de adyacencia}
+\While{$H$ tiene más de $n-1$ aristas}
+  \State Encontrar un ciclo $C$ de $H$ (con DFS, ver parte (c))
+  \State Sea $e$ la arista de mayor costo de $C$
+  \State Eliminar $e$ de $H$
+\EndWhile
+\State \Return las aristas de $H$
+\end{algorithmic}
+\end{algorithm}
+
+El paso 3 siempre encuentra un ciclo: un grafo conexo con $n$ vértices y al menos $n$ aristas no es un árbol, y como es conexo, no puede ser acíclico; luego tiene un ciclo. (Que $H$ siga conexo lo probamos en (b).)
+
+\subsection*{(b) Corrección}
+
+Llamemos $H_0=G, H_1, H_2,\dots$ a los grafos sucesivos ($H_{i+1}=H_i-e_i$, donde $e_i$ es la arista eliminada en la iteración $i+1$).
+
+\begin{lema}\label{lema:casiarbol}
+Para todo $i$: \emph{(1)} $H_i$ es conexo con vértices $V$; \emph{(2)} todo MST de $G$ está contenido en $H_i$ (es decir, no usa ninguna arista eliminada).
+\end{lema}
+\begin{proof}
+Por inducción en $i$. Para $i=0$ es obvio. Supongamos que vale para $H_i$ y sea $e_i=(x,y)$ la arista de mayor costo del ciclo $C$ de $H_i$ encontrado.
+
+\emph{(1)} $C\setminus\{e_i\}$ es un camino de $x$ a $y$ en $H_{i+1}$. Si un camino de $H_i$ usa la arista $e_i$, la reemplazamos por ese camino y obtenemos un recorrido en $H_{i+1}$ entre los mismos extremos. Luego $H_{i+1}$ sigue siendo conexo.
+
+\emph{(2)} $C$ es un ciclo de $H_i$, y por lo tanto también de $G$ (pues $H_i\subseteq G$), y $e_i$ es su arista de mayor costo. Por la propiedad de ciclo (4.20), $e_i$ no pertenece a ningún MST de $G$. Como, por hipótesis inductiva, todo MST de $G$ está contenido en $H_i$ y ninguno contiene a $e_i$, todo MST de $G$ está contenido en $H_i-e_i=H_{i+1}$.
+\end{proof}
+
+\textbf{Terminación.} Cada iteración elimina una arista, y el ciclo se ejecuta mientras haya más de $n-1$ aristas; luego hay exactamente $m-(n-1)\le n+8-n+1=9$ iteraciones.
+
+\textbf{El resultado es un MST.} Al terminar, $H$ tiene $n-1$ aristas y es conexo (Lema~\ref{lema:casiarbol}(1)), por lo que es un árbol de cubrimiento de $G$. Por otra parte $G$ tiene algún MST $T$ (es conexo), y por el Lema~\ref{lema:casiarbol}(2), $T\subseteq H$. Como $|T|=n-1=|H|$, resulta $T=H$: el algoritmo devuelve un MST de $G$. \qed
+
+\subsection*{(c) Implementación en $\Oh(n)$}
+
+Observemos primero que $n+m\le 2n+8=\Oh(n)$, de modo que cualquier recorrido del grafo completo (BFS/DFS) cuesta $\Oh(n)$.
+
+\begin{itemize}
+\item \textbf{Representación.} Listas de adyacencia para $H$, más un contador del número de aristas. Construirlas a partir de $G$ cuesta $\Oh(n+m)=\Oh(n)$.
+\item \textbf{Encontrar un ciclo (paso 3).} Ejecutamos DFS desde cualquier vértice guardando, para cada vértice $v$, su padre $\mathrm{padre}[v]$ en el árbol DFS y su profundidad. En un grafo no dirigido, si durante la DFS desde $v$ se encuentra un vecino $w$ ya visitado con $w\neq \mathrm{padre}[v]$, detenemos la DFS: la arista $(v,w)$ cierra un ciclo. En efecto, toda arista de $H$ que no está en el árbol DFS une un vértice con un ancestro suyo (enunciado (3.7) del libro), y la primera vez que se detecta una tal arista $\{a,b\}$, con $a$ ancestro de $b$, es al explorar la lista de $b$ (que se recorre completa antes de que la DFS vuelva a $a$; y si $a$ hubiera explorado $b$ antes de que $b$ fuera visitado, $\{a,b\}$ sería arista del árbol). Por lo tanto $w$ es ancestro de $v$, y el ciclo es $v\to\mathrm{padre}[v]\to\dots\to w\to v$. Lo reconstruimos subiendo por los punteros $\mathrm{padre}$ desde $v$ hasta $w$, en $\Oh(n)$ (el ciclo tiene a lo sumo $n$ vértices). Como $H$ es conexo y no es un árbol, la DFS necesariamente encuentra una arista así. Costo total: $\Oh(n+m)=\Oh(n)$.
+\item \textbf{Arista de mayor costo del ciclo (paso 4).} Recorrer las a lo sumo $n$ aristas del ciclo: $\Oh(n)$.
+\item \textbf{Eliminar la arista $(x,y)$ (paso 5).} Recorrer las listas de $x$ y de $y$ y quitar la entrada correspondiente: $\Oh(\deg(x)+\deg(y))=\Oh(m)=\Oh(n)$. Decrementar el contador: $\Oh(1)$.
+\item \textbf{Condición del \textbf{mientras}:} comparar el contador con $n-1$, $\Oh(1)$.
+\end{itemize}
+
+Cada iteración cuesta entonces $\Oh(n)$, y hay a lo sumo $9$ iteraciones. Sumando la inicialización y la salida (recorrer $H$, $\Oh(n)$), el tiempo total es
+\[ \Oh(n) + 9\cdot \Oh(n) + \Oh(n) = \Oh(n). \]
+
+\begin{observacion}[Costos con empates]
+Si los costos no son distintos, el algoritmo (eliminando \emph{una} arista de costo máximo del ciclo) sigue siendo correcto. Basta reemplazar (2) del lema por: \emph{(2') todo MST de $H_{i}$ es MST de $G$}, y probar que si $e$ es una arista de costo máximo de un ciclo $C$ de un grafo conexo $H$, entonces todo MST de $H-e$ es MST de $H$. En efecto, sea $T$ un MST de $H$. Si $e\notin T$, $T$ es árbol de cubrimiento de $H-e$. Si $e\in T$, $T-e$ tiene dos componentes y el camino $C-e$ une los extremos de $e$, así que tiene una arista $f\neq e$ que cruza entre ellas, con $f\notin T$; $T-e+f$ es árbol de cubrimiento de $H-e$ de costo $c(T)-c_e+c_f\le c(T)$. En ambos casos $H-e$ tiene un árbol de cubrimiento de costo $\le c(T)$, y como todo árbol de cubrimiento de $H-e$ lo es de $H$, el costo mínimo en $H-e$ es igual al de $H$.
+\end{observacion}
+
+%======================================================================
+\section{Ejercicio 3}
+\begin{enunciado}
+(Kleinberg \& Tardos, Ex.~4.10). Sea $G=(V,E)$ un grafo con $n$ vértices y costos $c_e$, y sea $T$ un MST de $G$. Agregamos una nueva arista $e$ a $G$ y llamamos $G'$ al nuevo grafo. Suponemos que todos los costos de aristas en $G'$ son diferentes.
+\begin{enumerate}[label=(\alph*)]
+\item Sea $e_{\max}$ la arista de costo máximo en el ciclo que se forma en $T\cup\{e\}$, $c_{\max}$ su costo, y $T'=(T\cup\{e\})\setminus\{e_{\max}\}$. Muestre que $T'$ es un MST para $G'$. Sugerencia: (i) muestre que $(V,T')$ es un árbol de cubrimiento de $G'$; (ii) usando (4.20), muestre que cada una de las aristas que no pertenecen a $T'$ no pueden pertenecer a un MST de $G'$ (esas aristas son $E\setminus T$ y $e_{\max}$).
+\item Dé un algoritmo que a partir de $G$, $T$ y $e$ construye en tiempo $\Oh(n)$ un MST para $G'$. Demuestre la corrección y analice la complejidad de su algoritmo.
+\end{enumerate}
+\end{enunciado}
+
+\examref{Relacionado con el Primer parcial 2020, Ej.~3: allí se \emph{elimina} una arista $(u,v)$ del MST y se la reemplaza por la arista más barata del corte (propiedad de corte); acá se \emph{agrega} una arista y se elimina la más cara del ciclo (propiedad de ciclo). El estilo de la demostración (comparar tamaños de los conjuntos de aristas) es el mismo.}
+
+Sea $e=(u,v)$. Como $G$ es conexo (tiene un árbol de cubrimiento $T$), $G'$ también lo es. Sea $P$ el único camino de $u$ a $v$ en $T$; el ciclo que se forma en $T\cup\{e\}$ es $C=P\cup\{e\}$ (es el único ciclo de $T\cup\{e\}$, porque cualquier ciclo de $T\cup\{e\}$ debe usar $e$, ya que $T$ es acíclico, y el resto del ciclo es un camino de $u$ a $v$ en $T$, que es único).
+
+\subsection*{(a) $T'$ es un MST de $G'$}
+
+\textbf{(i) $(V,T')$ es un árbol de cubrimiento de $G'$.} Sus aristas son aristas de $G'$ y tiene $|T|+1-1=n-1$ aristas. Además es conexo: $T\cup\{e\}$ es conexo (porque $T$ lo es), y $e_{\max}=(x,y)$ pertenece al ciclo $C$, por lo que $C\setminus\{e_{\max}\}$ es un camino de $x$ a $y$ dentro de $T'$; cualquier camino de $T\cup\{e\}$ que use $e_{\max}$ puede desviarse por ese camino. Un grafo conexo con $n$ vértices y $n-1$ aristas es un árbol.
+
+\textbf{(ii) Ninguna arista de $G'$ fuera de $T'$ está en un MST de $G'$.} Las aristas de $G'$ que no están en $T'$ son las de $E\setminus T$ y la arista $e_{\max}$ (si $e_{\max}=e$, entonces $T'=T$ y esas aristas son $E\setminus T$ y $e$).
+
+\begin{itemize}
+\item \emph{La arista $e_{\max}$.} Es la arista de mayor costo del ciclo $C$, que es un ciclo de $G'$. Por (4.20) aplicada en $G'$, $e_{\max}$ no pertenece a ningún MST de $G'$.
+\item \emph{Una arista $f=(a,b)\in E\setminus T$.} Sea $Q$ el camino de $a$ a $b$ en $T$; $Q\cup\{f\}$ es un ciclo de $G$ y también de $G'$. Afirmamos que $f$ es la arista de mayor costo de ese ciclo. Si no, existiría $g\in Q$ con $c_g>c_f$. Al sacar $g$ de $T$ quedan dos componentes, y $a$ y $b$ quedan en componentes distintas (pues $g$ está en el único camino de $a$ a $b$ en $T$); entonces $(T\setminus\{g\})\cup\{f\}$ es conexo, con $n-1$ aristas, o sea un árbol de cubrimiento de $G$ de costo $c(T)-c_g+c_f<c(T)$, contradiciendo que $T$ es MST de $G$. Luego $f$ es la arista de mayor costo del ciclo $Q\cup\{f\}$ de $G'$ y, por (4.20), $f$ no pertenece a ningún MST de $G'$.
+\end{itemize}
+
+\textbf{Conclusión.} Como $G'$ es conexo, tiene algún MST $T^\ast$. Por (ii), $T^\ast$ no contiene aristas fuera de $T'$, es decir $T^\ast\subseteq T'$. Ambos tienen $n-1$ aristas, así que $T^\ast=T'$. Por lo tanto $T'$ es MST de $G'$ (y, de hecho, el único). \qed
+
+\subsection*{(b) Algoritmo en $\Oh(n)$}
+
+\begin{algorithm}[H]
+\caption{Actualizar el MST al agregar una arista}
+\begin{algorithmic}[1]
+\Require $T$ (MST de $G$, como lista de $n-1$ aristas con costos), nueva arista $e=(u,v)$ con costo $c_e$
+\Ensure Un MST de $G'=G+e$
+\State Construir listas de adyacencia de $(V,T)$
+\State Ejecutar BFS (o DFS) en $(V,T)$ desde $u$, guardando $\mathrm{padre}[w]$ y el costo de la arista $(\mathrm{padre}[w],w)$ para cada $w$
+\State $e_{\max}\gets e$
+\State $w\gets v$
+\While{$w\neq u$} \Comment{recorre el camino $P$ de $v$ a $u$ en $T$}
+  \If{$c_{(\mathrm{padre}[w],w)} > c_{e_{\max}}$}
+     \State $e_{\max}\gets (\mathrm{padre}[w],w)$
+  \EndIf
+  \State $w\gets \mathrm{padre}[w]$
+\EndWhile
+\State \Return $(T\cup\{e\})\setminus\{e_{\max}\}$
+\end{algorithmic}
+\end{algorithm}
+
+\textbf{Corrección.} El árbol BFS desde $u$ en el árbol $(V,T)$ coincide con $T$ (BFS sobre un grafo conexo da un árbol de cubrimiento, y el único árbol de cubrimiento de un árbol es él mismo), así que siguiendo los punteros $\mathrm{padre}$ desde $v$ se recorre el único camino $P$ de $v$ a $u$ en $T$, y el ciclo termina porque la profundidad decrece en cada paso hasta llegar a la raíz $u$. Al terminar, $e_{\max}$ es la arista de mayor costo de $P\cup\{e\}=C$ (invariante: $e_{\max}$ es la de mayor costo entre $e$ y las aristas de $P$ ya recorridas). Por la parte (a), $(T\cup\{e\})\setminus\{e_{\max}\}$ es un MST de $G'$. Notar que el algoritmo no necesita mirar el resto de $G$.
+
+\textbf{Complejidad.} Construir las listas de adyacencia de $T$: $\Oh(n)$ (hay $n$ vértices y $n-1$ aristas). BFS sobre $T$: $\Oh(n+(n-1))=\Oh(n)$. El ciclo \textbf{mientras} da a lo sumo $n-1$ vueltas (el camino tiene a lo sumo $n-1$ aristas), cada una $\Oh(1)$. Construir el resultado: copiar las $n-1$ aristas de $T$, agregar $e$ y quitar $e_{\max}$ (marcándola durante la copia): $\Oh(n)$. Total: $\Oh(n)$.
+
+%======================================================================
+\section{Ejercicio 4}
+\begin{enunciado}
+(Kleinberg \& Tardos, Ex.~4.18). Queremos viajar desde un origen $o$ a un destino $d$. Tenemos un mapa con $n$ puntos (identificados en $[1..n]$), todos alcanzables desde $o$, y $m$ pares $(u,v)$ de puntos conectados directamente (de $u$ hacia $v$; no necesariamente simétrico). Un servicio web, dados $u$, $v$ y un tiempo de partida $t$ desde $u$, devuelve en $\Oh(1)$ el tiempo estimado de llegada a $v$, $f_{uv}(t)$. Se garantiza:
+\begin{itemize}
+\item $f_{uv}(t)\ge t$ para todo $t$ (no se va hacia atrás en el tiempo);
+\item $f_{uv}(t_1)\le f_{uv}(t_2)$ si $t_1\le t_2$ ($f_{uv}$ es no decreciente).
+\end{itemize}
+Interesa encontrar la forma más rápida de llegar a $d$ saliendo de $o$ en $t=0$.
+\begin{enumerate}[label=(\alph*)]
+\item Escriba un algoritmo que lo resuelva a partir de la lista de los $m$ pares, que admita una implementación $\Oh(m\log n)$.
+\item Demuestre la corrección de su algoritmo (siguiendo la línea del análisis de Dijkstra).
+\item Demuestre que admite una implementación $\Oh(m\log n)$.
+\end{enumerate}
+\end{enunciado}
+
+\examref{Generaliza el algoritmo de Dijkstra; ver Examen febrero 2026, Ej.~1(c) (propiedad del vértice que Dijkstra agrega a $S$ en cada iteración) y Primer parcial 2019 (aplicaciones de Dijkstra). Si $f_{uv}(t)=t+\ell_{uv}$ con $\ell_{uv}\ge 0$, el problema es exactamente el de caminos más cortos.}
+
+\textbf{Modelo.} Tenemos un grafo dirigido $G=(V,E)$, $V=\{1,\dots,n\}$, $|E|=m$. Para un camino $P=(o=v_0,v_1,\dots,v_k)$ definimos los tiempos de llegada
+\[ a_0=0,\qquad a_i=f_{v_{i-1}v_i}(a_{i-1})\quad (1\le i\le k), \]
+y llamamos $a_P(v_k)=a_k$ al tiempo de llegada al final de $P$ (saliendo de cada punto apenas se llega). Para cada $v\in V$ sea
+\[ \mathrm{OPT}(v)=\min\{a_P(v) : P \text{ camino de } o \text{ a } v\}. \]
+Buscamos $\mathrm{OPT}(d)$ y un camino que lo realice.
+
+\begin{observacion}[Esperar no sirve]
+Si se permitiera esperar en algún punto, saliendo de $v_{i-1}$ en un tiempo $t'\ge a_{i-1}$, por la monotonía $f_{v_{i-1}v_i}(t')\ge f_{v_{i-1}v_i}(a_{i-1})$; por inducción, todos los tiempos de llegada posteriores serían mayores o iguales que sin esperar. Así que podemos considerar solo recorridos sin espera, como en la definición de arriba. Además, de las dos hipótesis se sigue que \emph{los tiempos de llegada a lo largo de un camino son no decrecientes}: $a_i=f(a_{i-1})\ge a_{i-1}$.
+\end{observacion}
+
+\subsection*{(a) Algoritmo}
+
+Es el algoritmo de Dijkstra, cambiando ``$d(u)+\ell_{uv}$'' por ``$f_{uv}(d(u))$''.
+
+\begin{algorithm}[H]
+\caption{Dijkstra dependiente del tiempo}
+\begin{algorithmic}[1]
+\Require $n$, lista de $m$ pares $(u,v)$, origen $o$, destino $d$, acceso $\Oh(1)$ a $f_{uv}(t)$
+\Ensure Tiempo mínimo de llegada a $d$ y un camino que lo realiza
+\State Construir listas de adyacencia (de salida) a partir de los $m$ pares
+\For{$v\in V$}
+  \State $\mathrm{dist}[v]\gets\infty$; $\mathrm{pred}[v]\gets \mathrm{nil}$; $\mathrm{enS}[v]\gets$ falso
+\EndFor
+\State $\mathrm{dist}[o]\gets 0$
+\State $Q\gets$ heap de mínimo con todos los $v\in V$, con clave $\mathrm{dist}[v]$
+\While{$Q\neq\emptyset$}
+  \State $u\gets \textsc{ExtraerMin}(Q)$; $\mathrm{enS}[u]\gets$ verdadero
+  \ForAll{$(u,v)\in E$ con $\mathrm{enS}[v]=$ falso}
+    \If{$f_{uv}(\mathrm{dist}[u]) < \mathrm{dist}[v]$}
+      \State $\mathrm{dist}[v]\gets f_{uv}(\mathrm{dist}[u])$; $\mathrm{pred}[v]\gets u$
+      \State $\textsc{CambiarClave}(Q,v,\mathrm{dist}[v])$
+    \EndIf
+  \EndFor
+\EndWhile
+\State \Return $\mathrm{dist}[d]$ y el camino obtenido siguiendo $\mathrm{pred}$ desde $d$ hasta $o$ (invertido)
+\end{algorithmic}
+\end{algorithm}
+
+Llamamos $S$ al conjunto de vértices ya extraídos de $Q$. Notar que, en el momento en que se extrae un vértice $v\neq o$, su clave es
+\[ \mathrm{dist}'(v)=\min_{(u,v)\in E,\ u\in S} f_{uv}(\mathrm{dist}[u]), \]
+porque cada vez que un $u$ entra en $S$ se actualiza $\mathrm{dist}[v]$ con $f_{uv}(\mathrm{dist}[u])$ si es menor; y $v$ minimiza $\mathrm{dist}'$ entre los vértices fuera de $S$. Como todos los vértices son alcanzables desde $o$, cada vértice extraído distinto de $o$ tiene clave finita (si el mínimo fuera $\infty$ no habría aristas de $S$ hacia afuera, y los vértices fuera de $S$ no serían alcanzables).
+
+\subsection*{(b) Corrección}
+
+Para $u\in S$, sea $P_u$ el camino de $o$ a $u$ que se obtiene siguiendo $\mathrm{pred}$. Probamos, por inducción en $|S|$, el siguiente invariante (análogo a (4.14) del libro):
+
+\begin{lema}
+En todo momento, para cada $u\in S$, $P_u$ es un camino de $o$ a $u$ con $a_{P_u}(u)=\mathrm{dist}[u]=\mathrm{OPT}(u)$; además $\mathrm{dist}[u]$ no cambia una vez que $u\in S$.
+\end{lema}
+\begin{proof}
+Lo último es inmediato, porque solo se actualizan vértices con $\mathrm{enS}=$ falso.
+
+\emph{Caso base} ($|S|=1$): $S=\{o\}$ (es el primero en salir, con clave $0$, ya que el resto tiene $\infty$). $P_o$ es el camino trivial, con tiempo de llegada $0$, y $\mathrm{OPT}(o)=0$ porque ningún camino llega antes de partir: los tiempos de llegada son $\ge 0$ por la observación.
+
+\emph{Paso inductivo.} Supongamos que vale para $S$ con $|S|=k\ge1$ y que el algoritmo extrae ahora $v\notin S$, con clave $\mathrm{dist}'(v)=f_{uv}(\mathrm{dist}[u])$ donde $u=\mathrm{pred}[v]\in S$.
+
+\emph{$P_v$ realiza el valor $\mathrm{dist}'(v)$:} $P_v$ es $P_u$ seguido de la arista $(u,v)$. Por hipótesis inductiva $a_{P_u}(u)=\mathrm{dist}[u]$, luego $a_{P_v}(v)=f_{uv}(\mathrm{dist}[u])=\mathrm{dist}'(v)$. En particular $\mathrm{OPT}(v)\le \mathrm{dist}'(v)$.
+
+\emph{Ningún camino llega antes:} sea $P$ un camino cualquiera de $o$ a $v$. Como $o\in S$ y $v\notin S$, $P$ sale de $S$ en algún momento: sea $y$ el primer vértice de $P$ que no está en $S$, y $x\in S$ el vértice anterior a $y$ en $P$. Entonces:
+\begin{enumerate}[label=(\roman*)]
+\item El prefijo de $P$ hasta $x$ es un camino de $o$ a $x$, así que $a_P(x)\ge \mathrm{OPT}(x)=\mathrm{dist}[x]$ (hipótesis inductiva).
+\item Por la monotonía de $f_{xy}$: $a_P(y)=f_{xy}(a_P(x))\ge f_{xy}(\mathrm{dist}[x])\ge \mathrm{dist}'(y)$, por la definición de $\mathrm{dist}'(y)$ como mínimo sobre las aristas que entran a $y$ desde $S$.
+\item Por la elección de $v$ como mínimo de la clave entre los vértices fuera de $S$: $\mathrm{dist}'(y)\ge \mathrm{dist}'(v)$.
+\item Desde $y$ hasta $v$, $P$ sigue por aristas y, como $f_{ab}(t)\ge t$, los tiempos de llegada no decrecen: $a_P(v)\ge a_P(y)$.
+\end{enumerate}
+Encadenando, $a_P(v)\ge a_P(y)\ge \mathrm{dist}'(v)$. Como $P$ era arbitrario, $\mathrm{OPT}(v)\ge \mathrm{dist}'(v)$, y con lo anterior, $\mathrm{OPT}(v)=\mathrm{dist}'(v)=a_{P_v}(v)$, y el invariante vale para $S\cup\{v\}$.
+\end{proof}
+
+Como todos los vértices son alcanzables, el algoritmo termina con $S=V$; en particular $d\in S$, y el algoritmo devuelve $\mathrm{dist}[d]=\mathrm{OPT}(d)$ junto con el camino $P_d$, que lo realiza. \qed
+
+Notar dónde se usaron las hipótesis sobre $f_{uv}$: la monotonía en (ii) (llegar antes a $x$ nunca perjudica) y $f_{uv}(t)\ge t$ en (iv) y en el caso base (el tramo final del camino no puede ``recuperar tiempo''). Son exactamente el reemplazo de la hipótesis de largos no negativos en Dijkstra.
+
+\subsection*{(c) Implementación en $\Oh(m\log n)$}
+
+\begin{itemize}
+\item Construir las listas de adyacencia a partir de los $m$ pares: $\Oh(n+m)$.
+\item Inicialización de los arreglos y del heap con $n$ elementos: $\Oh(n)$ (o $\Oh(n\log n)$ insertando uno por uno).
+\item Se hacen exactamente $n$ operaciones $\textsc{ExtraerMin}$, cada una $\Oh(\log n)$: $\Oh(n\log n)$.
+\item Cada arista $(u,v)$ se examina una sola vez (cuando $u$ entra en $S$); en cada examen se evalúa $f_{uv}$ en $\Oh(1)$ y a lo sumo se hace un $\textsc{CambiarClave}$ en $\Oh(\log n)$ (heap con arreglo de posiciones). En total: $\Oh(m\log n)$.
+\item Reconstruir el camino: $\Oh(n)$.
+\end{itemize}
+Total: $\Oh((n+m)\log n)$. Como todos los puntos son alcanzables desde $o$, el grafo subyacente es conexo y $m\ge n-1$, de donde $n+m\le 2m+1$ y el tiempo total es $\Oh(m\log n)$. \qed
+
+\end{document}

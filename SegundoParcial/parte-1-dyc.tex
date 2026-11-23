@@ -1,0 +1,636 @@
+% =====================================================================
+%  Parte 1 — Dividir y conquistar
+%  Fragmento para \input desde el documento maestro (usa estilo2p.tex)
+% =====================================================================
+
+% Macros locales de esta parte.
+% \dycmas{...}: agrega otra referencia dentro de un mismo \visto, para
+% que varias referencias ancladas al mismo párrafo no se superpongan.
+\newcommand{\dycmas}[1]{\par\smallskip{\color{acento}\rule[0.15em]{0.9em}{1.4pt}}\hspace{0.35em}#1}
+
+\parte{dyc}{Dividir y conquistar}{T(n)\le 2T(n/2)+cn \;\Rightarrow\; T(n)=\Oh(n\log n)}{Recurrencias y cómo resolverlas, los algoritmos del capítulo~5 del libro (mergesort, inversiones, par de puntos más cercano, multiplicación de enteros), quicksort, selección, búsqueda binaria y los problemas de examen que se resuelven partiendo a la mitad. Desde 2022 cae casi en todos los semestres un ejercicio o una parte de ejercicio: diseñar el algoritmo, plantear la recurrencia y justificar el orden.}
+
+% ---------------------------------------------------------------------
+\section{El esquema y qué se pide en el parcial}
+
+Un algoritmo de dividir y conquistar (también lo vas a ver escrito como divide y vencerás) tiene tres partes: \emph{dividir} la instancia en subinstancias más chicas del mismo problema, \emph{resolverlas} recursivamente y \emph{combinar} sus soluciones. Además hay un \emph{caso base} que se resuelve directamente. El análisis del tiempo de ejecución sale de esas mismas cuatro piezas.\visto{Examen feb. 2018 P.~3: qué tiempos entran en la recurrencia}
+
+\begin{resultado}[Los tiempos que forman la recurrencia]
+Para plantear la relación de recurrencia hay que considerar el tiempo de \textbf{dividir} la instancia, el de \textbf{resolver las subinstancias} (un término $T(\cdot)$ por llamada recursiva), el de \textbf{combinar} las soluciones parciales y el de resolver el \textbf{caso base} (la condición inicial). Dividir y combinar se suman en un único término independiente, por ejemplo $cn$.
+\end{resultado}
+
+En los parciales y exámenes recientes el formato es muy estable. Se pide (a)~escribir un algoritmo de dividir y conquistar con cierto orden, (b)~escribir la relación de recurrencia ``explicando el origen de cada término'' y (c)~a veces, demostrar la correctitud o resolver la recurrencia por inducción. Muchas veces la letra da una sugerencia (``siga una estrategia similar a MergeSort'', ``similar a la que emplea QuickSort'') que indica exactamente qué división usar.\visto{Examen feb. 2025 Ej.~2: criterios de corrección explícitos}
+
+\begin{receta}[estructura de una respuesta completa]
+\begin{enumerate}
+  \item \textbf{Algoritmo} con nombre, parámetros y precondición (por ejemplo, ``$n$ es potencia de~2'', ``$O$ está ordenado''). Líneas numeradas, para poder referirse a ellas después.
+  \item Indicá la \textbf{invocación inicial} (por ejemplo, \textsc{Faltante}$(O,F,n)$ o \textsc{Inv}$(A,1,n)$).
+  \item Verificá en voz alta lo que los correctores chequean: hay caso base, \emph{en cada llamada recursiva los parámetros se acercan al caso base}, en todos los casos se devuelve algo del tipo correcto.
+  \item \textbf{Recurrencia con condición inicial}: $T(1)\le c_b$ (o $T(2)\le c$) y el caso general. Explicá cada término: cuántas llamadas recursivas hay y por qué tienen tamaño $n/2$, y de dónde sale el término independiente (qué pasos son $\Oh(n)$ o $\Oh(1)$).
+  \item \textbf{Cerrá} citando el resultado del libro que resuelve la recurrencia: ``por (5.2) es $\Oh(n\log n)$'', ``por (5.5) es $\Oh(n)$'', o demostrándolo por inducción si se pide.
+  \item Si se pide correctitud: \textbf{inducción en $n$} (o en $i$ con $n=2^i$). Paso base con el caso base del algoritmo, paso inductivo usando la hipótesis sobre las llamadas recursivas y justificando la combinación.
+\end{enumerate}
+\end{receta}
+
+% ---------------------------------------------------------------------
+\section{Recurrencias}
+
+\subsection{Los resultados del libro: (5.1) a (5.6)}
+
+El libro trabaja con desigualdades (``$\le$'') y con $n$ potencia de~2, y así lo hacen las soluciones oficiales. Usar ``$\le$'' alcanza para cotas $\Oh$; para $\Theta$ hace falta la cota inferior también.
+
+\begin{resultado}[Capítulo 5, secciones 5.1 y 5.2]
+\textbf{(5.1)} Para alguna constante $c$: $T(n)\le 2T(n/2)+cn$ si $n>2$, y $T(2)\le c$.\\
+\textbf{(5.2)} Toda función $T$ que satisface (5.1) es $\Oh(n\log n)$ para $n>1$.
+
+\smallskip
+\textbf{(5.3)} Para alguna constante $c$: $T(n)\le qT(n/2)+cn$ si $n>2$, y $T(2)\le c$.\\
+\textbf{(5.4)} Si $q>2$, toda función que satisface (5.3) es $\Oh(n^{\log_2 q})$.\\
+\textbf{(5.5)} Si $q=1$, toda función que satisface (5.3) es $\Oh(n)$. (Con $q=2$ es (5.1).)
+
+\smallskip
+\textbf{(5.6)} Para alguna constante $c$: $T(n)\le 2T(n/2)+cn^2$ si $n>2$, y $T(2)\le c$; toda función que la satisface es $\Oh(n^2)$.
+\end{resultado}
+
+La pregunta directa ``escriba la recurrencia para $q$ subproblemas de tamaño $n/2$ y diga qué da para $q=1$ y $q=2$'' apareció tal cual, sin pedir demostración. La parte (a) del 2P 2025 pedía la recurrencia de Karatsuba y la cota ajustada, también sin demostrar.\visto{Examen jul. 2026 Ej.~1(e): $qT(n/2)+cn$, casos $q=1,2$\dycmas{2P 2025 Ej.~1(a): recurrencia de Karatsuba}}
+
+\subsection{Cómo se resuelven: desenrollar, árbol, sustitución}
+
+\paragraph{Desenrollar la recursión (árbol de recursión).} Se mira el nivel $j$ del árbol de llamadas: cuántos subproblemas hay, de qué tamaño, cuánto cuesta cada uno sin contar sus hijos, y se suma sobre los $\log_2 n$ niveles. Para (5.1): en el nivel $j$ hay $2^j$ subproblemas de tamaño $n/2^j$, cada uno con costo $c\,n/2^j$, así que cada nivel cuesta $cn$. Hay $\log_2 n$ niveles, total $cn\log_2 n$.
+
+\begin{center}
+\begin{tikzpicture}[
+  every node/.style={font=\small},
+  nodo/.style={draw=acento,rounded corners=2pt,inner sep=2pt,minimum width=1.0cm},
+  level distance=0.85cm,
+  level 1/.style={sibling distance=4.4cm},
+  level 2/.style={sibling distance=2.2cm},
+  edge from parent/.style={draw=gris}]
+\node[nodo] {$cn$}
+  child {node[nodo] {$cn/2$}
+    child {node[nodo] {$cn/4$}}
+    child {node[nodo] {$cn/4$}}}
+  child {node[nodo] {$cn/2$}
+    child {node[nodo] {$cn/4$}}
+    child {node[nodo] {$cn/4$}}};
+\node[gris,anchor=west] at (4.6,0) {nivel 0: $cn$};
+\node[gris,anchor=west] at (4.6,-0.85) {nivel 1: $2\cdot cn/2=cn$};
+\node[gris,anchor=west] at (4.6,-1.7) {nivel 2: $4\cdot cn/4=cn$};
+\node[gris] at (0,-2.3) {$\vdots$};
+\node[gris,anchor=west] at (4.6,-2.3) {$\log_2 n$ niveles $\Rightarrow cn\log_2 n$};
+\end{tikzpicture}
+\end{center}
+
+Con $q$ subproblemas el nivel $j$ cuesta $q^j\cdot c\,n/2^j=(q/2)^j\,cn$, una serie geométrica:
+\begin{itemize}
+  \item $q=1$: $\sum_j (1/2)^j cn\le 2cn$, o sea $\Oh(n)$. Domina la raíz.
+  \item $q=2$: todos los niveles iguales, $\Oh(n\log n)$.
+  \item $q>2$: con $r=q/2>1$, $\sum_{j<\log_2 n} r^j cn\le \frac{cn}{r-1}r^{\log_2 n}$, y como $r^{\log_2 n}=n^{\log_2 r}=n^{\log_2 q-1}$, queda $\Oh(n^{\log_2 q})$. Dominan las hojas.
+\end{itemize}
+Para (5.6), el nivel $j$ cuesta $2^j c(n/2^j)^2=cn^2/2^j$, que suma a lo sumo $2cn^2$.
+
+\paragraph{Sustitución (conjetura e inducción).} Se conjetura una cota y se prueba por inducción. Para (5.1), con $T(n)\le cn\log_2 n$: $T(n)\le 2c\frac n2\log_2\frac n2+cn=cn(\log_2 n-1)+cn=cn\log_2 n$. Es la técnica que se pide cuando la letra dice ``demuestre que $T(n)$ es $\Oh(\cdot)$''. Si la conjetura directa no cierra, se resta un término de orden menor (ver Karatsuba, sección~\ref{sec:dyc-karatsuba}).\visto{1P 2018 Ej.~2(b): $2T(n/2)+c$ es $\Oh(n)$\dycmas{Examen feb. 2022 Ej.~1(b): inducción $f(n)\le cn$}}
+
+\begin{problema}{Combinación constante: $T(n)\le 2T(n/2)+c$ es $\Oh(n)$}
+Probar que si $T(2)\le c$ y $T(n)\le 2T(n/2)+c$ para $n>2$ (potencia de~2), entonces $T(n)$ es $\Oh(n)$.
+
+\textbf{Solución.} La conjetura $T(n)\le cn$ no cierra ($2cn/2+c=cn+c$). Se prueba la más fuerte $T(n)\le cn-c$. Base: $T(2)\le c=2c-c$. Paso: $T(n)\le 2\bigl(c\frac n2-c\bigr)+c=cn-c$. Esta recurrencia aparece en todos los algoritmos que hacen dos llamadas y combinan en tiempo constante (mín--máx, búsqueda en arreglo sin orden, conjunto independiente en un árbol, la leche ``estropeada'' en la versión mejorada).
+\end{problema}
+
+\subsection{Tabla de recurrencias frecuentes}
+
+\begin{center}\small
+\begin{tabularx}{\textwidth}{@{}>{$}l<{$}>{$}l<{$}X@{}}
+\toprule
+\text{Recurrencia} & \text{Solución} & Dónde aparece \\
+\midrule
+T(n/2)+c & \Theta(\log n) & búsqueda binaria, faltante en progresión \\
+T(n/2)+cn & \Theta(n) & (5.5): selección, faltante con \textsc{separar} \\
+2T(n/2)+c & \Theta(n) & mín--máx, búsqueda sin orden, árbol \\
+2T(n/2)+cn & \Theta(n\log n) & (5.2): mergesort, inversiones, par más cercano \\
+2T(n/2)+cn\log n & \Theta(n\log^2 n) & par más cercano ordenando la franja en cada llamada \\
+3T(n/2)+cn & \Theta(n^{\log_2 3}) & (5.4): Karatsuba ($\approx n^{1{,}59}$) \\
+4T(n/2)+cn & \Theta(n^2) & (5.4): multiplicación ingenua por mitades \\
+4T(n/2)+c & \Theta(n^2) & mín--máx de una matriz $n\times n$ (lineal en $n^2$ datos) \\
+7T(n/2)+cn^2 & \Theta(n^{\log_2 7}) & Strassen ($\approx n^{2{,}81}$) \\
+2T(n/2)+cn^2 & \Theta(n^2) & (5.6) \\
+3T(n/3)+cn^2 & \Theta(n^2) & domina la raíz \\
+T(n-1)+T(n-2)+1 & \Theta(\varphi^n) & Fibonacci recursivo \\
+T(n-1)+cn & \Theta(n^2) & peor caso de quicksort \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+Como control rápido sirve la forma general $T(n)=aT(n/b)+\Theta(n^d)$: si $d>\log_b a$ domina la raíz y $T=\Theta(n^d)$; si $d=\log_b a$, $T=\Theta(n^d\log n)$; si $d<\log_b a$ dominan las hojas y $T=\Theta(n^{\log_b a})$. En el libro no figura como ``teorema maestro'', así que en el parcial conviene justificar con (5.1)--(5.6), con el árbol o por inducción. En los cursos anteriores a 2017 se pedía resolver recurrencias concretas, casi siempre desenrollando.\visto{2P 2008 Ej.~1(b): $T(n/2)+n+\log n$\dycmas{Examen dic. 2009 Pr.~1(b): recurrencia de mergesort}}
+
+\begin{problema}{Recurrencias resueltas en parciales viejos}
+\textbf{(i)} $T(1)=1$, $T(n)=T(n/2)+n+\log_2 n$. Con $n=2^k$ y desenrollando: $T(n)=1+\sum_{i=0}^{k-1}\bigl(\frac{n}{2^i}+\log_2\frac{n}{2^i}\bigr)=1+(2n-2)+\frac{k(k+1)}2=2n-1+\frac{\log_2 n(\log_2 n+1)}{2}$, que es $\Theta(n)$. (Control: $T(2)=4$, $T(4)=10$.)
+
+\textbf{(ii)} $T(1)=0$, $T(n)=T(\lfloor n/2\rfloor)+T(\lceil n/2\rceil)+n-1$ (comparaciones de mergesort en el peor caso). Para $n=2^k$: $T(n)=n\log_2 n-n+1$.
+
+\textbf{(iii)} $T(N)=3T(N/3)+aN^2$. Con $N=3^m$, el nivel $j$ cuesta $aN^2/3^j$, así que $T(N)\le\frac32 aN^2+N\,T(1)=\Theta(N^2)$.
+
+\textbf{(iv)} Mín--máx de una matriz $n\times n$ partiendo en 4 cuadrantes: $T(1)=0$, $T(n)=4T(n/2)+6$ (3 comparaciones para el máximo de 4 y 3 para el mínimo). Da $T(n)=2(n^2-1)$.
+\end{problema}
+
+Otra variante de los cursos viejos daba el código de una función recursiva que parte el rango $[i,j]$ en un \texttt{corte} y llama a una función \texttt{calcular} de costo conocido. Se pedía analizar las alternativas de un paso genérico (qué llamadas recursivas se ejecutan según lo que devuelvan) y plantear la recurrencia del peor caso. El peor caso es la rama que hace \emph{las dos} llamadas recursivas más el \texttt{calcular} más caro; el costo de \texttt{calcular} entra como término independiente.\visto{Examen feb. 2011 Ej.~1: $3T(N/3)+aN^2$\dycmas{Examen dic. 2013 Pr.~1: mín--máx de matriz}\dycmas{Examen jul. 2009 Ej.~1.2: recurrencia de función dada}\dycmas{Examen dic. 2011 Pr.~2(b): ídem, corte en mitades}}
+
+\begin{trampa}
+\begin{itemize}
+  \item Olvidar la \textbf{condición inicial} de la recurrencia. En los criterios del examen de feb.~2025 figura explícitamente: ``debe incluir la condición inicial''.
+  \item No explicar el origen de cada término. ``$2T(n/2)$ por las dos llamadas sobre mitades, $cn$ por el merge'' es lo mínimo que se espera.
+  \item Confundir $2T(n/2)+c$ (lineal) con $2T(n/2)+cn$ ($n\log n$), o $T(n/2)+cn$ (lineal) con $T(n/2)+c$ (logarítmica).
+  \item Hacer la inducción con la conjetura exacta cuando no cierra ($T(n)\le cn$ para $2T(n/2)+c$, $T(n)\le kn^{\log_2 3}$ para Karatsuba). Hay que restar un término de orden menor.
+  \item No aclarar que se asume $n$ potencia de~2 (o de~3) cuando se usa.
+\end{itemize}
+\end{trampa}
+
+% ---------------------------------------------------------------------
+\section{Mergesort}
+
+Mergesort es el ejemplo base del capítulo~5 y el que motiva (5.1). Divide el arreglo en dos mitades, ordena cada una recursivamente y las intercala (\emph{merge}).\visto{2P 2010 Ej.~3: implementar, comparaciones, ¿es óptimo?\dycmas{2P 2012 Ej.~2(b): implementar, estabilidad}\dycmas{2P 2014 Ej.~3: peor caso y caso medio}\dycmas{Examen jul. 2014 Ej.~2: merge sort dado \texttt{merge}}}
+
+\begin{algorithmic}[1]
+\Function{MergeSort}{$A,\,ini,\,fin$} \Comment{ordena $A[ini..fin]$}
+  \If{$ini<fin$}
+    \State $m\gets\lfloor (ini+fin)/2\rfloor$
+    \State \Call{MergeSort}{$A,ini,m$};\; \Call{MergeSort}{$A,m+1,fin$};\; \Call{Merge}{$A,ini,m,fin$}
+  \EndIf
+\EndFunction
+\Function{Merge}{$A,\,ini,\,m,\,fin$} \Comment{$A[ini..m]$ y $A[m+1..fin]$ ordenados}
+  \State $i\gets ini$;\; $j\gets m+1$;\; $B\gets$ lista vacía
+  \While{$i\le m$ \textbf{y} $j\le fin$}
+    \If{$A[i]\le A[j]$} agregar $A[i]$ a $B$;\; $i\gets i+1$ \Comment{$\le$: estable}
+    \Else\ agregar $A[j]$ a $B$;\; $j\gets j+1$
+    \EndIf
+  \EndWhile
+  \State agregar a $B$ el resto de $A[i..m]$ o de $A[j..fin]$;\; copiar $B$ en $A[ini..fin]$
+\EndFunction
+\end{algorithmic}
+
+\paragraph{Tiempo.} \textsc{Merge} hace a lo sumo $n-1$ comparaciones (cada comparación coloca un elemento, y el último se coloca sin comparar) y tiempo $\Theta(n)$. Dividir es $\Oh(1)$. Por lo tanto $T(n)\le 2T(n/2)+cn$, que es (5.1), y por (5.2) $T(n)=\Oh(n\log n)$. Como el merge siempre recorre todo, también es $\Omega(n\log n)$: mergesort es $\Theta(n\log n)$ en el peor, el mejor y el caso medio.
+
+\paragraph{Comparaciones exactas en el peor caso.} $W(1)=0$, $W(n)=2W(n/2)+n-1$. Desenrollando, el nivel $j$ aporta $2^j(n/2^j-1)=n-2^j$, y sumando sobre $j=0,\dots,\log_2n-1$ queda $W(n)=n\log_2 n-(n-1)=n\log_2 n-n+1$. El peor caso del merge se da cuando los dos últimos elementos colocados vienen de mitades distintas (por ejemplo, las mitades se ``entrelazan''). Para $n$ cualquiera, $W(5)=W(2)+W(3)+4=1+3+4=8$.\visto{Examen jul. 2017 P.~3(d): mergesort con $n=5$ cuesta 8}
+
+\paragraph{Correctitud.} Por inducción en el largo: los subarreglos de largo $\le 1$ están ordenados; por hipótesis inductiva las dos llamadas dejan ordenadas las mitades, y \textsc{Merge} produce la intercalación ordenada porque en cada paso coloca el menor de los dos mínimos restantes, que es el mínimo de lo que falta. \textbf{Estabilidad.} Un algoritmo de ordenación es \emph{estable} si elementos con igual clave quedan en el mismo orden relativo que tenían en la entrada. Mergesort es estable si, ante empate, \textsc{Merge} toma de la mitad izquierda (comparación $\le$). Con $<$ deja de serlo.
+
+Un ejercicio combinó mergesort con insertion sort para los bloques chicos.\visto{2P 2016 Ej.~3: ordenación híbrida insertion + merge}
+
+\begin{problema}{Ordenación híbrida: insertion sort en bloques de tamaño $k$ y luego merges}
+Se parte el arreglo en $n/k$ bloques de tamaño $k$, se ordena cada uno con InsertionSort y se mezclan por etapas como en mergesort. El costo de las mezclas es $c_3n\log(n/k)$. (a)~Calcular el costo total. (b)~¿Para $k=\log n$ y para $k=\sqrt n$ se alcanza la cota inferior $\Theta(n\log n)$?
+
+\textbf{Solución.} (a)~Cada InsertionSort de largo $k$ cuesta $c_2k^2$ en el peor caso; son $n/k$ bloques, total $c_2nk$. Costo: $c_2nk+c_3n\log n-c_3n\log k$. (b)~Con $k=\log n$: $(c_2+c_3)n\log n-c_3n\log\log n=\Theta(n\log n)$, sí. Con $k=\sqrt n$: $c_2n\sqrt n+\frac{c_3}{2}n\log n=\Theta(n^{3/2})$, no.
+\end{problema}
+
+Otras preguntas de los cursos viejos: ``escriba un algoritmo de sorting que use dividir y conquistar e indique su orden en mejor, peor y caso medio'' (mergesort: $\Theta(n\log n)$ en los tres; quicksort: $\Theta(n\log n)$, $\Theta(n^2)$, $\Theta(n\log n)$), o dar un \texttt{Ordenar(A,p,q)} genérico con \texttt{Combinar} de costo $n-1$ y pedir $T_W(n)$, el orden exacto y si es óptimo.\visto{Examen feb. 2015 Ej.~4: sorting por DyC, órdenes\dycmas{Examen dic. 2011 Ej.~4: $T_W$ y optimalidad de un mergesort}}
+
+\begin{receta}[recurrencia de mergesort ``indicando la procedencia de cada término'']
+$T(1)=0$ (o $\le c$), $T(n)=2T(n/2)+n$ (o $+cn$). ``El término $2T(n/2)$ surge de resolver los dos subproblemas: ordenar la primera mitad y ordenar la segunda mitad. El término $n$ es el tiempo de dividir y combinar: dividir es $\Oh(1)$ (calcular el medio) y combinar, el merge, es $\Oh(n)$.'' Por (5.2), $\Oh(n\log n)$.
+\end{receta}
+
+\begin{trampa}
+\begin{itemize}
+  \item Merge con un solo índice de fin, o copiando el auxiliar a $A[0..]$ en vez de a $A[ini..]$: el código de la solución oficial de jul.~2022 tiene ese desliz, no lo copies.
+  \item Decir que mergesort es $\Theta(n^2)$ en el peor caso, o que su mejor caso es $\Theta(n)$ (eso es insertion sort).
+  \item Usar $<$ en el merge y afirmar que es estable.
+\end{itemize}
+\end{trampa}
+
+% ---------------------------------------------------------------------
+\section{Cota inferior para ordenar: árboles de decisión}
+
+Este tema venía junto con mergesort en los cursos hasta 2017 y reapareció en el 2P~2021 como ``encontrar el error'' en un argumento de cota inferior.\visto{2P 2011 Ej.~3: nodos internos y externos\dycmas{2P 2015 Ej.~3: AD, $m\ge n!$, $\log n!$}\dycmas{Examen jul. 2017 P.~3: hojas, altura, $n=5$}}
+
+\begin{definicion}
+El \emph{árbol de decisión} de un algoritmo de ordenación por comparaciones, para entradas de tamaño $n$, es un árbol binario donde cada nodo interno es una comparación $a_i:a_j$ que hace el algoritmo, sus dos hijos corresponden a los dos resultados posibles, y cada hoja (nodo externo) es una salida, es decir, la permutación que ordena la entrada. Un camino de la raíz a una hoja es una ejecución; su largo es la cantidad de comparaciones de esa ejecución.
+\end{definicion}
+
+\begin{itemize}
+  \item La \textbf{altura} del árbol es la cantidad de comparaciones en el peor caso, $T_W(n)$.
+  \item La \textbf{profundidad media de las hojas} (con entradas equiprobables) es el caso medio, $T_A(n)$.
+  \item La mínima altura entre los árboles de todos los algoritmos que resuelven el problema es la complejidad del problema en el peor caso.
+\end{itemize}
+
+Los dos lemas del teórico y la cota que se deduce de ellos se pedían ``justificando detalladamente los pasos''.\visto{2P 2009 Ej.~3.2: cota inferior, peor y medio\dycmas{2P 2013 Ej.~3(a,b): ídem}\dycmas{Examen dic. 2010 Ej.~4: cota en caso medio}\dycmas{Examen feb. 2012 Ej.~4: lemas del AD}}
+
+\begin{resultado}[Lemas y cota inferior]
+\textbf{Lema 1.} Un árbol binario de altura $h$ tiene a lo sumo $2^h$ hojas. (Inducción en $h$.)
+
+\textbf{Lema 2.} En un árbol binario con $m$ hojas, la suma de las profundidades de las hojas es al menos $m\log_2 m$.
+
+\textbf{Cota en el peor caso.} Con $n$ elementos distintos, cada una de las $n!$ permutaciones necesita una hoja propia, así que $m\ge n!$. Por el lema~1, $2^h\ge m\ge n!$, de donde $T_W(n)=h\ge\lceil\log_2 n!\rceil$. Como $\log_2 n!\ge n\log_2 n-1{,}5n$ (dato que daban las letras), $T_W(n)=\Omega(n\log n)$.
+
+\textbf{Cota en el caso medio.} Con las $n!$ entradas equiprobables, $T_A(n)=\frac1m\sum_i k_i\ge\frac{m\log_2 m}{m}=\log_2 m\ge\log_2 n!$, también $\Omega(n\log n)$.
+\end{resultado}
+
+\paragraph{Consecuencia: mergesort es óptimo en orden.}\visto{Examen jul. 2016 Ej.~2: $T(\textrm{mergesort})\in\Theta(\log n!)$\dycmas{Examen dic. 2009 Pr.~1(b.2): caso medio de mergesort}} $W(n)=n\log_2 n-n+1\le\log_2 n!+1{,}5n-n+1=\log_2 n!+0{,}5n+1$, y como $\log_2 n!=\Omega(n)$, $W(n)=\Theta(\log_2 n!)$. Optimalidad ``en orden'' no quiere decir exacta: para $n=5$, mergesort hace 8 comparaciones y $\lceil\log_2 120\rceil=7$, sin contradicción. El caso medio de mergesort está entre $\log_2 n!$ (cota inferior) y $W(n)$, así que también es $\Theta(n\log n)$.
+
+\paragraph{Cómo dibujar el árbol de un algoritmo concreto para $n=3$.} Se ejecuta el algoritmo con la entrada simbólica $[a,b,c]$. Cada vez que compara, se abre un nodo con dos ramas y se sigue cada rama con el estado del arreglo actualizado (conviene anotar el arreglo en cada nodo, como pedían las letras). Insertion sort, para $n=3$, tiene altura 3 y 6 hojas. Selection sort hace siempre 3 comparaciones y su árbol tiene 8 hojas: dos corresponden a resultados contradictorios (por ejemplo $a<b$, $b<c$ y $c<a$) y son ejecuciones que nunca pueden darse.\visto{Examen feb. 2010 Ej.~4: AD de insertion sort\dycmas{Examen jul. 2010 Ej.~3: AD de selection sort}\dycmas{Examen dic. 2015 Ej.~4: hoja que nunca se da}}
+
+Bubble sort con la entrada $[a,b,c]$ también hace 3 comparaciones y tiene hojas inalcanzables. Costos de referencia (comparaciones): insertion sort hace $n(n-1)/2$ en el peor caso (entrada en orden inverso) y $n-1$ en el mejor; selection sort hace siempre $n(n-1)/2$; bubble sort, $n(n-1)/2$ en la versión sin corte temprano. Ninguno es óptimo en el peor caso. La versión reciente del tema, en cambio, pide detectar cuándo la cota no se aplica.\visto{2P 2008 Ej.~2: bubble sort, AD, estabilidad\dycmas{Examen dic. 2013 Ej.~3: selection sort, ¿óptimo?}\dycmas{Examen dic. 2014 Ej.~2: peor caso de insertion}\dycmas{Examen jul. 2012 Ej.~4: insertion vs.\ selection}\dycmas{2P 2021 Ej.~3: error en la cota $\Omega(n\log n)$}}
+
+\begin{problema}{Ordenar correos con a lo sumo 10 remitentes (2P 2021, Ej.~3)}
+(a) Mostrar que un algoritmo que mantiene una lista ordenada de a lo sumo 10 listas (una por remitente) e inserta cada correo en la suya ordena en $\Oh(n)$. (b) Señalar el error en este argumento: ``el algoritmo debe distinguir entre $n!$ permutaciones, entonces $2^{M_n}\ge n!$ y $M_n=\Omega(n\log n)$''.
+
+\textbf{Solución.} (a) Cada iteración busca entre a lo sumo 10 listas, $\Oh(1)$; insertar es $\Oh(1)$; concatenar las listas es $\Oh(1)$; el ciclo es $\Oh(n)$. (b) El error está en ``debe distinguir $n!$ permutaciones''. Con a lo sumo 10 claves posibles hay a lo sumo $10^n$ entradas distintas, y una misma permutación ordena muchas entradas distintas (por ejemplo, todas las que tienen claves repetidas en las mismas posiciones relativas). La cota $\log_2 n!$ vale cuando los elementos son distintos.
+\end{problema}
+
+\begin{trampa}
+\begin{itemize}
+  \item Decir que la cota inferior vale para \emph{todo} algoritmo de ordenación: vale para los que solo comparan pares de elementos. Counting sort o bucket sort no la cumplen.
+  \item Confundir las hojas del árbol (salidas) con las permutaciones posibles: el árbol de un algoritmo concreto puede tener más de $n!$ hojas, algunas inalcanzables.
+  \item Concluir de la cota que un algoritmo concreto hace exactamente $\lceil\log_2 n!\rceil$ comparaciones.
+\end{itemize}
+\end{trampa}
+
+% ---------------------------------------------------------------------
+\section{Conteo de inversiones}
+
+Dada una secuencia $a_1,\dots,a_n$ de números distintos, una \emph{inversión} es un par de índices $i<j$ con $a_i>a_j$. La cantidad de inversiones mide qué tan lejos está la secuencia de estar ordenada: cero si está ordenada, $\binom n2$ si está en orden inverso. Sirve para comparar dos rankings: se escriben los índices del segundo ranking en el orden del primero y se cuentan las inversiones (cada inversión es un ``cruce'' de la figura de la letra).\visto{Examen jul. 2022 Ej.~1: inversiones entre rankings, $\Oh(n\log n)$}
+
+Contar todos los pares es $\Theta(n^2)$. La idea del libro (sección~5.3) es modificar mergesort: además de ordenar cada mitad, cada llamada devuelve cuántas inversiones tiene. Las inversiones de la secuencia son las de la mitad izquierda $A$, más las de la mitad derecha $B$, más las \emph{cruzadas} ($a\in A$, $b\in B$, $a>b$). Las cruzadas se cuentan durante el merge: cuando se coloca un elemento de $B$, todos los que \emph{quedan} en $A$ son mayores que él, y cada uno forma una inversión con él.
+
+\begin{algorithmic}[1]
+\Function{Sort-and-Count}{$L$}
+  \If{$|L|=1$} \Return $(0,L)$ \EndIf
+  \State dividir $L$ en $A$ (primeros $\lceil n/2\rceil$) y $B$ (el resto)
+  \State $(r_A,A)\gets$ \Call{Sort-and-Count}{$A$};\; $(r_B,B)\gets$ \Call{Sort-and-Count}{$B$}
+  \State $(r,L)\gets$ \Call{Merge-and-Count}{$A,B$}
+  \State \Return $(r_A+r_B+r,\;L)$
+\EndFunction
+\Function{Merge-and-Count}{$A,B$} \Comment{$A$ y $B$ ordenadas}
+  \State $Cont\gets 0$;\; $C\gets$ lista vacía
+  \While{$A$ y $B$ no vacías} \Comment{$a$, $b$: primeros de $A$ y $B$}
+    \If{$a<b$} pasar $a$ al final de $C$
+    \Else\ pasar $b$ al final de $C$;\; $Cont\gets Cont+|A|$ \Comment{lo que queda en $A$}
+    \EndIf
+  \EndWhile
+  \State agregar a $C$ lo que quede de $A$ o de $B$;\; \Return $(Cont,C)$
+\EndFunction
+\end{algorithmic}
+
+\paragraph{Correctitud.} Por inducción: las llamadas recursivas devuelven las inversiones internas de $A$ y de $B$ y las dejan ordenadas. Ordenar cada mitad no cambia las inversiones cruzadas (es un par por cada $a\in A$, $b\in B$ con $a>b$, sin importar las posiciones dentro de cada mitad). En el merge, cuando $b$ pasa a $C$, los elementos que siguen en $A$ son exactamente los $a\in A$ con $a>b$ (los menores ya salieron, porque $A$ está ordenada), así que cada inversión cruzada se cuenta una vez, en el momento en que sale su elemento de $B$.
+
+\textbf{Tiempo.} \textsc{Merge-and-Count} es $\Oh(n)$: cada iteración hace trabajo constante y saca un elemento. Entonces $T(n)\le 2T(n/2)+cn$ y por (5.2) es $\Oh(n\log n)$.
+
+\begin{ejemplo}
+$I_2=(2,1,5,3,4)$. Mitades $(2,1)$ y $(5,3,4)$. En $(2,1)$ hay 1 inversión; en $(5,3,4)$ hay 2, porque al mezclar $(5)$ con $(3,4)$ salen el 3 y el 4 con un elemento restante en $A$ cada vez. Al mezclar $(1,2)$ con $(3,4,5)$ salen primero el 1 y el 2, así que no hay cruzadas. Total: 3.
+\end{ejemplo}
+
+\begin{receta}[inversiones o cualquier ``modificá mergesort'']
+Escribí el algoritmo completo (las dos funciones). Señalá en el merge la línea donde se cuenta y \emph{por qué} se suma la cantidad de elementos restantes de la mitad izquierda. Para el tiempo: ``\textsc{Merge-and-Count} recorre cada mitad una vez con operaciones $\Oh(1)$ por elemento, $\Oh(n)$; la recursión cumple $T(1)\le c$, $T(n)\le 2T(n/2)+cn$; es la recurrencia (5.1) y por (5.2) es $\Oh(n\log n)$''. La solución oficial también aceptó desenrollar: $T(n)\le 2^kT(n/2^k)+kcn+(2^k-1)c$ con $k=\log_2 n$.
+\end{receta}
+
+\begin{trampa}
+\begin{itemize}
+  \item Sumar 1 en vez de la cantidad de elementos restantes de $A$ (eso cuenta pasos del merge, no inversiones).
+  \item Olvidar devolver la suma de las tres partes, o no devolver el arreglo ordenado: la llamada de arriba necesita las mitades ordenadas.
+  \item Copiar el código oficial de jul.~2022 tal cual: le falta el \texttt{return inv} en \texttt{mergeSort\_Inv}, el segundo ciclo de ``restos'' usa \texttt{fin1} donde va \texttt{fin2}, y la copia final debe ir a \texttt{A[ini+posAux]}.
+\end{itemize}
+\end{trampa}
+
+% ---------------------------------------------------------------------
+\section{Par de puntos más cercano}
+
+Dado un conjunto $P=\{p_1,\dots,p_n\}$ de puntos del plano, se busca un par $p_i\neq p_j$ con distancia euclídea $d(p_i,p_j)$ mínima. La fuerza bruta es $\Theta(n^2)$. El algoritmo de la sección~5.4 es $\Oh(n\log n)$. En exámenes se preguntó describirlo, explicar los términos de su recurrencia e identificar su técnica.\visto{1P 2017 Ej.~3(a): definir el problema, términos de la recurrencia\dycmas{Examen feb. 2018 P.~4: qué técnica usa cada algoritmo}}
+
+\paragraph{Algoritmo.}
+\begin{enumerate}
+  \item Al principio, una sola vez: construir $P_x$ y $P_y$, los puntos ordenados por $x$ y por $y$. Cuesta $\Oh(n\log n)$.
+  \item \textbf{Dividir:} $Q$ = primera mitad de $P_x$ y $R$ = segunda mitad. La recta vertical $L$ pasa por el punto de $Q$ con mayor $x$. Construir $Q_x,Q_y,R_x,R_y$ recorriendo $P_x$ y $P_y$ en $\Oh(n)$.
+  \item \textbf{Resolver} recursivamente en $Q$ y en $R$. Sea $\delta$ la menor de las dos distancias obtenidas.
+  \item \textbf{Combinar:} sea $S$ el conjunto de puntos a distancia menor que $\delta$ de $L$ y $S_y$ esos puntos en orden de $y$ (se obtiene de $P_y$ en $\Oh(n)$). Para cada punto de $S_y$, calcular la distancia a los 15 siguientes de $S_y$. Devolver el mejor par entre el de $Q$, el de $R$ y el de la franja.
+\end{enumerate}
+
+\begin{resultado}[Sección 5.4 — por qué alcanza con 15 vecinos]
+Si existen $q\in Q$ y $r\in R$ con $d(q,r)<\delta$, ambos están a distancia menor que $\delta$ de $L$, es decir, en $S$. Además, si $s,s'\in S$ cumplen $d(s,s')<\delta$, entonces están a lo sumo a 15 posiciones uno del otro en $S_y$.
+
+\emph{Idea:} se divide la franja en cuadrados de lado $\delta/2$. Cada cuadrado tiene a lo sumo un punto (dos puntos en el mismo cuadrado estarían del mismo lado de $L$ y a distancia $\le\delta/\sqrt2<\delta$, absurdo). Si $s$ y $s'$ están separados por 16 o más posiciones en $S_y$, entre ellos hay al menos tres filas completas de cuadrados y $|y(s)-y(s')|\ge 3\delta/2>\delta$.
+\end{resultado}
+
+\paragraph{Tiempo.} Con $P_x,P_y$ preordenados, dividir y combinar son $\Oh(n)$: $T(n)\le 2T(n/2)+cn$, y con el ordenamiento inicial el total es $\Oh(n\log n)$. Si en cada llamada se ordena la franja por $y$, la recurrencia es $T(n)\le 2T(n/2)+cn\log n$ y da $\Oh(n\log^2 n)$. Esta es la recurrencia que daba la letra del 1P~2017, que pedía explicar sus términos: el 0 es el caso base, $2T(n/2)$ son las dos llamadas separadas por $L$ y $cn\log n$ es ordenar la franja.
+
+\begin{trampa}
+\begin{itemize}
+  \item Decir que la franja tiene $\Oh(1)$ puntos: puede tener todos. Lo constante es la cantidad de vecinos a revisar por punto.
+  \item Ordenar por $y$ en cada llamada y afirmar $\Oh(n\log n)$.
+  \item Olvidar los pares que cruzan $L$ (sin la franja, el algoritmo es incorrecto).
+\end{itemize}
+\end{trampa}
+
+% ---------------------------------------------------------------------
+\section{Multiplicación de enteros (Karatsuba)}\label{sec:dyc-karatsuba}
+
+Multiplicar dos enteros de $n$ bits con el algoritmo escolar es $\Theta(n^2)$. Escribiendo $x=x_1 2^{n/2}+x_0$ y $y=y_1 2^{n/2}+y_0$ (con $x_1,x_0,y_1,y_0$ de $n/2$ bits):
+\[
+xy=x_1y_1\,2^n+(x_1y_0+x_0y_1)\,2^{n/2}+x_0y_0 .
+\]
+Con cuatro productos recursivos queda $T(n)\le 4T(n/2)+cn$, que por (5.4) es $\Oh(n^{\log_2 4})=\Oh(n^2)$: no se gana nada. El truco es obtener el término del medio con un solo producto extra, usando $(x_1+x_0)(y_1+y_0)=x_1y_1+(x_1y_0+x_0y_1)+x_0y_0$.\visto{Examen dic. 2022 Ej.~2: diseñar, recurrencia y resolverla\dycmas{2P 2025 Ej.~1(a): recurrencia y cota, sin demostrar}}
+
+\begin{algorithmic}[1]
+\Function{MultiplicacionEnteros}{$x,y,n$}
+  \If{$n>1$}
+    \State sean $x=x_1 2^{n/2}+x_0$ e $y=y_1 2^{n/2}+y_0$
+    \State $r_2\gets$ \Call{MultiplicacionEnteros}{$x_1,y_1,n/2$}
+    \State $r_0\gets$ \Call{MultiplicacionEnteros}{$x_0,y_0,n/2$}
+    \State $r_1\gets$ \Call{MultiplicacionEnteros}{$x_1+x_0,\,y_1+y_0,\,n/2$}$\;-\;r_2-r_0$
+    \State \Return $r_2\cdot 2^n+r_1\cdot 2^{n/2}+r_0$
+  \Else
+    \State \Return $x\cdot y$ \Comment{producto de dos bits}
+  \EndIf
+\EndFunction
+\end{algorithmic}
+
+\paragraph{Recurrencia.}
+\[
+T(n)\le\begin{cases} c_b & \text{si } n=1,\\ 3T(n/2)+c_g n & \text{en otro caso.}\end{cases}
+\]
+El término $3T(n/2)$ son las tres llamadas con instancias de tamaño $n/2$. El término $c_gn$ sale de una cantidad fija de sumas, restas y desplazamientos (multiplicar por $2^n$ es agregar ceros), cada una $\Oh(n)$. $c_b$ es el caso base, multiplicar dos bits. Por (5.4) con $q=3$: $T(n)=\Oh(n^{\log_2 3})=\Oh(n^{1{,}59})$, y en particular $o(n^2)$.
+
+\begin{problema}{Demostrar por inducción que $T(n)\le kn^{\log_2 3}-dn$ (examen dic.~2022)}
+\textbf{Base:} $T(1)\le c_b$ y se necesita $c_b\le k-d$.
+
+\textbf{Paso:} con la hipótesis para $n/2$,
+\[
+T(n)\le 3\Bigl(k\bigl(\tfrac n2\bigr)^{\log_2 3}-d\tfrac n2\Bigr)+c_gn
+= kn^{\log_2 3}-dn+n\Bigl(c_g-\tfrac d2\Bigr),
+\]
+usando $3(n/2)^{\log_2 3}=n^{\log_2 3}$. Es $\le kn^{\log_2 3}-dn$ si $c_g-d/2\le 0$. Alcanza con elegir $d\ge 2c_g$ y $k\ge c_b+d$.
+
+\textbf{Por qué restar $dn$:} con la conjetura $T(n)\le kn^{\log_2 3}$ queda $T(n)\le kn^{\log_2 3}+c_gn$, y el término $c_gn$ impide cerrar el paso inductivo.
+\end{problema}
+
+\paragraph{Lo mismo con matrices (Strassen).} Partiendo matrices $n\times n$ en cuatro bloques, el producto ingenuo hace 8 productos de bloques: $8T(n/2)+cn^2=\Theta(n^3)$. Strassen arma el resultado con 7 productos de bloques (y $\Theta(n^2)$ sumas): $T(n)=7T(n/2)+cn^2=\Theta(n^{\log_2 7})\approx n^{2{,}81}$. En el examen se pedía explicar la idea a nivel de operaciones matriciales, sin código.\visto{Examen jul. 2011 Ej.~2: producto de matrices y Strassen}
+
+\begin{trampa}
+\begin{itemize}
+  \item Escribir $4T(n/2)$: con cuatro llamadas no hay mejora.
+  \item Restar mal: $r_1$ es el producto de las sumas \emph{menos} $r_2$ y $r_0$. La solución oficial de dic.~2022 tiene la errata ``$-r_2-r_1$''.
+  \item Escribir $3T(n/2)+c$: las sumas de números de $n$ bits no son de tiempo constante.
+  \item $x_1+x_0$ puede tener $n/2+1$ bits. No cambia el orden (el libro lo comenta), pero si te lo preguntan, decilo.
+\end{itemize}
+\end{trampa}
+
+% ---------------------------------------------------------------------
+\section{Quicksort, selección y mediana}
+
+\subsection{Quicksort}
+
+Quicksort también es dividir y conquistar, pero el trabajo está en la división. \textsc{Partition} elige un pivote y reordena el subarreglo para que queden primero los menores, después el pivote en su lugar definitivo y después los mayores. Luego se ordena recursivamente cada lado. Combinar no cuesta nada.\visto{2P 2011 Ej.~3(d,e): Partition y AD de quicksort\dycmas{2P 2013 Ej.~3(c): quicksort, técnica, estabilidad}\dycmas{Examen feb. 2011 Ej.~4: quicksort, complejidad, estabilidad}\dycmas{Examen dic. 2012 Ej.~4: quicksort, peor caso}}
+
+\begin{algorithmic}[1]
+\Function{QuickSort}{$A,ini,fin$}
+  \If{$ini<fin$}
+    \State $p\gets$ \Call{Partition}{$A,ini,fin$}
+    \State \Call{QuickSort}{$A,ini,p-1$};\; \Call{QuickSort}{$A,p+1,fin$}
+  \EndIf
+\EndFunction
+\Function{Partition}{$A,ini,fin$} \Comment{pivote $A[ini]$}
+  \State $piv\gets A[ini]$;\; $p\gets ini$
+  \For{$i\gets ini+1$ \textbf{hasta} $fin$}
+    \If{$A[i]<piv$} $p\gets p+1$;\; intercambiar $A[p]$ y $A[i]$ \EndIf
+  \EndFor
+  \State intercambiar $A[ini]$ y $A[p]$;\; \Return $p$
+\EndFunction
+\end{algorithmic}
+
+\paragraph{Costo.} \textsc{Partition} sobre $m$ elementos hace $m-1$ comparaciones. En el \textbf{peor caso} el pivote es siempre el mínimo o el máximo (por ejemplo, arreglo ya ordenado con pivote al principio): $T(n)=T(n-1)+(n-1)$, total $n(n-1)/2=\Theta(n^2)$, y no es óptimo. En el \textbf{caso medio} (todas las permutaciones equiprobables, o pivote aleatorio) es $\Theta(n\log n)$, alrededor de $1{,}39\,n\log_2 n$ comparaciones. El libro lo analiza en la sección~13.5 con pivote aleatorio: el tiempo esperado es $\Oh(n\log n)$. Quicksort \textbf{no es estable}: los intercambios de \textsc{Partition} pueden invertir elementos iguales.
+
+\begin{ejemplo}
+$[5,2,7,4,9,1,8,3,6]$ con pivote 5 y la partición de arriba. Los menores que 5 (2, 4, 1, 3) se van llevando a las posiciones 1 a 4, y queda $[5,2,4,1,3,7,8,9,6]$. El intercambio final pone el pivote en la posición 4: $[3,2,4,1,\mathbf{5},7,8,9,6]$. Los subvectores a ordenar recursivamente son $[3,2,4,1]$ y $[7,8,9,6]$.\visto{Examen feb. 2016 Ej.~2: traza de la partición}
+\end{ejemplo}
+
+\subsection{Selección y mediana}
+
+Para encontrar el $k$-ésimo menor elemento (la mediana es $k=\lceil n/2\rceil$) no hace falta ordenar. \textsc{Select}$(S,k)$ elige un separador $s$, arma $S^-=\{a\in S: a<s\}$ y $S^+=\{a\in S:a>s\}$ en $\Oh(n)$, y recursa en \emph{un solo} lado: si $|S^-|=k-1$ devuelve $s$; si $|S^-|\ge k$ busca el $k$-ésimo en $S^-$; si no, busca el $(k-1-|S^-|)$-ésimo en $S^+$. Si el separador deja de cada lado una fracción fija, por ejemplo cada lado con a lo sumo $\frac34 n$, entonces $T(n)\le T(\frac34 n)+cn$, una serie geométrica que da $\Oh(n)$. Con separador aleatorio el tiempo esperado es $\Oh(n)$ (sección~13.5).
+
+El ejercicio típico de examen usa esta idea con la mediana como separador.\visto{Examen feb. 2025 Ej.~2: faltante con \textsc{separar}\dycmas{Simulacro 1P 2018 Ej.~3: faltante, $B$ sin ordenar}}
+
+\begin{problema}{Elemento faltante con \textsc{separar} (examen feb.~2025, Ej.~2)}
+$O$ es un arreglo ordenado sin repetidos con $n-1$ elementos ($n$ potencia de 2). $F$ es un conjunto no ordenado con todos los elementos de $O$ menos uno. Se dispone de \textsc{separar}$(A,s)$, que en $\Theta(|A|)$ devuelve $(A^<,A^>)$. Dar un algoritmo de dividir y conquistar $\Oh(n)$ que encuentre el faltante, y justificar el tiempo con una recurrencia.
+
+\textbf{Solución.} Sea $m=n/2$, de modo que $O[m]$ es la mediana de $O$. Se calcula $(F^<,F^>)\gets$ \textsc{separar}$(F,O[m])$. Si $|F^<|=|F^>|$, falta $O[m]$. Si $|F^<|<|F^>|$, el faltante está en $O[1..m-1]$ y se recursa con $(O[1..m-1],F^<)$. Si no, se recursa con $(O[m+1..n-1],F^>)$. Ambos subarreglos tienen $n/2-1$ elementos, una instancia ``de tamaño $n/2$''. Caso base $n=2$: $F$ es vacío y se devuelve $O[1]$.
+
+\textbf{Recurrencia:} $T(2)\le c$, $T(n)\le T(n/2)+cn$. Hay una sola llamada recursiva sobre tamaño $n/2$, y el término $cn$ sale de \textsc{separar} sobre $n-2$ elementos más operaciones $\Oh(1)$ (y la copia de medio arreglo, si se copia). Por (5.5) es $\Oh(n)$.
+
+\textbf{Correctitud (idea):} $F^<\subseteq O[1..m-1]$ y $F^>\subseteq O[m+1..n-1]$, y cada uno tiene $m-1$ elementos, salvo el que contiene al faltante, que tiene $m-2$.
+\end{problema}
+
+Hay una variante de quicksort con dos conjuntos que solo se comparan entre sí.\visto{1P 2017 Ej.~3(b): tuercas y tornillos}
+
+\begin{problema}{Tuercas y tornillos (1P 2017, Ej.~3(b))}
+$n$ tuercas y sus $n$ tornillos, de diámetros distintos. Solo se puede comparar una tuerca con un tornillo. Emparejarlos con $\Oh(n\log n)$ comparaciones en promedio.
+
+\textbf{Solución.} Es quicksort ``cruzado''. Se toma una tuerca $s_m$ como pivote y se la compara con todos los tornillos: quedan los más chicos $T_p$, los más grandes $T_g$ y su tornillo $t_m$. Con $t_m$ como pivote se separan las tuercas en $S_p$ y $S_g$. Se recursa en $(S_p,T_p)$ y en $(S_g,T_g)$. En promedio los tamaños son cercanos a $n/2$ y el costo es $\Oh(n\log n)$. El peor caso, cuando el pivote es siempre el menor o el mayor, es $\Theta(n^2)$.
+\end{problema}
+
+\begin{trampa}
+\begin{itemize}
+  \item \textbf{Ordenar $F$} para después recorrerlo: es $\Theta(n\log n)$ y no cumple $\Oh(n)$. La solución oficial lo marca expresamente.
+  \item Pasar a \textsc{separar} el índice $m$ en vez del elemento $O[m]$, o tratar a $F$ como arreglo indexable: es un conjunto.
+  \item Usar sumas (``suma de $O$ menos suma de $F$''): los elementos son de un dominio con orden pero sin suma definida.
+  \item Hacer dos llamadas recursivas en selección: con una sola es $T(n/2)+cn=\Oh(n)$; con dos es $\Oh(n\log n)$.
+\end{itemize}
+\end{trampa}
+
+% ---------------------------------------------------------------------
+\section{Búsqueda binaria y variantes}
+
+Búsqueda binaria en un arreglo ordenado compara $x$ con el elemento del medio y sigue en una sola mitad: $T(n)\le T(n/2)+c$, $T(1)\le c$, que da $\Oh(\log n)$ (por inducción, $T(n)\le c\log_2 n+c$). Es el caso $q=1$ con combinación constante. El patrón general sirve cada vez que se puede decidir en $\Oh(1)$ en qué mitad está la respuesta, aunque no se compare con un $x$ dado.\visto{Examen jul. 2016 Ej.~4: búsqueda binaria y su técnica\dycmas{1P 2021 Ej.~3: faltante en progresión, $\Oh(\log n)$}}
+
+\begin{problema}{Faltante en una progresión aritmética (1P 2021, Ej.~3)}
+$A$ era una progresión aritmética ordenada. Se le quitó un elemento que no es ni el primero ni el último, y quedó un arreglo de largo $n$, potencia de 2. Encontrar el faltante en $\Oh(\log n)$.
+
+\textbf{Solución.} La diferencia es $d=(A[n]-A[1])/n$, porque hay $n$ saltos de $d$ entre el primero y el último del arreglo original. Para el rango $[i,j]$: si $A[j]-A[i]=(j-i)d$ no falta nada en el rango. Se compara la mitad izquierda $[i,m]$ con la derecha $[m+1,j]$. Si falta en una de ellas se recursa ahí; si no falta en ninguna, el faltante es $A[m]+d$, entre las dos mitades. Caso base: dos elementos, se devuelve $A[i]+d$. Recurrencia $T(n)\le T(n/2)+c$, $\Oh(\log n)$.
+\end{problema}
+
+Un ejercicio viejo pidió una ``búsqueda'' por dividir y conquistar sin suponer orden.\visto{Examen feb. 2014 Ej.~3: búsqueda DyC sin orden}
+
+\begin{problema}{``Búsqueda'' por dividir y conquistar sin suponer orden (examen feb.~2014, Ej.~3)}
+\textsc{Busqueda}$(A,ini,fin,x)$: si $ini=fin$ devuelve $A[ini]=x$; si no, devuelve \textsc{Busqueda}$(A,ini,m,x)$ \textbf{o} \textsc{Busqueda}$(A,m+1,fin,x)$. Descomposición: partir el rango a la mitad. Combinación: el ``o''. Caso base: rango de un elemento. Tiempo: $T(n)\le 2T(n/2)+c=\Oh(n)$. Sin orden no se puede descartar una mitad, así que no es más rápido que recorrer el arreglo. Sirve para practicar cómo identificar las partes de la técnica.
+\end{problema}
+
+\begin{trampa}
+\begin{itemize}
+  \item \textbf{Copiar el subarreglo} en cada llamada: cada copia cuesta $\Theta(n)$ y la recurrencia pasa a ser $T(n/2)+cn=\Oh(n)$. Para $\Oh(\log n)$ hay que pasar índices de inicio y fin. La solución del 1P~2021 lo pide explícitamente, y la sugerencia de la letra lo insinuaba.
+  \item En el faltante en progresión, olvidar el caso en que el faltante está \emph{entre} las dos mitades.
+\end{itemize}
+\end{trampa}
+
+% ---------------------------------------------------------------------
+\section{Otros problemas de examen resueltos con dividir y conquistar}
+
+\subsection{Mínimo y máximo con $3n/2-2$ comparaciones}
+
+Recorrer el arreglo buscando mínimo y máximo por separado usa $2(n-1)$ comparaciones. Por dividir y conquistar: si $n=2$, una comparación decide cuál es el mínimo y cuál el máximo. Si $n>2$, se resuelve cada mitad y se combinan con dos comparaciones (mínimo de los mínimos, máximo de los máximos).\visto{Examen feb. 2019 Ej.~1: mín--máx, $C(n)=3n/2-2$, correctitud\dycmas{Examen feb. 2012 Ej.~3: \texttt{minmax} por DyC}}
+
+\begin{algorithmic}[1]
+\Function{MinMax}{$A$} \Comment{$n$ potencia de 2, $n>1$}
+  \If{$n=2$}
+    \If{\Call{EsMenor}{$A[1],A[2]$}} \Return $(A[1],A[2])$ \Else\ \Return $(A[2],A[1])$ \EndIf
+  \EndIf
+  \State $(min_1,max_1)\gets$ \Call{MinMax}{$A[1:n/2]$}
+  \State $(min_2,max_2)\gets$ \Call{MinMax}{$A[n/2+1:n]$}
+  \State $min\gets$ \textbf{si} \Call{EsMenor}{$min_1,min_2$} \textbf{entonces} $min_1$ \textbf{sino} $min_2$
+  \State $max\gets$ \textbf{si} \Call{EsMenor}{$max_1,max_2$} \textbf{entonces} $max_2$ \textbf{sino} $max_1$
+  \State \Return $(min,max)$
+\EndFunction
+\end{algorithmic}
+
+\textbf{Conteo.} $C(2)=1$ y $C(n)=2C(n/2)+2$: dos llamadas sobre $n/2$ más las dos comparaciones de la combinación. Por inducción en $i$ con $n=2^i$: para $i=1$, $3\cdot2/2-2=1=C(2)$; en el paso, $C(n)=2(3n/4-2)+2=3n/2-2$. \textbf{Correctitud.} Inducción en $i$. Para $n=2$, la comparación identifica al mayor. Para $n>2$, por hipótesis inductiva las llamadas devuelven el mínimo y el máximo de cada mitad. Como las mitades cubren $A$, el mínimo global es el menor de $min_1,min_2$ y el máximo global es el mayor de $max_1,max_2$.
+
+\subsection{Subarreglo de suma máxima}
+
+Encontrar $i\le j$ con $A_i+\dots+A_j$ máxima. Todo intervalo está en la mitad izquierda, en la derecha, o cruza el medio. Los dos primeros casos se resuelven recursivamente. El que cruza se arma con la mejor suma que termina en $n/2$ (un ciclo hacia la izquierda acumulando) y la mejor que empieza en $n/2+1$ (un ciclo hacia la derecha), en $\Oh(n)$. Se devuelve el mejor de los tres: $T(n)\le 2T(n/2)+cn$, $\Oh(n\log n)$ por (5.2).\visto{1P 2019 Ej.~2: suma máxima, $\Oh(n\log n)$ y $\Oh(n)$}
+
+\emph{Mejora a $\Oh(n)$:} cada llamada devuelve también la suma total $X$, el mejor prefijo $Y$ y el mejor sufijo $Z$ de su rango. Con los valores de las mitades $I$ y $D$: $X=X_I+X_D$, $Y=\max(Y_I,X_I+Y_D)$, $Z=\max(Z_D,X_D+Z_I)$, y la mejor suma que cruza es $Z_I+Y_D$. Todo en $\Oh(1)$, así que $T(n)\le 2T(n/2)+c=\Oh(n)$.
+
+\subsection{Leche ``estropeada''}
+
+Dadas $n$ temperaturas $t_1,\dots,t_n$, decidir si existen $i<j$ con $t_j-t_i>d$. Con dividir y conquistar: el par está en la mitad izquierda, en la derecha, o tiene $i$ a la izquierda y $j$ a la derecha. Este último caso existe si y solo si $\max(\text{derecha})-\min(\text{izquierda})>d$. Calculando mínimo y máximo con un recorrido, $T(n)\le 2T(n/2)+cn=\Oh(n\log n)$. Si cada llamada devuelve además el mínimo y el máximo de su rango, la combinación es $\Oh(1)$ y queda $2T(n/2)+c=\Oh(n)$. El ejercicio pedía también demostrar esto último por inducción, con $T(n)\le cn-c$.\visto{1P 2018 Ej.~2: temperaturas, $\Oh(n\log n)$ y luego $\Oh(n)$}
+
+\subsection{Conjunto independiente de peso máximo en un árbol binario}
+
+$p(T)$ es el peso máximo de un conjunto independiente de $T$ (ningún nodo es padre de otro) y $q(T)$ el máximo sin usar la raíz. Si $T$ es una hoja $v$: $p=w(v)$, $q=0$. Si no, con subárboles $T_I,T_D$: $q(T)=p(T_I)+p(T_D)$ y $p(T)=\max\{w(v)+q(T_I)+q(T_D),\;q(T)\}$. La unión de conjuntos independientes de $T_I$ y $T_D$ es independiente en $T$, porque ningún nodo de un subárbol es padre de uno del otro. El algoritmo devuelve el par $(p,q)$. Para un árbol perfecto con $n$ nodos: $f(1)\le c$, $f(n)\le 2f\bigl(\frac{n-1}2\bigr)+c$, y por inducción $f(n)\le cn$, porque $2c\frac{n-1}{2}+c=cn$.\visto{Examen feb. 2022 Ej.~1: independiente en árbol, $p(T)$ y $q(T)$} Este ejercicio es el puente con programación dinámica: los subproblemas no se repiten porque los subárboles son disjuntos, así que la recursión directa ya es lineal.
+
+\subsection{Fibonacci recursivo: cuándo dividir y conquistar no sirve}
+
+\textsc{FibDC}$(n)=$ \textsc{FibDC}$(n-1)+$\textsc{FibDC}$(n-2)$, con $F_0=F_1=1$ como en la solución oficial. La cantidad de sumas cumple $S(0)=S(1)=0$ y $S(n)=1+S(n-1)+S(n-2)$. Los valores para $n=0,\dots,10$ son $0,0,1,2,4,7,12,20,33,54,88$, es decir $S(n)=F_n-1$, que crece exponencialmente. La versión de programación dinámica con espacio $\Oh(1)$ hace $n-1$ sumas. La diferencia se explica porque los subproblemas \emph{se superponen} y el algoritmo recursivo resuelve muchas veces el mismo. Dividir y conquistar funciona bien cuando los subproblemas son disjuntos.\visto{Examen feb. 2017 P.~3: FibDC, $S(n)$ y tabla vs.\ FibPD\dycmas{Práctica 2P: el mismo ejercicio resuelto}}
+
+\subsection{Cubrir una plaza $2^n\times 2^n$ con baldosas en L}
+
+Una plaza de $N\times N$ con $N=2^n$ tiene una celda ocupada por un monumento, y hay que cubrir el resto con baldosas en forma de L (3 celdas). Se usan $(N^2-1)/3$ baldosas. Dividir y conquistar: se parte la plaza en 4 cuadrantes de $N/2\times N/2$. El monumento cae en uno; se coloca una L en el centro que ocupa una celda de cada uno de los otros tres, y esas celdas pasan a ser el ``monumento'' de su cuadrante. Se recursa en los 4. El caso base es $2\times2$ con una celda ocupada: una L. $T(N)=4T(N/2)+c=\Theta(N^2)$, lineal en el área.\visto{Examen dic. 2010 Pr.~2: baldosas en L por DyC}
+
+\begin{receta}[cuando el problema no es uno del libro]
+\begin{enumerate}
+  \item Preguntate qué tiene que devolver cada llamada para que la combinación sea barata. Casi siempre hay que devolver \emph{más} que la respuesta (mín y máx, $p$ y $q$, prefijo y sufijo, el arreglo ordenado). Ese es el truco que pasa de $\Oh(n\log n)$ a $\Oh(n)$.
+  \item Escribí la clasificación de casos de la combinación (``todo intervalo cae en una de estas tres categorías'') y justificá que no falta ninguno: es la base de la correctitud.
+  \item Correctitud por inducción en $i$ con $n=2^i$, como en la solución de feb.~2019.
+\end{enumerate}
+\end{receta}
+
+\begin{trampa}
+\begin{itemize}
+  \item Recalcular en la combinación algo que la recursión podía devolver, y perder el orden pedido.
+  \item En mín--máx, contar mal el caso base: con $n=2$ es \emph{una} comparación, no dos.
+  \item Olvidar el caso ``cruzado'' (intervalo o par que cruza el medio).
+\end{itemize}
+\end{trampa}
+
+% ---------------------------------------------------------------------
+\section{Mapa de lo que se preguntó}
+
+Las fuentes van con la numeración de cada letra (Ex.~= examen, Ej.~= ejercicio, P.~= pregunta, Pr.~= problema). Hasta 2017 el curso usaba otro material: árboles de decisión, cota inferior de la ordenación y algoritmos de ordenación concretos aparecían en el segundo parcial. Entre 2017 y 2021 dividir y conquistar se tomaba en el primer parcial; esos ejercicios se incluyen porque son del mismo tipo que los recientes. Desde 2022 aparece en exámenes y, en 2025, en el segundo parcial.
+
+{\small
+\renewcommand{\arraystretch}{1.05}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{2.95cm}>{\raggedright\arraybackslash}p{2.75cm}>{\raggedright\arraybackslash}X@{}}
+\toprule
+Fuente & Tema & Qué se pedía \\
+\midrule
+2P 2008 Ej.~1(b) & Recurrencias & Resolver $T(n)=T(n/2)+n+\log_2 n$ \\
+2P 2008 Ej.~2 & Árbol de decisión & Bubble sort: árbol $n=3$, estabilidad, optimalidad \\
+\end{tabularx}\par\vspace{-\parskip}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{2.95cm}>{\raggedright\arraybackslash}p{2.75cm}>{\raggedright\arraybackslash}X@{}}
+2P 2009 Ej.~3.2 & Cota inferior & Cota inferior en peor caso y caso medio \\
+Ex. jul. 2009 Ej.~1.2 & Recurrencias & Función recursiva dada: recurrencia del peor caso \\
+\end{tabularx}\par\vspace{-\parskip}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{2.95cm}>{\raggedright\arraybackslash}p{2.75cm}>{\raggedright\arraybackslash}X@{}}
+Ex. dic. 2009 Pr.~1(b) & Mergesort & Resolver $T(\lfloor n/2\rfloor)+T(\lceil n/2\rceil)+n-1$; caso medio $\Theta(n\log n)$ \\
+2P 2010 Ej.~3 & Mergesort & Implementar, comparaciones, optimalidad, árbol $n=3$ \\
+Ex. feb. 2010 Ej.~4 & Árbol de decisión & Definición y árbol de insertion sort para $n=3$ \\
+Ex. jul. 2010 Ej.~3 & Árbol de decisión & Selection sort y su árbol para $n=3$ \\
+\end{tabularx}\par\vspace{-\parskip}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{2.95cm}>{\raggedright\arraybackslash}p{2.75cm}>{\raggedright\arraybackslash}X@{}}
+Ex. dic. 2010 Ej.~4 & Cota inferior & Cota en el caso medio, $\Theta(n\log n)$ \\
+Ex. dic. 2010 Pr.~2 & Otros DyC & Cubrir plaza $2^n\times2^n$ con baldosas en L \\
+\end{tabularx}\par\vspace{-\parskip}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{2.95cm}>{\raggedright\arraybackslash}p{2.75cm}>{\raggedright\arraybackslash}X@{}}
+2P 2011 Ej.~3 & AD, quicksort & Árbol de decisión; quicksort con \textsc{Partition} \\
+Ex. feb. 2011 Ej.~1 & Recurrencias & Orden de $3T(N/3)+aN^2$ \\
+Ex. feb. 2011 Ej.~4 & Quicksort & Implementar; complejidad y estabilidad \\
+Ex. jul. 2011 Ej.~2 & Matrices & Costo del producto clásico; idea de Strassen \\
+\end{tabularx}\par\vspace{-\parskip}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{2.95cm}>{\raggedright\arraybackslash}p{2.75cm}>{\raggedright\arraybackslash}X@{}}
+Ex. jul. 2011 Ej.~4 & Árbol de decisión & Definición; insertion sort estable \\
+Ex. dic. 2011 Ej.~4 & Mergesort & $T_W$, caso medio y optimalidad de un mergesort \\
+Ex. dic. 2011 Pr.~2(b) & Recurrencias & Función recursiva dada: peor caso \\
+\end{tabularx}\par\vspace{-\parskip}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{2.95cm}>{\raggedright\arraybackslash}p{2.75cm}>{\raggedright\arraybackslash}X@{}}
+2P 2012 Ej.~2(b) & Mergesort & Implementar, árbol $n=3$, comparaciones, estabilidad \\
+Ex. feb. 2012 Ej.~3 & Mín--máx & \texttt{minmax} de un arreglo por dividir y conquistar \\
+Ex. feb. 2012 Ej.~4 & Árbol de decisión & Hojas $\le 2^h$, suma de profundidades, cota inferior \\
+Ex. jul. 2012 Ej.~4 & Sort elemental & Insertion y selection sort: esfuerzo paso a paso \\
+\end{tabularx}\par\vspace{-\parskip}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{2.95cm}>{\raggedright\arraybackslash}p{2.75cm}>{\raggedright\arraybackslash}X@{}}
+Ex. dic. 2012 Ej.~4 & Quicksort & Implementar con \texttt{AUXILIAR}; peor caso \\
+\bottomrule
+\end{tabularx}
+
+\medskip
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{2.95cm}>{\raggedright\arraybackslash}p{2.75cm}>{\raggedright\arraybackslash}X@{}}
+\toprule
+Fuente & Tema & Qué se pedía \\
+\midrule
+2P 2013 Ej.~3 & Cota, quicksort & Cotas inferiores; quicksort y estabilidad \\
+Ex. feb. 2013 Ej.~3 & Árbol de decisión & Selection sort; partes del árbol con $b<a$ \\
+Ex. dic. 2013 Ej.~3 & Ordenación elemental & Selection sort: peor, mejor y medio; optimalidad \\
+Ex. dic. 2013 Pr.~1 & Mín--máx & Mín y máx de matriz $n\times n$, conteo \\
+\end{tabularx}\par\vspace{-\parskip}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{2.95cm}>{\raggedright\arraybackslash}p{2.75cm}>{\raggedright\arraybackslash}X@{}}
+2P 2014 Ej.~3 & Mergesort & Implementar dado \texttt{Merge}; peor caso y caso medio \\
+Ex. feb. 2014 Ej.~3 & Búsqueda & Búsqueda por dividir y conquistar en arreglo sin orden \\
+\end{tabularx}\par\vspace{-\parskip}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{2.95cm}>{\raggedright\arraybackslash}p{2.75cm}>{\raggedright\arraybackslash}X@{}}
+Ex. jul. 2014 Ej.~2 & Mergesort & Implementar sin vectores auxiliares, técnica usada \\
+Ex. dic. 2014 Ej.~2 & Ordenación elemental & Insertion sort, peor caso, comparaciones \\
+Ex. feb. 2015 Ej.~4 & Mergesort & Algoritmo de sorting por DyC; mejor, peor y medio \\
+2P 2015 Ej.~3 & Árbol de decisión & Construcción, $m\ge n!$, $\log n!$, altura mínima con $n=5$ \\
+\end{tabularx}\par\vspace{-\parskip}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{2.95cm}>{\raggedright\arraybackslash}p{2.75cm}>{\raggedright\arraybackslash}X@{}}
+Ex. jul. 2015 Ej.~2 & Árbol de decisión & Selection sort, árbol para $n=3$ \\
+Ex. dic. 2015 Ej.~4 & Árbol de decisión & Árbol de selection sort; hojas que nunca se dan \\
+\end{tabularx}\par\vspace{-\parskip}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{2.95cm}>{\raggedright\arraybackslash}p{2.75cm}>{\raggedright\arraybackslash}X@{}}
+Ex. feb. 2016 Ej.~2 & Quicksort & Traza de la partición de $[5,2,7,4,9,1,8,3,6]$ \\
+2P 2016 Ej.~3 & Mergesort & Híbrido insertion + merge; $k=\log n$ vs.\ $\sqrt n$ \\
+Ex. jul. 2016 Ej.~2 & Mergesort, cota & Orden de mergesort; $T(\text{mergesort})\in\Theta(\log n!)$ \\
+Ex. jul. 2016 Ej.~4 & Técnicas & Qué resuelve la búsqueda binaria y con qué técnica \\
+\end{tabularx}\par\vspace{-\parskip}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{2.95cm}>{\raggedright\arraybackslash}p{2.75cm}>{\raggedright\arraybackslash}X@{}}
+Ex. feb. 2017 P.~3 & Fibonacci & $S(n)$ de FibDC; FibPD en espacio $\Oh(1)$; tabla comparativa \\
+Ex. jul. 2017 P.~3 & Árbol de decisión & Hojas y altura; mergesort $n=5$ cuesta 8 vs.\ cota 7 \\
+1P 2017 Ej.~3 & Par cercano, quicksort & Términos de $2T(n/2)+cn\log n$; tuercas y tornillos \\
+\bottomrule
+\end{tabularx}
+
+\medskip
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{2.95cm}>{\raggedright\arraybackslash}p{2.75cm}>{\raggedright\arraybackslash}X@{}}
+\toprule
+Fuente & Tema & Qué se pedía \\
+\midrule
+Ex. feb. 2018 P.~3 & Recurrencias & Tiempos de la recurrencia; la de mergesort \\
+Ex. feb. 2018 P.~4 & Técnicas & Par más cercano: qué resuelve y técnica \\
+Simulacro 1P 2018 Ej.~3 & Selección & Faltante entre $A$ ordenado y $B$ sin ordenar, $\Oh(n)$ \\
+1P 2018 Ej.~2 & Otros DyC & Leche: $\Oh(n\log n)$; $2T(n/2)+c$ es $\Oh(n)$ \\
+\end{tabularx}\par\vspace{-\parskip}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{2.95cm}>{\raggedright\arraybackslash}p{2.75cm}>{\raggedright\arraybackslash}X@{}}
+\end{tabularx}\par\vspace{-\parskip}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{2.95cm}>{\raggedright\arraybackslash}p{2.75cm}>{\raggedright\arraybackslash}X@{}}
+Ex. feb. 2019 Ej.~1 & Mín--máx & Algoritmo con $C(n)=2C(n/2)+2$; probar $3n/2-2$; correctitud \\
+1P 2019 Ej.~2 & Otros DyC & Subarreglo de suma máxima en $\Oh(n\log n)$ \\
+1P 2021 Ej.~3 & Búsqueda binaria & Faltante en progresión aritmética en $\Oh(\log n)$ \\
+2P 2021 Ej.~3 & Cota inferior & Correos en $\Oh(n)$; error en cota $\Omega(n\log n)$ \\
+\end{tabularx}\par\vspace{-\parskip}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{2.95cm}>{\raggedright\arraybackslash}p{2.75cm}>{\raggedright\arraybackslash}X@{}}
+Ex. feb. 2022 Ej.~1 & Otros DyC & Independiente en árbol; $\Oh(n)$ por inducción \\
+Ex. jul. 2022 Ej.~1 & Inversiones & Algoritmo tipo mergesort y prueba de $\Oh(n\log n)$ \\
+Ex. dic. 2022 Ej.~2 & Karatsuba & Diseñar $\Oh(n^{\log 3})$; resolver por inducción \\
+Ex. feb. 2025 Ej.~2 & Selección & Faltante con \textsc{separar}; $T(n/2)+\Oh(n)$, cita a (5.5) \\
+\end{tabularx}\par\vspace{-\parskip}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{2.95cm}>{\raggedright\arraybackslash}p{2.75cm}>{\raggedright\arraybackslash}X@{}}
+2P 2025 Ej.~1(a) & Karatsuba & Recurrencia de Karatsuba y cota ajustada \\
+Ex. jul. 2026 Ej.~1(e) & Recurrencias & $qT(n/2)+cn$; resultado para $q=1$ y $q=2$ \\
+\bottomrule
+\end{tabularx}
+}

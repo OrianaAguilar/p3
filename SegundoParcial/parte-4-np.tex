@@ -1,0 +1,744 @@
+% =====================================================================
+%  Parte 4 — Reducciones y NP-completitud
+%  Fragmento: se incluye con \input desde el documento maestro.
+% =====================================================================
+
+% ---------- macros locales de esta parte ----------
+\newcommand{\npdato}[1]{{\sans\bfseries\color{acento}#1.}\enspace}
+\newcommand{\npsi}{\emph{sí}}
+\newcommand{\npno}{\emph{no}}
+\newcommand{\npIS}{\prob{Independent Set}}
+\newcommand{\npVC}{\prob{Vertex Cover}}
+\newcommand{\npSC}{\prob{Set Cover}}
+\newcommand{\npSP}{\prob{Set Packing}}
+\newcommand{\npCL}{\prob{Clique}}
+\newcommand{\npSAT}{\prob{sat}}
+\newcommand{\npTSAT}{\prob{3-sat}}
+\newcommand{\npSS}{\prob{Subset Sum}}
+\newcommand{\npTDM}{\prob{3d-Matching}}
+\newcommand{\npTSP}{\prob{tsp}}
+\newcommand{\npneg}[1]{\overline{#1}}
+
+\parte{np}{Reducciones y \texorpdfstring{$\NP$}{NP}-completitud}%
+{\begin{gathered}X\ \NP\text{-completo},\ \ X\redp Y,\ \ Y\in\NP\\ \Longrightarrow\ \ Y\ \NP\text{-completo}\end{gathered}}%
+{Para probar que un problema nuevo es difícil no se lo resuelve: se muestra que, si se lo pudiera resolver rápido, también se resolvería rápido uno que ya sabemos que es difícil. Todo el capítulo es aprender a hacer esa transformación y a escribirla bien.}
+
+% =====================================================================
+\section{Conceptos: qué es reducir y qué es \texorpdfstring{$\NP$}{NP}}
+% =====================================================================
+
+\subsection{Problemas de decisión y de optimización}
+
+En toda esta parte los problemas son \emph{de decisión}: la respuesta es \npsi\ o \npno. Formalmente, un problema $X$ es el conjunto de tiras (instancias) cuya respuesta es \npsi, y un algoritmo $A$ resuelve $X$ si para toda entrada $s$ vale $A(s)=\text{\npsi}\iff s\in X$. El algoritmo es polinomial si su tiempo es $\Oh(p(|s|))$ para algún polinomio $p$, donde $|s|$ es el largo en bits de la entrada.
+
+Los problemas de optimización se convierten en problemas de decisión agregando un umbral $k$: si se maximiza, la pregunta es <<¿existe una solución de valor \emph{al menos} $k$?>>; si se minimiza, <<¿existe una de valor \emph{a lo sumo} $k$?>>. La versión de decisión no es más difícil que la de optimización (se resuelve la de optimización y se compara con $k$), y tampoco es mucho más fácil: con búsqueda binaria sobre $k$ alcanzan $\Oh(\log n)$ llamadas a la versión de decisión para obtener el valor óptimo. Por eso, para hablar de dificultad, alcanza con mirar la versión de decisión.
+
+\subsection{Reducciones polinomiales}
+
+\begin{definicion}[Kleinberg--Tardos, sección 8.1]
+$Y\redp X$ (<<$Y$ se reduce polinomialmente a $X$>>) si cualquier instancia de $Y$ se puede resolver con una cantidad polinomial de pasos de cómputo más una cantidad polinomial de llamadas a una caja negra que resuelve $X$.
+\end{definicion}
+
+En la práctica, y en todas las soluciones oficiales, la reducción tiene una forma más restringida: una \emph{transformación} $f$ que toma una instancia $s$ de $Y$, corre en tiempo polinomial en $|s|$, y cumple
+\[
+  s \text{ es instancia \npsi\ de } Y \iff f(s) \text{ es instancia \npsi\ de } X .
+\]
+Después se llama una sola vez a la caja negra de $X$ con $f(s)$ y se devuelve su respuesta. Notá que $|f(s)|$ queda polinomial en $|s|$ automáticamente, porque $f$ no tiene tiempo de escribir algo más largo.
+
+\begin{resultado}[Propiedades que se citan en las soluciones]
+\begin{enumerate}[label=(\roman*)]
+  \item Si $Y\redp X$ y $X$ se resuelve en tiempo polinomial, entonces $Y$ también.
+  \item Si $Y\redp X$ y $Y$ no se puede resolver en tiempo polinomial, entonces $X$ tampoco.
+  \item Transitividad: si $Z\redp Y$ e $Y\redp X$, entonces $Z\redp X$ (se componen las transformaciones; la composición de polinomios es un polinomio).
+  \item Con la definición del libro, si $Y\in\Pclass$ entonces $Y\redp X$ para cualquier $X$: se resuelve $Y$ directamente y se llama cero veces a la caja negra.
+\end{enumerate}
+\end{resultado}
+
+La lectura que hay que tener automatizada: $Y\redp X$ quiere decir <<$X$ es al menos tan difícil como $Y$>>, o <<si tuviera un algoritmo para $X$, resolvería $Y$>>. Para probar que un problema \emph{nuevo} es difícil, el problema \emph{conocido} va a la izquierda: se transforman instancias del conocido en instancias del nuevo.
+
+\begin{problema}{Ejemplo base: Independent Set $\redp$ Vertex Cover}
+En un grafo $G=(V,E)$, $S$ es un conjunto independiente si y solo si $V\setminus S$ es un cubrimiento de vértices: una arista con los dos extremos en $S$ es exactamente una arista que $V\setminus S$ no cubre.
+
+\npdato{Transformación} dada $(G,k)$ de \npIS\ con $n$ vértices, se construye $(G,\,n-k)$ de \npVC. Es $\Oh(1)$ si $n$ está en la representación, $\Oh(n+m)$ si hay que copiar el grafo.
+
+\npdato{Equivalencia} si $S$ es independiente con $|S|\ge k$, $V\setminus S$ es un cubrimiento con $|V\setminus S|\le n-k$; recíprocamente, si $C$ es un cubrimiento con $|C|\le n-k$, $V\setminus C$ es independiente de tamaño $\ge k$. La misma idea da $\npVC\redp\npIS$: los dos problemas son equivalentes.
+\end{problema}
+
+Esta transformación se pidió tal cual, sin demostración, como pregunta corta.\visto{2P 2025 Ej. 1(e): IS $\redp$ VC}
+
+\subsection{Certificadores, \texorpdfstring{$\Pclass$}{P} y \texorpdfstring{$\NP$}{NP}}
+
+$\Pclass$ es la clase de los problemas de decisión que tienen un algoritmo polinomial. $\NP$ es la clase de los problemas para los que una respuesta \npsi\ se puede \emph{verificar} rápido si alguien nos da una prueba. La definición que se pide de memoria es la siguiente.
+
+\begin{definicion}[certificador eficiente]
+Un algoritmo $B$ es un certificador eficiente para el problema $X$ si
+\begin{enumerate}[label=(\arabic*)]
+  \item $B$ recibe dos argumentos, una instancia $s$ y un certificado $t$;
+  \item el tiempo de ejecución de $B$ es polinomial en $|s|+|t|$;
+  \item existe un polinomio $p$ tal que, para toda tira $s$: $s\in X$ si y solo si existe $t$ con $|t|\le p(|s|)$ y $B(s,t)=\text{\npsi}$.
+\end{enumerate}
+\end{definicion}
+
+\begin{definicion}
+$\NP$ es la clase de los problemas de decisión que tienen un certificador eficiente.
+\end{definicion}
+
+La condición (3) tiene dos direcciones y en el parcial hay que probar las dos: si $s$ es \npsi\ \emph{existe} un certificado corto que $B$ acepta, y si $B$ acepta \emph{algún} $t$, entonces $s$ es \npsi. Se pidieron las tres definiciones (certificador, $\NP$, $\NP$-completo) como pregunta teórica pura.\visto{Examen feb. 2019 Ej. 3: definiciones}
+
+\begin{itemize}
+  \item $\Pclass\subseteq\NP$: si $A$ resuelve $X$ en tiempo polinomial, el certificador $B(s,t)=A(s)$ ignora $t$ (se toma $t$ vacío).
+  \item Todo problema de $\NP$ se resuelve en tiempo exponencial: se prueban los $2^{p(|s|)}$ certificados posibles.
+  \item $\NP$ \emph{no} quiere decir <<no polinomial>>; quiere decir <<polinomial no determinístico>>, o sea, <<verificable en tiempo polinomial>>. Lo que no se sabe es si $\Pclass=\NP$.
+\end{itemize}
+
+El certificado canónico es el de \npSAT: una asignación de valores de verdad a las variables. El certificador evalúa cada cláusula con esa asignación y responde \npsi\ si todas se satisfacen; es lineal en el tamaño de la fórmula. Esta descripción se pidió en dos exámenes recientes, sin demostración de corrección.\visto{Examen dic. 2025 Ej. 1(e): certificado de SAT}
+
+Otros certificados típicos: para \npIS, \npVC\ o \npSC, el conjunto elegido (como arreglo de bits o lista de índices); para ciclo hamiltoniano, la lista de vértices en el orden del ciclo; para 3-coloreo, el color de cada vértice; para \npSS, el subconjunto.\visto{Examen jul. 2026 Ej. 1(f): certificado de SAT}
+
+\subsection{\texorpdfstring{$\NP$}{NP}-completo, \texorpdfstring{$\NP$}{NP}-difícil y Cook--Levin}
+
+\begin{definicion}
+Un problema $X$ es $\NP$-completo si (a) $X\in\NP$ y (b) para todo $Y\in\NP$ vale $Y\redp X$. Si se cumple (b) pero no necesariamente (a), $X$ es $\NP$-difícil.
+\end{definicion}
+
+\begin{resultado}[Los dos hechos que se usan siempre]
+\begin{enumerate}[label=(\roman*)]
+  \item Si $X$ es $\NP$-completo, entonces $X$ se resuelve en tiempo polinomial si y solo si $\Pclass=\NP$. (Si $X\in\Pclass$, todo $Y\in\NP$ cumple $Y\redp X$ y por la propiedad (i) $Y\in\Pclass$. Si $\Pclass=\NP$, como $X\in\NP$ entonces $X\in\Pclass$.)
+  \item Si $Z$ es $\NP$-completo, $X\in\NP$ y $Z\redp X$, entonces $X$ es $\NP$-completo. (Para $Y\in\NP$: $Y\redp Z$ por ser $Z$ completo, $Z\redp X$ por hipótesis, y por transitividad $Y\redp X$.)
+\end{enumerate}
+\end{resultado}
+
+El hecho (ii) es toda la estrategia: nunca se prueba (b) a mano para todos los $Y$; se elige un $Z$ conocido y se prueba una sola reducción $Z\redp X$. La definición de $\NP$-completo y la explicación de cómo usarla se pidieron como pregunta corta.\visto{Examen dic. 2025 Ej. 1(f): definir $\NP$-completo}
+
+Hace falta un primer problema $\NP$-completo para arrancar la cadena. Ese es el teorema de Cook--Levin. El libro lo prueba para \prob{Circuit Satisfiability}: dado un circuito booleano con compuertas \textsc{and}, \textsc{or}, \textsc{not} y algunas entradas libres, ¿hay valores para las entradas que hagan que la salida sea 1? La idea de la prueba: si $X\in\NP$ tiene certificador $B$, para cada tamaño de entrada se puede <<desenrollar>> el cómputo polinomial de $B$ en un circuito de tamaño polinomial; se fijan las entradas correspondientes a $s$ y se dejan libres las de $t$. El circuito es satisfacible si y solo si existe $t$ con $B(s,t)=\text{\npsi}$. Después, $\prob{Circuit-sat}\redp\npTSAT$ con una variable por compuerta y unas pocas cláusulas por compuerta que fuerzan su valor; con eso \npTSAT\ queda $\NP$-completo y de ahí sale el resto del árbol.
+
+En el curso, \npSAT, \npTSAT\ y todos los problemas del catálogo de la sección~\ref{sec:np-catalogo} se dan por conocidos $\NP$-completos: se pueden usar sin demostrarlo, citando el libro.
+
+\subsection{Más allá de \texorpdfstring{$\NP$}{NP}: co-NP y PSPACE}
+
+En los parciales relevados no se preguntó nada de esto, pero conviene tener la idea para no confundirse en un verdadero o falso.
+
+\begin{itemize}
+  \item $X\in\coNP$ si su complemento $\overline{X}$ (las instancias \npno) está en $\NP$. Ejemplos: <<¿la fórmula es insatisfacible?>>, <<¿el grafo \emph{no} tiene ciclo hamiltoniano?>>. No se sabe si $\NP=\coNP$. Como $\Pclass$ es cerrada por complemento, si $\NP\ne\coNP$ entonces $\Pclass\ne\NP$.
+  \item $\Pclass\subseteq\NP\cap\coNP$. Un problema en $\NP\cap\coNP$ tiene una <<buena caracterización>>: hay certificado corto tanto para el \npsi\ como para el \npno. Ejemplo del curso: <<¿hay un flujo de valor al menos $v$?>>; un flujo certifica el \npsi\ y un corte de capacidad menor a $v$ certifica el \npno.
+  \item $\mathsf{PSPACE}$ es la clase de problemas que se resuelven con memoria polinomial. Vale $\Pclass\subseteq\NP\subseteq\mathsf{PSPACE}$ (se prueban todos los certificados reutilizando el mismo espacio). El problema completo típico es \prob{qsat} (fórmulas con cuantificadores alternados), que modela juegos de dos jugadores y planificación.
+\end{itemize}
+
+\subsection{Preguntas conceptuales de verdadero o falso}
+
+Las preguntas de este tipo se contestan con una tabla mental de implicaciones. Lo único que importa es de qué lado de $\redp$ está cada problema.
+
+\begin{resultado}[Qué se puede deducir de $Y\redp X$]
+\begin{itemize}
+  \item $X\in\Pclass\Rightarrow Y\in\Pclass$. \quad $Y\notin\Pclass\Rightarrow X\notin\Pclass$.
+  \item $Y\in\Pclass$: no dice nada de $X$. \quad $X$ $\NP$-completo: no dice nada de $Y$ (salvo si $Y\in\NP$, que ya se sabía).
+  \item $Y$ $\NP$-completo y $X\in\NP$: $X$ es $\NP$-completo. \quad $Y$ $\NP$-completo y $X\in\Pclass$: $\Pclass=\NP$.
+  \item Para todo $Y\in\NP$ y todo $Z$ $\NP$-completo: $Y\redp Z$, siempre. En particular todo problema de $\Pclass$ se reduce a cualquier $\NP$-completo.
+  \item Si $\Pclass\ne\NP$: ningún $\NP$-completo está en $\Pclass$, y ningún $\NP$-completo se reduce a un problema de $\Pclass$.
+\end{itemize}
+\end{resultado}
+
+\begin{problema}{Sí, no o no se sabe (2P 2017, Ej. 4)}
+Sea \prob{Interval Scheduling} en versión de decisión: dada una colección de intervalos y una cota $k$, ¿hay al menos $k$ intervalos que no se superponen? Para cada afirmación, responder <<sí>>, <<no>> o <<no se sabe; si se supiera, se resolvería $\Pclass=\NP$>>.
+
+\npdato{(a) ¿Interval Scheduling $\redp$ Vertex Cover?} Sí. Interval Scheduling está en $\Pclass$ (greedy por tiempo de finalización), así que se resuelve en tiempo polinomial con una caja negra de \npVC\ llamándola cero veces. Otra justificación: Interval Scheduling está en $\NP$ y todo problema de $\NP$ se reduce a \npVC, que es $\NP$-completo.
+
+\npdato{(b) ¿Independent Set $\redp$ Interval Scheduling?} No se sabe; es equivalente a $\Pclass=\NP$. Si fuera cierto, como Interval Scheduling está en $\Pclass$, \npIS\ estaría en $\Pclass$ y por ser $\NP$-completo $\Pclass=\NP$. Recíprocamente, si $\Pclass=\NP$, \npIS\ se resuelve en tiempo polinomial y se reduce a cualquier cosa.
+\end{problema}
+
+Esta pregunta (la misma, con las mismas respuestas) aparece en la práctica de segundo parcial del curso.\visto{2P 2017 Ej. 4: sí / no / no se sabe}
+
+\begin{problema}{Cuatro afirmaciones (examen jul. 2018, Pregunta 2)}
+Sean $X\in\Pclass$, $Y\in\NP$ y $Z$ $\NP$-completo. Decir si cada afirmación es siempre verdadera, siempre falsa o no se puede afirmar; en el último caso, qué tendría que cumplirse para que sea verdadera.
+
+\npdato{1. $Y\redp Z$} Siempre verdadera: es la definición de $\NP$-completo.
+
+\npdato{2. $X\redp Z$} Siempre verdadera: $X\in\Pclass\subseteq\NP$ y se aplica el punto 1.
+
+\npdato{3. $Z\redp Y$} No se puede afirmar. Es verdadera exactamente cuando $Y$ es $\NP$-completo: si vale, $Y\in\NP$ y es al menos tan difícil como un $\NP$-completo.
+
+\npdato{4. $Z\redp X$} No se puede afirmar. Si fuera verdadera, $Z$ se resolvería en tiempo polinomial y entonces $\Pclass=\NP$; recíprocamente, si $\Pclass=\NP$ vale (propiedad (iv)). Es verdadera si y solo si $\Pclass=\NP$.
+\end{problema}
+
+Ninguna de las dos preguntas pide demostraciones: piden la justificación de una o dos oraciones basada en las propiedades de arriba.\visto{Examen jul. 2018 Preg. 2: X, Y, Z}
+
+Para practicar, otras afirmaciones del mismo estilo (no salieron tal cual, pero se contestan con la misma tabla):
+
+\begin{enumerate}[label=\alph*)]
+  \item <<Si $Y\redp X$ e $Y\in\Pclass$, entonces $X\in\Pclass$>>. Falso en general: $Y$ fácil no dice nada de $X$ (todo problema de $\Pclass$ se reduce a \npSAT).
+  \item <<Si $X\redp\npTSAT$, entonces $X$ es $\NP$-completo>>. Falso: prueba que $X$ es \emph{a lo sumo} tan difícil como \npTSAT. La dirección correcta es $\npTSAT\redp X$ (y además $X\in\NP$).
+  \item <<\npSS\ tiene un algoritmo $\Oh(nW)$, por lo tanto $\Pclass=\NP$>>. Falso: $\Oh(nW)$ es exponencial en la cantidad de bits de $W$.
+  \item <<Si $\Pclass\ne\NP$, todo problema de $\NP$ que no está en $\Pclass$ es $\NP$-completo>>. Falso: si $\Pclass\ne\NP$ existen problemas intermedios (teorema de Ladner). No hace falta saberlo para el parcial, pero sí no afirmar lo contrario.
+  \item <<Dos problemas $\NP$-completos se reducen uno al otro>>. Verdadero: ambos están en $\NP$ y cada uno es completo.
+  \item <<Si un problema $\NP$-completo está en $\coNP$, entonces $\NP=\coNP$>>. Verdadero (sección 8.9 del libro), aunque no se usa en los parciales.
+\end{enumerate}
+
+% =====================================================================
+\section{Catálogo de problemas \texorpdfstring{$\NP$}{NP}-completos del libro}
+\label{sec:np-catalogo}
+% =====================================================================
+
+Estos son los problemas que se pueden usar como <<problema de referencia>> sin demostrar que son $\NP$-completos. Para cada uno: la versión de decisión, el certificado y la reducción con la que el libro lo prueba. En los parciales nunca se pidió reproducir una reducción del libro con gadgets complicados, pero sí reconocer los problemas y saber de cuál viene cada uno.
+
+\subsection{Empaquetamiento y cobertura}
+
+\npdato{\npIS} dado un grafo $G=(V,E)$ y un natural $k$, ¿existe $S\subseteq V$ con $|S|\ge k$ y sin aristas entre vértices de $S$? Certificado: $S$. Se prueba desde \npTSAT\ (ver abajo).
+
+\npdato{\npVC} dado $G$ y $k$, ¿existe $C\subseteq V$ con $|C|\le k$ tal que toda arista tiene al menos un extremo en $C$? Certificado: $C$. Se prueba desde \npIS\ con $(G,k)\mapsto(G,n-k)$.
+
+\npdato{\npSC} dado un conjunto $U$ de $n$ elementos, subconjuntos $S_1,\dots,S_m\subseteq U$ y $k$, ¿hay a lo sumo $k$ de los $S_i$ cuya unión es $U$? Certificado: los índices elegidos. Se prueba desde \npVC: $U=E$ y, para cada vértice $v$, $S_v=\{\text{aristas incidentes a }v\}$, con el mismo $k$. Un conjunto de vértices cubre todas las aristas si y solo si los $S_v$ correspondientes cubren $U$.
+
+\npdato{\npSP} dado $U$, subconjuntos $S_1,\dots,S_m$ y $k$, ¿hay al menos $k$ de los $S_i$ disjuntos dos a dos? Se prueba desde \npIS\ con la misma construcción: $U=E$, $S_v$ las aristas incidentes a $v$. Dos $S_v$ son disjuntos si y solo si $u$ y $v$ no son adyacentes.
+
+\npdato{\npCL} dado $G$ y $k$, ¿hay $k$ vértices adyacentes dos a dos? Se prueba desde \npIS\ con el grafo complemento $\overline{G}$ (misma $V$, arista donde $G$ no tiene) y el mismo $k$: $S$ es independiente en $G$ si y solo si es clique en $\overline{G}$. Construir $\overline G$ es $\Oh(n^2)$.
+
+\npdato{\prob{Hitting Set}} dado $A$, subconjuntos $B_1,\dots,B_m$ de $A$ y $k$, ¿hay $H\subseteq A$ con $|H|\le k$ que toca a todos los $B_i$? Es el <<transpuesto>> de \npSC\ (se eligen elementos en lugar de conjuntos). Desde \npVC: $A=V$ y un $B_i=\{u,v\}$ por cada arista.
+
+\subsection{Satisfacibilidad}
+
+\npdato{\npSAT} dadas variables $x_1,\dots,x_n$ y cláusulas $C_1,\dots,C_k$ (cada una disyunción de términos $x_i$ o $\npneg{x_i}$), ¿hay una asignación que satisface todas las cláusulas? \npTSAT\ es el caso en que cada cláusula tiene exactamente tres términos sobre variables distintas. Certificado: la asignación. \npTSAT\ se prueba desde \prob{Circuit-sat} (Cook--Levin).
+
+Una reducción que viene bien conocer porque es la base de los ejercicios de <<$k$-\prob{sat}>>: $\npSAT\redp\npTSAT$. Una cláusula larga $(t_1\vee t_2\vee\dots\vee t_r)$ se parte con variables nuevas $y_j$:
+\[
+(t_1\vee t_2\vee y_1)\wedge(\npneg{y_1}\vee t_3\vee y_2)\wedge\dots\wedge(\npneg{y_{r-3}}\vee t_{r-1}\vee t_r).
+\]
+Si algún $t_i$ es verdadero, se eligen los $y_j$ para satisfacer el resto de la cadena; si todos los $t_i$ son falsos, la cadena obliga $y_1=1$, luego $y_2=1$, \dots, y la última cláusula falla. Las cláusulas cortas se completan con variables nuevas forzadas.
+
+\begin{problema}{3-SAT $\redp$ Independent Set (libro, sección 8.2)}
+\npdato{Construcción} dada una instancia de \npTSAT\ con $k$ cláusulas, se arma un grafo con $3k$ vértices: un triángulo por cláusula, con un vértice por cada término. Además se une con una arista cada par de vértices que representan términos opuestos ($x_i$ en una cláusula y $\npneg{x_i}$ en otra). Se pregunta por un independiente de tamaño $k$.
+
+\npdato{Ida} si hay asignación que satisface, se elige en cada triángulo un término verdadero. Son $k$ vértices, no hay dos del mismo triángulo y no hay dos opuestos (no pueden ser ambos verdaderos).
+
+\npdato{Vuelta} un independiente de tamaño $k$ tiene exactamente un vértice por triángulo y no contiene opuestos. Se pone verdadero cada término elegido (no hay conflicto) y el resto de las variables arbitrarias: cada cláusula tiene un término verdadero.
+\end{problema}
+
+\subsection{Secuenciación}
+
+\npdato{Ciclo hamiltoniano} dado un grafo (dirigido o no), ¿hay un ciclo simple que pasa por todos los vértices? Certificado: los vértices en orden. El libro lo prueba para grafos dirigidos desde \npTSAT; la versión no dirigida sale de la dirigida partiendo cada vértice $v$ en un camino $v_{\text{in}}-v_{\text{mid}}-v_{\text{out}}$.
+
+\npdato{Camino hamiltoniano} igual, pero un camino simple (no hace falta volver). Desde ciclo hamiltoniano dirigido: se elige un vértice $v$ y se lo parte en $v'$, que se queda con las aristas salientes de $v$, y $v''$, que se queda con las entrantes. Como $v'$ no tiene entrantes y $v''$ no tiene salientes, todo camino hamiltoniano va de $v'$ a $v''$, y eso es lo mismo que un ciclo hamiltoniano por $v$ en el grafo original.
+
+\npdato{\npTSP} dadas $n$ ciudades, distancias $d(u,v)$ y una cota $D$, ¿hay un recorrido que visita cada ciudad una vez, vuelve al inicio y tiene largo total $\le D$? Desde ciclo hamiltoniano: $d(u,v)=1$ si $(u,v)$ es arista y $2$ si no, con $D=n$. Un recorrido de largo $n$ usa solo aristas del grafo.
+
+\begin{problema}{3-SAT $\redp$ ciclo hamiltoniano dirigido (libro, sección 8.5)}
+\npdato{Gadget de variable} por cada variable $x_i$ una fila de nodos $v_{i,1},\dots,v_{i,b}$ ($b=3k+3$) con aristas en ambos sentidos entre vecinos. Recorrer la fila de izquierda a derecha codifica $x_i=1$; de derecha a izquierda, $x_i=0$. Los extremos de cada fila se conectan con los dos extremos de la fila siguiente, y se agregan un nodo inicial $s$, uno final $t$ y la arista $(t,s)$. Sin cláusulas, hay exactamente $2^n$ ciclos hamiltonianos, uno por asignación.
+
+\npdato{Gadget de cláusula} por cada cláusula $C_j$ un nodo $c_j$. Si $x_i$ aparece en $C_j$ se agregan $v_{i,3j}\to c_j\to v_{i,3j+1}$ (un desvío que solo se puede tomar yendo de izquierda a derecha); si aparece $\npneg{x_i}$, se agregan $v_{i,3j+1}\to c_j\to v_{i,3j}$ (solo yendo de derecha a izquierda).
+
+\npdato{Equivalencia} una asignación que satisface da un ciclo: se recorren las filas según la asignación y cada $c_j$ se visita por el desvío de un término verdadero. Recíprocamente, en un ciclo hamiltoniano cada $c_j$ se visita por un desvío que vuelve a la misma fila, y el sentido de esa fila hace verdadero al término correspondiente.
+\end{problema}
+
+\subsection{Partición: 3D-Matching}
+
+\npdato{\npTDM} dados conjuntos disjuntos $X,Y,Z$ de tamaño $n$ cada uno y un conjunto $T\subseteq X\times Y\times Z$ de ternas, ¿hay $n$ ternas de $T$ que cubren cada elemento exactamente una vez? Es la generalización a tres dimensiones del matching bipartito perfecto (que sí está en $\Pclass$, por flujo). Certificado: las $n$ ternas.
+
+\begin{problema}{3-SAT $\redp$ 3D-Matching (libro, sección 8.6), en una línea por gadget}
+\npdato{Variable} un <<anillo>> de $2k$ elementos núcleo y $2k$ puntas, con ternas (núcleo$_j$, núcleo$_{j+1}$, punta$_j$). Para cubrir el núcleo hay que tomar todas las ternas pares o todas las impares: eso deja libres las puntas impares ($x_i=1$) o las pares ($x_i=0$).
+
+\npdato{Cláusula} dos elementos núcleo nuevos y una terna con cada punta libre que corresponde a un término de la cláusula: solo se puede cubrir si algún término es verdadero.
+
+\npdato{Limpieza} gadgets extra, cada uno con ternas con todas las puntas, para cubrir las puntas que sobran. Se reparten los elementos en $X$, $Y$, $Z$ de modo que cada terna tenga uno de cada uno.
+\end{problema}
+
+\subsection{Coloreo}
+
+\npdato{$k$-coloreo} dado $G$, ¿se pueden asignar $k$ colores a los vértices de modo que vecinos tengan colores distintos? Para $k=2$ está en $\Pclass$ (es ver si el grafo es bipartito, con BFS). Para $k=3$ ya es $\NP$-completo. Certificado: el color de cada vértice. De $3$-coloreo a $k$-coloreo, $k>3$: se agregan $k-3$ vértices nuevos adyacentes a todos (y entre sí); se llevan $k-3$ colores propios y quedan 3 para el grafo original.
+
+\begin{problema}{3-SAT $\redp$ 3-coloreo (libro, sección 8.7)}
+\npdato{Paleta} un triángulo con nodos especiales $T$, $F$ y $B$ (base); sus colores representan verdadero, falso y <<otro>>.
+
+\npdato{Variables} por cada $x_i$, dos nodos $v_i$ y $\npneg{v_i}$ unidos entre sí y con $B$. Así cada uno toma color de $T$ o de $F$, y son opuestos.
+
+\npdato{Cláusulas} por cada cláusula, un subgrafo de seis nodos conectado a sus tres términos y a $T$ y $F$, armado para que se pueda colorear si y solo si alguno de los tres términos tiene el color de $T$. Si los tres son $F$, el nodo de salida del gadget queda forzado a $F$ y choca con una arista a $F$.
+\end{problema}
+
+\subsection{Problemas numéricos}
+
+\npdato{\npSS} dados naturales $w_1,\dots,w_n$ y una meta $W$, ¿hay un subconjunto que suma exactamente $W$? Certificado: el subconjunto. Tiene un algoritmo $\Oh(nW)$ que no es polinomial (ver arriba).
+
+\npdato{Mochila (decisión)} dados pesos $w_i$, valores $v_i$, capacidad $W$ y meta $V$, ¿hay un subconjunto de peso $\le W$ y valor $\ge V$? Desde \npSS: $v_i=w_i$ y $V=W$; peso $\le W$ y valor $\ge W$ obligan a sumar exactamente $W$.
+
+\npdato{Secuenciación con release times y deadlines} $n$ trabajos en una sola máquina, el trabajo $i$ dura $t_i$, puede empezar desde $r_i$ y debe terminar antes de $d_i$; ¿hay una planificación sin solapamientos que cumple todo? Desde \npSS: un trabajo por cada $w_i$, con $r_i=0$, $t_i=w_i$, $d_i=S+1$ (donde $S=\sum w_i$), y un trabajo extra con $r=W$, $t=1$, $d=W+1$. El extra ocupa exactamente $[W,W+1]$, así que antes de él tiene que haber trabajos que llenan exactamente $W$ unidades.
+
+\begin{problema}{3D-Matching $\redp$ Subset Sum (libro, sección 8.8)}
+\npdato{Construcción} con $|X|=|Y|=|Z|=n$ y $m$ ternas, a cada terna $(x_i,y_j,z_k)$ se le asocia el número que en base $b=m+1$ tiene un 1 en las posiciones $i$, $n+j$ y $2n+k$ y 0 en las demás. La meta es $W=\sum_{r=0}^{3n-1}b^{r}$ (todos los dígitos en 1).
+
+\npdato{Por qué funciona} como hay a lo sumo $m$ números y cada dígito vale 0 o 1, nunca hay acarreo en base $m+1$. Sumar $W$ es tener exactamente un 1 en cada posición, es decir, cubrir cada elemento exactamente una vez. Cada número tiene $3n$ dígitos en base $m+1$, o sea $\Oh(n\log m)$ bits: la transformación es polinomial.
+\end{problema}
+
+\subsection{El árbol de reducciones}
+
+Cada flecha $A\to B$ significa $A\redp B$ en la prueba del libro: se transforman instancias de $A$ en instancias de $B$, y $B$ hereda la dificultad.
+
+\begin{center}
+\begin{tikzpicture}[
+    nodo/.style={draw=acento,fill=acento!7,rounded corners=2pt,font=\sans\footnotesize,
+                 align=center,inner sep=3pt,minimum height=0.62cm},
+    raiz/.style={nodo,fill=acento!22},
+    fl/.style={-{Stealth[length=2mm]},draw=gris,thick},
+    x=1cm,y=1cm]
+  \node[raiz] (csat) at (6.2,0)    {Circuit-SAT\\[-1pt]{\scriptsize Cook--Levin}};
+  \node[raiz] (sat)  at (6.2,-1.5) {SAT $\equiv$ 3-SAT};
+  \node[nodo] (is)   at (2.4,-3.1) {Independent Set};
+  \node[nodo] (hc)   at (6.1,-3.1) {ciclo\\[-1pt]hamiltoniano};
+  \node[nodo] (tdm)  at (8.9,-3.1) {3D-Matching};
+  \node[nodo] (col)  at (11.6,-3.1){3-coloreo};
+  \node[nodo] (vc)   at (0.75,-4.7){Vertex\\[-1pt]Cover};
+  \node[nodo] (sp)   at (2.4,-4.7) {Set\\[-1pt]Packing};
+  \node[nodo] (cl)   at (3.95,-4.7){Clique};
+  \node[nodo] (hp)   at (5.45,-4.7){camino\\[-1pt]ham.};
+  \node[nodo] (tsp)  at (6.9,-4.7) {TSP};
+  \node[nodo] (ss)   at (8.9,-4.7) {Subset Sum};
+  \node[nodo] (kcol) at (11.6,-4.7){$k$-coloreo};
+  \node[nodo] (sc)   at (0.75,-6.3){Set\\[-1pt]Cover};
+  \node[nodo] (hs)   at (2.4,-6.3) {Hitting\\[-1pt]Set};
+  \node[nodo] (sch)  at (7.95,-6.3){secuenciación con\\[-1pt]release times};
+  \node[nodo] (mo)   at (10.25,-6.3){mochila};
+  \draw[fl] (csat) -- (sat);
+  \draw[fl] (sat) -- (is);  \draw[fl] (sat) -- (hc);
+  \draw[fl] (sat) -- (tdm); \draw[fl] (sat) -- (col);
+  \draw[fl] (is) -- (vc); \draw[fl] (is) -- (sp); \draw[fl] (is) -- (cl);
+  \draw[fl] (vc) -- (sc); \draw[fl] (vc) -- (hs);
+  \draw[fl] (hc) -- (hp); \draw[fl] (hc) -- (tsp);
+  \draw[fl] (tdm) -- (ss);
+  \draw[fl] (ss) -- (sch); \draw[fl] (ss) -- (mo);
+  \draw[fl] (col) -- (kcol);
+\end{tikzpicture}
+\end{center}
+
+\npVC\ e \npIS\ se reducen en ambos sentidos; también \npSAT\ y \npTSAT. \prob{Hitting Set} y \npCL\ no están entre las reducciones que el libro desarrolla en el texto (son ejercicios estándar), pero son tan directas que conviene tenerlas en el árbol: de ahí cuelgan varios ejercicios de examen.
+
+% =====================================================================
+\section{Cómo se escribe una demostración de \texorpdfstring{$\NP$}{NP}-completitud}
+% =====================================================================
+
+Todas las soluciones oficiales tienen la misma estructura, y desde 2024 la pauta de corrección la explicita punto por punto. Si se sigue la plantilla, el puntaje está casi asegurado aunque la reducción sea la obvia.
+
+\begin{receta}[demostrar que $X$ es $\NP$-completo]
+\textbf{0. Plantear.} <<Para probar que $X$ es $\NP$-completo hay que probar (I) $X\in\NP$ y (II) $Y\redp X$ para todo $Y\in\NP$. Para (II) alcanza con probar $Z\redp X$ para un $Z$ $\NP$-completo conocido y usar la transitividad de $\redp$.>>
+
+\textbf{1. $X\in\NP$.}
+\begin{itemize}
+  \item Describir la instancia $s$ y su representación (matriz de adyacencia, lista de cláusulas, arreglo\dots).
+  \item Definir el certificado $t$ (casi siempre: la solución candidata, como arreglo de bits o lista de índices) y decir por qué $|t|\le p(|s|)$.
+  \item Escribir el certificador $B(s,t)$ en pseudocódigo: una serie de chequeos que responden \npno\ si alguno falla y \npsi\ al final.
+  \item Tiempo de $B$: polinomial en $|s|+|t|$ (contar los ciclos).
+  \item Si $s$ es \npsi, existe $t$ (la solución misma) con $B(s,t)=\text{\npsi}$.
+  \item Si $B(s,t)=\text{\npsi}$ para algún $t$, cada chequeo garantiza una condición del problema, así que $s$ es \npsi.
+\end{itemize}
+
+\textbf{2. $Z\redp X$.}
+\begin{itemize}
+  \item Tomar una instancia \emph{arbitraria} $s_Z$ del problema conocido $Z$ y describir la instancia $s_X=f(s_Z)$, componente por componente (<<para cada vértice $v_i$ se define\dots>>).
+  \item Justificar que $f$ corre en tiempo polinomial en $|s_Z|$ (y por lo tanto $|s_X|$ es polinomial).
+  \item Ida: si $s_Z$ es \npsi, construir explícitamente una solución de $s_X$ a partir de la de $s_Z$.
+  \item Vuelta: si $s_X$ es \npsi, construir una solución de $s_Z$ a partir de la de $s_X$. (Equivalente: si $s_Z$ es \npno, $s_X$ es \npno.)
+  \item Cerrar: <<se resuelve $Z$ con la transformación, que es polinomial, y una sola llamada a un algoritmo que resuelve $X$; por lo tanto $Z\redp X$>>.
+\end{itemize}
+
+\textbf{3. Concluir.} <<Como $Z$ es $\NP$-completo, todo $Y\in\NP$ cumple $Y\redp Z$; por transitividad $Y\redp X$. Junto con $X\in\NP$, $X$ es $\NP$-completo.>>
+\end{receta}
+
+Cuando la letra da una hipótesis, se usa y no se demuestra de nuevo: <<asuma que existe un certificador eficiente>> resuelve el paso 1 en una oración; <<asuma que si la original es \npsi\ la transformada es \npsi>> elimina la ida. La pauta de 2025 pide explícitamente \emph{no} describir el certificador en ese caso, sino decir que se asume.\visto{2P 2025 Ej. 2: usar las hipótesis dadas}
+
+\begin{trampa}
+\begin{itemize}
+  \item \textbf{Reducir al revés.} Probar $X\redp Z$ (el nuevo al conocido) no prueba nada sobre la dificultad de $X$. La pauta de 2024 lo califica de <<error grave>>. Chequeo: la instancia que se toma \emph{arbitraria} es la del problema conocido.
+  \item \textbf{Olvidar $X\in\NP$.} Sin eso se probó $\NP$-difícil, no $\NP$-completo.
+  \item \textbf{Probar una sola dirección.} La ida suele ser obvia; la vuelta es donde está el ejercicio (\prob{Cometa}, \prob{nti4sat}, \prob{casi-sat}).
+  \item \textbf{Vuelta sobre instancias arbitrarias de $X$.} La vuelta se prueba solo para instancias de la forma $f(s_Z)$; se puede (y se debe) usar cómo fueron construidas.
+  \item \textbf{Transformación que usa la respuesta.} $f$ no puede depender de conocer la solución de $s_Z$ (por ejemplo, <<se toma $k$ igual al tamaño del máximo independiente>>), porque calcularla no es polinomial.
+  \item \textbf{Construcción no polinomial.} Escribir números en unario, enumerar todos los subconjuntos o crear un objeto por cada asignación de verdad.
+  \item \textbf{Instancias inválidas.} La instancia construida tiene que respetar la definición de $X$: en \prob{4-sat} los cuatro términos son sobre variables distintas, en \prob{Red-Social} la amistad es simétrica, en \prob{Cometa} $d\ge 3$.
+  \item \textbf{Certificador que busca.} El certificador verifica la solución que recibe; si para responder tiene que buscar entre muchas opciones, no es polinomial.
+  \item \textbf{Certificado sin tamaño.} Hay que decir por qué $|t|$ es polinomial en $|s|$, no solo describirlo.
+  \item \textbf{Olvidar el tiempo de la transformación.} Aunque sea una copia, hay que decir que es lineal o polinomial.
+\end{itemize}
+\end{trampa}
+
+\subsection{Cómo elegir el problema de origen}
+
+La sugerencia de la letra suele decir de dónde reducir. Cuando no la hay, se busca el problema del catálogo que se parece más <<estructuralmente>> al nuevo.
+
+\begin{center}\small
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{3.6cm}@{}}
+\toprule
+Si el problema nuevo\dots & conviene reducir desde \\
+\midrule
+elige elementos de un grafo (o de una matriz de <<conflictos>>) que no pueden convivir, y pide al menos $k$ & \npIS \\
+pide al menos $k$ elementos todos compatibles entre sí, o un subgrafo completo & \npCL\ (o \npIS\ con complemento) \\
+pide a lo sumo $k$ objetos que <<tocan>> todas las restricciones de a pares & \npVC \\
+pide a lo sumo $k$ grupos cuya unión cubre todo (o $k$ elementos que tocan todos los grupos) & \npSC\ o \npVC \\
+tiene variables booleanas, cláusulas, apuestas o tableros con dos estados por fila & \npSAT\ o \npTSAT \\
+pide recorrer todo una vez, un camino o ciclo largo, un orden & camino o ciclo hamiltoniano \\
+pide sumar exactamente un número, repartir en dos mitades, cargar una capacidad & \npSS \\
+pide asignar etiquetas a vértices con restricciones de vecinos & 3-coloreo \\
+pide particionar en ternas & \npTDM \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+Una observación que ahorra tiempo: casi todos los ejercicios de examen son \emph{disfraces} del problema de referencia, y la transformación es un renombre (vértices $\to$ ubicaciones, aristas $\to$ tareas, cláusulas $\to$ columnas). Si la transformación que se está armando es complicada, probablemente se eligió mal el origen.
+
+\subsection{Los problemas de examen, de un vistazo}
+
+La figura muestra de qué problema conocido se redujo cada ejercicio en la solución oficial.
+
+\begin{center}
+\begin{tikzpicture}[
+    src/.style={draw=acento,fill=acento!14,rounded corners=2pt,font=\sans\footnotesize\bfseries,
+                align=center,inner sep=3pt,minimum height=0.6cm,minimum width=2.6cm},
+    hoja/.style={draw=grisclaro,fill=white,font=\sans\scriptsize,align=left,
+                 text width=2.65cm,inner sep=3pt,anchor=north},
+    nada/.style={hoja,draw=gris,dashed,text=gris},
+    fl/.style={-{Stealth[length=2mm]},draw=gris,thick},
+    x=1cm,y=1cm]
+  \node[src] (is) at (1.6,0)  {Independent Set};
+  \node[src] (cl) at (4.8,0)  {Clique};
+  \node[src] (vc) at (8.0,0)  {Vertex Cover};
+  \node[src] (sc) at (11.2,0) {Set Cover};
+  \node[hoja] (his) at (1.6,-0.9) {UOPI \hfill 2P 2018\\ Red-Social \hfill feb.\,2021\\ Cocinero \hfill jul.\,2022\\ RF \hfill dic.\,2022};
+  \node[hoja] (hcl) at (4.8,-0.9) {Cometa \hfill dic.\,2023\\ Subgrafo isom. \hfill jul.\,2024};
+  \node[hoja] (hvc) at (8.0,-0.9) {PCG \hfill feb.\,2020\\ Test \hfill jul.\,2021\\ Contratar \hfill 2P 2022};
+  \node[hoja] (hsc) at (11.2,-0.9){Acceso \hfill 2P 2023\\ UV \hfill 2P 2025};
+  \node[src] (sat) at (1.6,-3.6)  {SAT};
+  \node[src] (tsat) at (4.8,-3.6) {3-SAT};
+  \node[src] (hp) at (8.0,-3.6)   {camino ham.};
+  \node[src,draw=gris,fill=grisclaro!60] (otros) at (11.2,-3.6) {sin ejercicios};
+  \node[hoja] (hsat) at (1.6,-4.5) {casiSAT \hfill 2P 2020\\ Falsable \hfill feb.\,2022\\ Al menos $k$ \hfill jul.\,2025};
+  \node[hoja] (htsat) at (4.8,-4.5){Solitaire \hfill 2P 2019\\ 4-SAT \hfill 2P 2024\\ NTI4Sat \hfill jul.\,2026};
+  \node[hoja] (hhp) at (8.0,-4.5)  {camino simple\\ de largo $\ge k$ \hfill 2P 2021};
+  \node[nada] (hot) at (11.2,-4.5) {Subset Sum, 3-coloreo, 3D-Matching, TSP};
+  \foreach \a/\b in {is/his,cl/hcl,vc/hvc,sc/hsc,sat/hsat,tsat/htsat,hp/hhp}
+    \draw[fl] (\a) -- (\b);
+\end{tikzpicture}
+\end{center}
+
+% =====================================================================
+\section{Problemas de examen, agrupados por problema de origen}
+% =====================================================================
+
+Para cada ejercicio: enunciado resumido, cómo se prueba que está en $\NP$, la transformación y los argumentos de ida y vuelta. Los certificadores de los ejercicios son todos del mismo tipo (recorrer la solución candidata y chequear las restricciones); se detallan en los primeros y después se resumen.
+
+\subsection{Desde Independent Set}
+
+La señal es <<elegir al menos $k$ cosas sin conflictos de a pares>>. La transformación casi siempre deja el grafo igual (o lo codifica en una matriz) y deja $k$ igual.
+
+El primero es el más directo de todos: \npIS\ con pesos. La solución oficial es un buen modelo de redacción del certificador, con las dos direcciones explícitas.\visto{2P 2018 Ej. 3: UOPI, desde IS}
+
+\begin{problema}{Ubicación óptima de plantas industriales (UOPI)}
+\npdato{Problema} grafo $G$ cuyos vértices son ubicaciones con valor entero $w_i$; una arista indica que dos ubicaciones son excluyentes. Dado $t$, ¿hay ubicaciones no excluyentes entre sí cuyo valor total es al menos $t$?
+
+\npdato{En $\NP$} certificado: tira de $n$ bits $c$ (ubicaciones elegidas). $B$ suma los $w_i$ con $c_i=1$ y rechaza si la suma es menor a $t$; después, para cada $i$ con $c_i=1$, recorre la lista de adyacencia de $i$ y rechaza si encuentra un $j$ con $c_j=1$. Es $\Oh(n+m)$. Si $B$ acepta, la selección suma al menos $t$ y no tiene pares excluyentes; si la instancia es \npsi, la tira de esa selección hace aceptar a $B$.
+
+\npdato{Reducción $\npIS\redp\prob{uopi}$} $(G,k)\mapsto(G,\,w_i=1\ \forall i,\,t=k)$, en $\Oh(n)$. Con pesos 1, la suma de un conjunto es su tamaño; un conjunto es independiente si y solo si no tiene exclusiones. Así, hay independiente de tamaño $\ge k$ si y solo si hay selección válida de valor $\ge t$.
+\end{problema}
+
+El segundo es \npCL\ con otro nombre, y la reducción desde \npIS\ es el grafo complemento: <<amigos>> son los no adyacentes.\visto{Examen feb. 2021 Ej. 3: Red-Social, desde IS}
+
+\begin{problema}{Red-Social}
+\npdato{Problema} personas $P=\{p_1,\dots,p_n\}$ con conjuntos de amigos $A_i$ (relación simétrica) y un natural $k$: ¿hay al menos $k$ personas amigas todas entre sí?
+
+\npdato{Reducción $\npIS\redp\prob{Red-Social}$} dada $(G,k)$: $P=V$; $A_i=\{v_j : j\ne i,\ v_j \text{ no adyacente a } v_i\}$; $k'=k$. La relación es simétrica porque la adyacencia lo es. Tiempo $\Oh(n^3)$ con una búsqueda ingenua (o $\Oh(n^2)$ con matriz).
+
+\npdato{Ida y vuelta} $S$ independiente en $G$ $\iff$ cada par de $S$ es no adyacente $\iff$ cada par de $S$ es amigo en $R$. El tamaño se conserva porque $k'=k$.
+
+\npdato{En $\NP$} certificado: arreglo booleano de $n$ posiciones. $B$ rechaza si hay menos de $k$ elegidos y, para cada par $(p,q)$ de elegidos con $p\ne q$, rechaza si $q\notin A_p$. Tiempo $\Oh(n^3)$.
+\end{problema}
+
+En \prob{Cocinero} el problema nuevo tiene un parámetro más (la disconformidad tolerada $d$); se fija $d=0$ y queda exactamente \npIS. Es el truco de <<restringir>>: si un caso particular de $X$ ya es $\NP$-completo, $X$ también lo es.\visto{Examen jul. 2022 Ej. 3: Cocinero, desde IS}
+
+\begin{problema}{Cocinero}
+\npdato{Problema} matriz simétrica $M$ de $n\times n$ con $M[i,j]=1$ si los ingredientes $i\ne j$ son incompatibles. La disconformidad de un plato $P$ es $\sum_{i,j\in P,\,i<j}M[i,j]$. Dados $k$ y $d$, ¿hay un plato con al menos $k$ ingredientes y disconformidad a lo sumo $d$?
+
+\npdato{En $\NP$} certificado: el conjunto de ingredientes $t$, $|t|=\Oh(|s|)$. $B$ chequea $|t|\ge k$ y calcula la suma sobre los pares de $t$ en $\Oh(|t|^2)$; acepta si es $\le d$.
+
+\npdato{Reducción $\npIS\redp\prob{Cocinero}$} $(G,k)\mapsto(M,k,0)$ con $M$ la matriz de adyacencia de $G$, en $\Oh(n^2)$. Disconformidad 0 significa que no hay pares incompatibles en el plato, es decir, un conjunto independiente.
+\end{problema}
+
+En \prob{RF} la dificultad está en traducir: cada arista pasa a ser un elemento de $X$ relacionado con sus dos extremos, y <<función parcial>> pasa a significar <<cada arista tiene a lo sumo un extremo elegido>>.\visto{Examen dic. 2022 Ej. 3: RF, desde IS}
+
+\begin{problema}{Relación a función (RF)}
+\npdato{Problema} una relación $R\subseteq X\times Y$ dada como matriz de ceros y unos (filas $Y$, columnas $X$) y un entero $k$: ¿hay un subconjunto $U\subseteq Y$ de al menos $k$ elementos tal que la restricción de $R$ a $U$ es una función parcial, o sea, cada $x\in X$ se relaciona con a lo sumo un elemento de $U$?
+
+\npdato{En $\NP$} certificado: tira de $|Y|$ bits. $B$ chequea que tenga al menos $k$ unos y, columna por columna, que haya a lo sumo un 1 entre las filas elegidas. Tiempo $\Oh(|X|\,|Y|)$.
+
+\npdato{Reducción $\npIS\redp\prob{rf}$} $Y=V$, $X=E$, y por cada arista $e=(u,w)$ se ponen en $R$ los pares $(e,u)$ y $(e,w)$; $k'=k$. Polinomial: la matriz tiene $n\cdot m$ celdas.
+
+\npdato{Ida} si $U$ es independiente, cada arista tiene a lo sumo un extremo en $U$, así que cada $x=e$ se relaciona con a lo sumo un elemento de $U$.
+
+\npdato{Vuelta (contrarrecíproco)} si $(G,k)$ es \npno, todo $U$ de $k$ vértices contiene una arista $(u,w)$, y entonces $x=(u,w)$ se relaciona con dos elementos de $U$: ningún $U$ sirve y $(R,k)$ es \npno.
+\end{problema}
+
+\subsection{Desde Clique}
+
+Cuando lo que se busca es un subgrafo completo (o algo que contiene uno), conviene arrancar directamente de \npCL. La letra lo daba como sugerencia en los dos casos.
+
+La reducción de \prob{Subgrafo Isomorfo} es la más corta del relevamiento: el grafo patrón es $K_k$. Lo interesante es el certificador, que recibe la biyección.\visto{Examen jul. 2024 Ej. 3: subgrafo isomorfo}
+
+\begin{problema}{Subgrafo isomorfo}
+\npdato{Problema} dados dos grafos $A$ y $G$ por matrices de adyacencia, ¿hay un subgrafo $B$ de $G$ isomorfo a $A$? ($A$ y $B$ son isomorfos si hay una biyección $f$ que preserva la adyacencia en ambos sentidos.)
+
+\npdato{En $\NP$} certificado: lista de pares $(a,v)\in V_A\times V_G$ que define $f$. $B$ chequea que la lista tenga $|V_A|$ pares, que no se repitan vértices de $A$ ni de $G$ (así $f$ es función e inyectiva), y para cada par $(a,a')$ que $M_A[a,a']=M_G[f(a),f(a')]$. Tiempo $\Oh(|V_A|^2)$ más las búsquedas en la lista.
+
+\npdato{Reducción $\npCL\redp\prob{Subgrafo Isomorfo}$} dada $(G,k)$ con $k\le|V|$, se construye $K$, el grafo completo de $k$ vértices, y se pregunta por $(K,G)$. Es $\Oh(k^2)=\Oh(|V|^2)$. Un clique de tamaño $k$ es un subgrafo isomorfo a $K$ y viceversa.
+\end{problema}
+
+\prob{Cometa} es el ejercicio con más trampa del relevamiento: la construcción natural (un solo camino colgado) no funciona, y la solución oficial lo dice explícitamente. Además hay que tratar aparte el caso $k>n$.\visto{Examen dic. 2023 Ej. 3: Cometa, desde Clique}
+
+\begin{problema}{Cometa}
+\npdato{Problema} un grafo de $2d$ vértices ($d\ge3$) es una cometa si $d$ vértices forman un clique y los otros $d$ forman un camino simple con un extremo conectado a un único vértice del clique. Dados $G$ (matriz de adyacencia) y $d\ge 3$, ¿hay un subgrafo de $G$ que es una cometa con al menos $2d$ vértices? Se sugiere \prob{Clique3}: \npCL\ con $k\ge 3$.
+
+\npdato{En $\NP$} certificado: lista de $2d$ vértices, con el clique primero (el vértice de unión en la posición $d$) y el camino después. $B$ chequea que sean distintos, que los primeros $d$ sean adyacentes dos a dos y que cada par consecutivo desde la posición $d$ hasta la $2d$ sea adyacente. Son $\Oh(d^2)$ consultas a la matriz.
+
+\npdato{Reducción $\prob{Clique3}\redp\prob{Cometa}$} si $k>n$, se responde \npno\ (o se devuelve una instancia \npno\ fija). Si no, $d=k$ y $G'$ es $G$ más, \emph{por cada vértice $v$}, un camino nuevo de $d$ vértices con un extremo unido a $v$ (caminos disjuntos). $G'$ tiene $n(k+1)$ vértices: polinomial porque $k\le n$.
+
+\npdato{Ida} el clique de tamaño $k$ junto con el camino colgado de cualquiera de sus vértices es una cometa de $2d$ vértices.
+
+\npdato{Vuelta} un vértice de un camino agregado tiene grado $\le 2$ y sus dos vecinos no son adyacentes, así que no está en ningún clique de tamaño $\ge3$. Como $d\ge3$, el clique de la cometa está entero dentro de $G$: $G$ tiene un clique de tamaño $k$.
+
+\npdato{Lo que no sirve} colgar un único camino con un extremo adyacente a \emph{todos} los vértices de $G$: ese extremo junto con un clique de tamaño $d-1$ de $G$ forma un clique de tamaño $d$, y una instancia \npno\ de \npCL\ podría dar una cometa.
+\end{problema}
+
+\subsection{Desde Vertex Cover y Set Cover}
+
+La señal es <<a lo sumo $k$ cosas que cubren todo>>. Hay dos formas del mismo problema y conviene distinguirlas para armar la transformación sin dudar:
+
+\begin{itemize}
+  \item \emph{forma \npSC}: se eligen \emph{grupos} y se quiere cubrir todos los \emph{elementos} (\prob{Test}: se eligen tests, se cubren líneas; \prob{Acceso}: se eligen lugares, se cubren dispositivos; \prob{uv}: se eligen caminos, se cubren vértices);
+  \item \emph{forma \prob{Hitting Set}}: se eligen \emph{elementos} y se quiere tocar todos los \emph{grupos} (\prob{pcg}; \prob{Contratar}: se eligen aplicantes, cada tarea tiene su grupo de calificados).
+\end{itemize}
+
+Desde \npVC\ las dos son inmediatas: en la primera, cada vértice es un grupo (sus aristas incidentes) y cada arista es un elemento; en la segunda, cada vértice es un elemento y cada arista es un grupo de dos.
+
+\prob{pcg} es literalmente \prob{Hitting Set}. La parte (c) solo pedía encadenar: $\npVC$ es $\NP$-completo, $\npVC\redp\prob{pcg}$ y se asume $\prob{pcg}\in\NP$.\visto{Examen feb. 2020 Ej. 1: PCG, desde VC}
+
+\begin{problema}{Conjunto golpeador (PCG)}
+\npdato{Problema} conjunto $A$, subconjuntos $B_1,\dots,B_m$ y $k$: ¿hay $S\subseteq A$ con $|S|\le k$ que contiene al menos un elemento de cada $B_i$?
+
+\npdato{Reducción $\npVC\redp\prob{pcg}$} $A=V$; por cada arista $\{u,v\}$ un conjunto $B_i=\{u,v\}$; $k'=k$. Con listas de adyacencia, una pasada: para cada $v$ y cada vecino $w>v$ se agrega $\{v,w\}$ (la condición $w>v$ evita duplicados). Tiempo $\Oh(n+m)$.
+
+\npdato{Ida y vuelta} $S$ golpea a todos los $B_i$ $\iff$ toda arista tiene un extremo en $S$ $\iff$ $S$ es un cubrimiento. El tamaño se conserva.
+\end{problema}
+
+En \prob{Test} los tests son vértices y las líneas son aristas; el test $v_i$ ejecuta las líneas de las aristas incidentes a $v_i$. Es la reducción del libro $\npVC\redp\npSC$ con otro vocabulario.\visto{Examen jul. 2021 Ej. 3: Test, desde VC}
+
+\begin{problema}{Test}
+\npdato{Problema} un programa de $N$ líneas y $M$ tests; el test $i$ ejecuta las líneas $L_i\subseteq\{1,\dots,N\}$. Dado $k$, ¿hay a lo sumo $k$ tests que ejecutan cada línea al menos una vez?
+
+\npdato{Reducción $\npVC\redp\prob{Test}$} $N=m$ (una línea por arista), $M=n$ (un test por vértice), $L_i=\{j : e_j \text{ incide en } v_i\}$, $k'=k$. Tiempo $\Oh(nm)$.
+
+\npdato{Ida} si $S$ cubre, los tests de $S$ ejecutan todas las líneas: la línea $j$ es la arista $e_j$, que tiene un extremo $v_{i_q}\in S$, y $j\in L_{i_q}$. \npdato{Vuelta} si $T$ ejecuta todas las líneas, para cada arista $e_j$ hay un test $i_q\in T$ con $j\in L_{i_q}$, o sea $e_j$ incide en $v_{i_q}$.
+
+\npdato{En $\NP$} certificado: arreglo booleano de $M$ posiciones. $B$ chequea que haya a lo sumo $k$ elegidos y marca las líneas ejecutadas por los elegidos; acepta si quedan todas marcadas.
+\end{problema}
+
+\prob{Contratar} es la forma \prob{Hitting Set}: aplicantes $=$ vértices, tareas $=$ aristas, y los calificados para una tarea son los dos extremos de su arista. La letra sugería \npVC.\visto{2P 2022 Ej. 3: Contratar, desde VC}
+
+\begin{problema}{Contratar}
+\npdato{Problema} aplicantes $A=\{a_1,\dots,a_n\}$, tareas $t_1,\dots,t_m$ y, para cada tarea, el conjunto $C_i\subseteq A$ de calificados. Dado $k$, ¿se pueden contratar a lo sumo $k$ aplicantes de modo que cada tarea tenga al menos un calificado contratado?
+
+\npdato{En $\NP$} certificado: arreglo $Z$ de $n$ bits. $B$ rechaza si $Z$ tiene más de $k$ unos; usa un arreglo $T$ de $m$ booleanos en \textit{false} y, para cada tarea $t_j$ y cada $a_i\in C_j$ con $Z[i]=1$, marca $T[j]$; acepta si todo $T$ quedó en \textit{true}. Tiempo $\Oh(nm)$.
+
+\npdato{Reducción $\npVC\redp\prob{Contratar}$} un aplicante $a_i$ por vértice $v_i$, una tarea $t_i$ por arista $e_i=(v_j,v_k)$ con $C_i=\{a_j,a_k\}$, y $k'=k$. Tiempo $\Oh(n+m)$.
+
+\npdato{Ida y vuelta} $S$ cubre la arista $e_j$ $\iff$ algún extremo de $e_j$ está en $S$ $\iff$ algún calificado para $t_j$ está contratado.
+\end{problema}
+
+\prob{Acceso} se reduce desde \npSC\ con la matriz de anchos de banda como matriz de pertenencia: $B(d,a_i)=1$ si $d\in S_i$ y 0 si no.\visto{2P 2023 Ej. 3: Acceso, desde Set Cover}
+
+\begin{problema}{Acceso}
+\npdato{Problema} dispositivos $D=\{d_1,\dots,d_n\}$, lugares $A=\{a_1,\dots,a_\ell\}$, una matriz $B$ de $n\times\ell$ con anchos de banda no negativos y un natural $k$. Un conjunto de lugares $S$ cubre a $d$ si $B(d,a)>0$ para algún $a\in S$. ¿Se puede cubrir todo $D$ con a lo sumo $k$ lugares?
+
+\npdato{En $\NP$} certificado: vector de a lo sumo $k$ índices de lugares (más chico que la matriz). $B$ recorre las filas de la matriz y chequea que cada dispositivo tenga $B(d,a_i)>0$ para algún $a_i$ del certificado. Tiempo $\Oh(nk)$.
+
+\npdato{Reducción $\npSC\redp\prob{Acceso}$} dada $(U,S_1,\dots,S_m,r)$: $D=U$, $\ell=m$, $k=r$, $B(d,a_i)=1$ si $d\in S_i$ y $0$ si no. Tiempo $\Oh(|U|\cdot m)$.
+
+\npdato{Ida y vuelta} una subcolección de a lo sumo $r$ conjuntos cuya unión es $U$ corresponde exactamente a a lo sumo $k$ lugares que cubren todos los dispositivos.
+\end{problema}
+
+En \prob{uv} la letra guiaba paso a paso y pedía explícitamente identificar cuál problema es $X$ y cuál es $Y$ en $Y\redp X$: el origen $Y$ es \npSC, el destino $X$ es \prob{uv}. También daba como hipótesis la ida y la pertenencia a $\NP$.\visto{2P 2025 Ej. 2: UV, desde Set Cover}
+
+\begin{problema}{Unión es V (UV)}
+\npdato{Problema} un grafo $G=(V,E)$, un conjunto $\mathcal P=\{P_1,\dots,P_\ell\}$ de caminos simples de $G$ y un entero $k$: ¿hay $k$ caminos de $\mathcal P$ cuya unión de vértices es todo $V$?
+
+\npdato{Reducción $\npSC\redp\prob{uv}$} dada $(U,\{S_1,\dots,S_\ell\},k)$: $V$ tiene un vértice $v_i$ por cada elemento $e_i\in U$; $G$ es el grafo completo sobre $V$ (así cualquier orden de vértices es un camino); por cada $S_i=\{e_{i_1},\dots,e_{i_h}\}$ se crea el camino $P_i=(v_{i_1},\dots,v_{i_h})$; el $k$ es el mismo. Si no se quiere el grafo completo, hay que agregar a mano las aristas de cada $P_i$. Es una copia: tiempo lineal en la instancia (más $\Oh(|U|^2)$ si se arma el completo).
+
+\npdato{Vuelta (lo que se pedía)} si $k$ caminos $P_{i_1},\dots,P_{i_k}$ cubren $V$, para cada $e\in U$ su vértice $v$ está en algún $P_{i_j}$ y por construcción $e\in S_{i_j}$: los $S_{i_j}$ cubren $U$.
+
+\npdato{Detalle} si \npSC\ pide <<a lo sumo $k$>> y \prob{uv} pide exactamente $k$, se supone $k\le\ell$ y, si hiciera falta, se agregan caminos de relleno; la solución oficial lo menciona en una nota al pie.
+\end{problema}
+
+\subsection{Desde SAT y 3-SAT}
+
+La señal es que haya algo con dos estados por <<variable>> (fila, evento, ficha) y restricciones del tipo <<al menos uno de estos>>. La transformación pone una variable por cada objeto binario y una cláusula por cada restricción. Cuando el problema nuevo permite cláusulas de cualquier largo, se reduce desde \npSAT; cuando exige largo fijo, desde \npTSAT.
+
+\prob{Solitaire} venía con la transformación dada: había que probar la vuelta, armar la reducción y concluir.\visto{2P 2019 Ej. 3: Solitaire, desde 3-SAT}
+
+\begin{problema}{Solitaire}
+\npdato{Problema} un tablero $n\times m$ con celdas vacías o con una ficha $X$ u $O$. Se gana si se puede quitar fichas de modo que en cada fila las que quedan sean todas del mismo tipo y cada columna tenga al menos una ficha.
+
+\npdato{Transformación (dada)} desde una instancia de \npTSAT\ con variables $x_1..x_n$ y cláusulas $C_1..C_m$: tablero $n\times m$; si $x_i$ aparece en $C_j$ se pone $X$ en $(i,j)$, si aparece $\npneg{x_i}$ se pone $O$. Se recorren las cláusulas llenando una columna por cláusula: lineal.
+
+\npdato{Vuelta} dada una configuración ganadora, $v(x_i)=1$ si la fila $i$ quedó con fichas $X$, $v(x_i)=0$ si quedó con $O$, arbitrario si quedó vacía (no hay ambigüedad porque cada fila es de un solo tipo). Cada columna $C_j$ conserva alguna ficha: si es $X$ en la fila $i$, el término $x_i$ es verdadero; si es $O$, el término $\npneg{x_i}$ es verdadero. Toda cláusula se satisface.
+
+\npdato{Ida (se asumía)} con una asignación que satisface, en la fila $i$ se dejan solo las fichas del tipo que coincide con $v(x_i)$; cada columna conserva la ficha de su término verdadero.
+
+\npdato{En $\NP$} certificado: lista de posiciones que se conservan. $B$ chequea que cada posición tenga ficha, que cada columna aparezca y que no haya dos fichas de distinto tipo en la misma fila. Con $R$ fichas, $\Oh(R^2)$ más los accesos al tablero.
+\end{problema}
+
+En \prob{casi-sat} se pide satisfacer todas menos una. El truco es agregar dos cláusulas contradictorias: exactamente una de ellas falla siempre, y por lo tanto las originales tienen que satisfacerse todas.\visto{2P 2020 Ej. 3: casiSAT, desde SAT}
+
+\begin{problema}{casiSAT}
+\npdato{Problema} variables $X$ y $k$ cláusulas: ¿hay una asignación que satisface al menos $k-1$ cláusulas?
+
+\npdato{En $\NP$} certificado: la asignación. $B$ cuenta las cláusulas satisfechas recorriendo cada término una vez; acepta si son al menos $k-1$.
+
+\npdato{Reducción $\npSAT\redp\prob{casi-sat}$} dada una instancia con variables $x_1..x_m$ y $r$ cláusulas, se agrega una variable nueva $z$ y dos cláusulas de un término: $(z)$ y $(\npneg z)$. Quedan $k=r+2$ cláusulas.
+
+\npdato{Ida} la asignación que satisface las $r$ originales, con $z=1$, satisface $r+1=k-1$ cláusulas. \npdato{Vuelta} cualquier asignación falla en $(z)$ o en $(\npneg z)$; si satisface $k-1$, falla exactamente en una de esas dos y satisface las $r$ originales.
+\end{problema}
+
+\prob{Falsable} es el dual de \npSAT: una disyunción de conjunciones (forma normal disyuntiva) es falsa cuando todas las conjunciones son falsas, o sea, cuando cada una tiene un término falso.\visto{Examen feb. 2022 Ej. 2: Falsable, desde SAT}
+
+\begin{problema}{Falsable}
+\npdato{Problema} conjunciones $C_1,\dots,C_m$ (cada una $t_1\wedge\dots\wedge t_k$ con términos $x_i$ o $\npneg{x_i}$): ¿hay una asignación que hace falsa a $F=\bigvee_{i}C_i$?
+
+\npdato{En $\NP$} certificado: la asignación. $B$ chequea que cada conjunción tenga algún término falso. Lineal.
+
+\npdato{Reducción $\npSAT\redp\prob{Falsable}$} se niega la fórmula de \npSAT\ y se aplica De Morgan: cada cláusula $(t_1\vee\dots\vee t_r)$ pasa a la conjunción $(\npneg{t_1}\wedge\dots\wedge\npneg{t_r})$. Es cambiar el signo de cada término: lineal.
+
+\npdato{Equivalencia} con la misma asignación, una cláusula original es verdadera si y solo si su conjunción negada es falsa. Todas las cláusulas son verdaderas si y solo si todas las conjunciones son falsas, es decir, $F$ es falsa.
+\end{problema}
+
+\prob{4-sat} parece trivial y no lo es: no se puede repetir una variable en una cláusula, así que <<agregar un cuarto término cualquiera>> no funciona si no se controla su valor. La solución oficial da dos reducciones.\visto{2P 2024 Ej. 2: 4-SAT, desde 3-SAT}
+
+\begin{problema}{4-SAT}
+\npdato{Problema} cláusulas de exactamente 4 términos sobre 4 variables distintas, representadas con matrices $V$ (índices) y $N$ (negaciones) de $k\times4$: ¿hay asignación que las satisface todas?
+
+\npdato{En $\NP$} certificado: $n$ booleanos. $B$ evalúa las $k$ cláusulas en $\Oh(k)$. Como cada variable aparece en alguna cláusula, $n\le 4k$ y el certificado no es más largo que $N$.
+
+\npdato{Reducción 1} se agregan variables nuevas $z,u,v,w$. Cada cláusula $C_i$ de \npTSAT\ pasa a $C_i\vee z$. Se agregan 8 cláusulas $(\ell_u\vee\ell_v\vee\ell_w\vee\npneg z)$, una por cada combinación de signos de $\ell_u\in\{u,\npneg u\}$, $\ell_v$, $\ell_w$. Para cualquier valor de $u,v,w$, una de esas 8 tiene sus tres primeros términos falsos, así que fuerzan $z=0$. Ida: misma asignación con $z=0$ y $u,v,w$ arbitrarios. Vuelta: $z=0$ forzado, luego cada $C_i\vee z$ se satisface por un término original.
+
+\npdato{Reducción 2} cada cláusula $C_i$ se duplica: $C_i\vee x_{n+1}$ y $C_i\vee\npneg{x_{n+1}}$, con $x_{n+1}$ nueva ($2k$ cláusulas). Ida: misma asignación y $x_{n+1}$ arbitrario. Vuelta: cualquiera sea $x_{n+1}$, en una de las dos copias el cuarto término es falso y esa copia se satisface por un término de $C_i$.
+
+\npdato{Tiempo} en las dos, agregar una columna a $V$ y $N$ y unas filas: lineal.
+\end{problema}
+
+En \prob{Al menos $k$} hay $k+1$ apostadores y se pide que acierten al menos $k$: otra vez <<todos menos uno>>, y otra vez el truco es agregar dos apuestas opuestas de las que exactamente una acierta.\visto{Examen jul. 2025 Ej. 3: Al menos k, desde SAT}
+
+\begin{problema}{Al menos $k$}
+\npdato{Problema} $n$ eventos (ganar $G_i$ o perder $P_i$) y $k+1$ apostadores, cada uno con apuestas sobre algunos eventos. ¿Hay resultados con los que al menos $k$ apostadores aciertan alguna apuesta? Se asume que hay un algoritmo polinomial que, dados la instancia y unos resultados, verifica si al menos $k$ aciertan.
+
+\npdato{En $\NP$} el algoritmo dado es el certificador; el certificado es el conjunto de resultados, polinomial porque cada resultado corresponde a un evento con alguna apuesta. Hay que decir explícitamente las dos direcciones.
+
+\npdato{Reducción $\npSAT\redp\prob{Al menos }k$} dada una instancia con $n$ variables y $c$ cláusulas: un evento por variable; un apostador por cláusula, con $G_i$ por cada término $x_i$ y $P_j$ por cada $\npneg{x_j}$; dos apostadores extra con $(G_n)$ y $(P_n)$. Hay $c+2$ apostadores y el umbral es $c+1$.
+
+\npdato{Equivalencia} exactamente uno de los dos extra acierta. Por lo tanto aciertan al menos $c+1$ si y solo si aciertan los $c$ de las cláusulas. Con la correspondencia $x_i=1\iff$ se gana el evento $i$, el apostador de $C_h$ acierta si y solo si $C_h$ se satisface.
+
+\npdato{Lo que no sirve} un apostador por cláusula sin los dos extra (umbral $c-1$): una instancia \npno\ de \npSAT\ que satisface $c-1$ cláusulas daría una instancia \npsi.
+\end{problema}
+
+\prob{nti4sat} (<<no todos iguales>>) pide en cada cláusula un término verdadero y uno falso. La reducción es agregar la misma variable nueva $s$ a todas las cláusulas; la clave de la vuelta es la simetría por complemento, que la letra daba como nota.\visto{Examen jul. 2026 Ej. 3: NTI4Sat, desde 3-SAT}
+
+\begin{problema}{No todos iguales 4-SAT (NTI4Sat)}
+\npdato{Problema} cláusulas de exactamente 4 términos sobre variables distintas. Una asignación satisface una cláusula si le da valor verdadero a algún término y falso a algún término. ¿Hay una asignación que satisface todas? Se asume que está en $\NP$.
+
+\npdato{Reducción $\npTSAT\redp\prob{nti4sat}$} con una variable nueva $s$, cada cláusula $t_1\vee t_2\vee t_3$ pasa a $t_1\vee t_2\vee t_3\vee s$. Lineal.
+
+\npdato{Ida} la asignación que satisface la instancia de \npTSAT, con $s=0$: cada cláusula tiene un término verdadero (de los originales) y uno falso ($s$).
+
+\npdato{Vuelta} si una asignación satisface todas en el sentido <<no todos iguales>>, su complemento también (los verdaderos y los falsos se intercambian). Entre las dos, una tiene $s=0$; en esa, cada cláusula necesita un término verdadero, que tiene que ser uno de los tres originales. Restringida a las variables originales, satisface la instancia de \npTSAT.
+
+\npdato{Lo que no sirve} agregar como cuarto término el opuesto de uno de los tres (repite variable: cláusula inválida, y además toda instancia sería \npsi), o agregar una fórmula en lugar de un término.
+\end{problema}
+
+\subsection{Desde camino o ciclo hamiltoniano}
+
+La señal es <<recorrer todo>> o <<un camino o ciclo de largo al menos $k$>>. La reducción típica fija el parámetro para que <<largo $\ge k$>> obligue a pasar por todos los vértices.
+
+El único ejercicio de este tipo daba camino hamiltoniano como $\NP$-completo y pedía la reducción y la pertenencia a $\NP$ por separado.\visto{2P 2021 Ej. 2: camino simple, desde CH}
+
+\begin{problema}{Camino simple de largo al menos $k$ (CS)}
+\npdato{Problema} dado un grafo $G$ y un natural $k$, ¿hay un camino simple (sin vértices repetidos) con al menos $k$ aristas?
+
+\npdato{Reducción $\prob{ch}\redp\prob{cs}$} $G\mapsto(G,\,k=n-1)$. Copiar $G$ es lineal.
+
+\npdato{Ida} un camino hamiltoniano no repite vértices y visita los $n$: es simple de largo $n-1$. \npdato{Vuelta} un camino simple de largo $n-1$ visita $n$ vértices distintos, o sea todos: es hamiltoniano.
+
+\npdato{En $\NP$} certificado: lista de vértices $\pi$. $B$ rechaza si $\pi$ repite un vértice, si tiene $k$ o menos vértices, o si dos consecutivos no son adyacentes. Tiempo $\Oh(|\pi|^2+|\pi|m)$, y $|\pi|\le n$ porque no repite.
+\end{problema}
+
+Variantes que se resuelven igual: <<¿hay un ciclo de largo al menos $k$?>> (desde ciclo hamiltoniano con $k=n$), <<¿hay un camino hamiltoniano entre $s$ y $t$ dados?>>, o un \npTSP\ con restricciones extra (desde ciclo hamiltoniano con distancias 1 y 2).
+
+\subsection{Desde Subset Sum, 3-coloreo y 3D-Matching}
+
+En los parciales y exámenes relevados no se tomó ninguno con estos orígenes, pero están en el programa y son la elección natural para problemas numéricos o de etiquetado. Tres ejemplos cortos para practicar:
+
+\begin{problema}{Partición (desde Subset Sum)}
+\npdato{Problema} dados naturales $w_1,\dots,w_n$, ¿se pueden repartir en dos grupos de igual suma?
+
+\npdato{Reducción} sea $S=\sum w_i$. Dada $(w,W)$ de \npSS, se agrega el número $\delta=|S-2W|$. Si $W\le S/2$, el total pasa a $2S-2W$ y cada mitad debe sumar $S-W$: un subconjunto que suma $W$ junto con $\delta$ suma $S-W$, y recíprocamente el lado que contiene a $\delta$, sin $\delta$, suma $W$. Si $W>S/2$, el total es $2W$ y el lado que no contiene a $\delta$ suma $W$. El número agregado tiene $\Oh(\log S)$ bits.
+\end{problema}
+
+\begin{problema}{4-coloreo (desde 3-coloreo)}
+Se agrega un vértice nuevo adyacente a todos. En un 4-coloreo ese vértice tiene un color que no usa nadie más, así que el resto usa 3 colores; recíprocamente, un 3-coloreo se extiende dándole el cuarto color al vértice nuevo. En $\NP$: certificado, el color de cada vértice; se chequea cada arista.
+\end{problema}
+
+\begin{problema}{Mochila con valor exacto (desde Subset Sum)}
+<<¿Hay un subconjunto de peso $\le W$ y valor exactamente $V$?>> Desde \npSS\ con $v_i=w_i$ y $V=W$. La lección general: si el problema nuevo tiene números y pide <<exactamente>>, \npSS\ casi siempre es el origen, y los números se copian (no se escriben en unario).
+\end{problema}
+
+% =====================================================================
+\section{Mapa de lo que se preguntó}
+% =====================================================================
+
+Relevamiento de los segundos parciales (2008--2025) y exámenes (2009--2026) disponibles. Hasta 2016 los parciales y exámenes no incluían este tema; desde 2018 aparece en todos los segundos parciales y en buena parte de los exámenes, en general como el último ejercicio y con 17 a 40 puntos.
+
+\begin{center}\small
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{2.1cm} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{3.3cm}@{}}
+\toprule
+\multicolumn{3}{@{}l}{\sans\bfseries Segundos parciales}\\
+\midrule
+Fuente & Qué se pidió & Reducido desde \\
+\midrule
+2P 2017 Ej. 4 & sí, no o no se sabe: Interval Scheduling y VC, IS e Interval Scheduling & conceptual \\
+2P 2018 Ej. 3 & UOPI (independiente con pesos, valor $\ge t$) en $\NP$ y $\NP$-completo & \npIS \\
+2P 2019 Ej. 3 & Solitaire: vuelta de una transformación dada, reducción y $\NP$-completo & \npTSAT \\
+2P 2020 Ej. 3 & casiSAT (satisfacer al menos $k-1$ cláusulas) & \npSAT \\
+2P 2021 Ej. 2 & camino simple de largo $\ge k$ & camino hamiltoniano \\
+2P 2022 Ej. 3 & Contratar (aplicantes que cubren tareas) & \npVC \\
+2P 2023 Ej. 3 & Acceso (puntos de acceso que cubren dispositivos) & \npSC \\
+2P 2024 Ej. 2 & 4-SAT, con pauta de corrección detallada & \npTSAT \\
+2P 2025 Ej. 1 & (e) transformación IS a VC; (f) definición de certificador eficiente & conceptual \\
+2P 2025 Ej. 2 & UV (caminos cuya unión es $V$), guiado paso a paso & \npSC \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\begin{center}\small
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{2.1cm} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{3.3cm}@{}}
+\toprule
+\multicolumn{3}{@{}l}{\sans\bfseries Exámenes}\\
+\midrule
+Fuente & Qué se pidió & Reducido desde \\
+\midrule
+Jul. 2018 P. 2 & $X\in\Pclass$, $Y\in\NP$, $Z$ $\NP$-completo: cuatro reducciones, ¿siempre, nunca o depende? & conceptual \\
+Feb. 2019 Ej. 3 & definiciones de certificador eficiente, $\NP$ y $\NP$-completo & conceptual \\
+Feb. 2020 Ej. 1 & PCG (conjunto golpeador) y definición de $\NP$ & \npVC \\
+Feb. 2021 Ej. 3 & Red-Social (personas todas amigas entre sí) & \npIS\ (complemento) \\
+Jul. 2021 Ej. 3 & Test (tests que ejecutan todas las líneas) & \npVC \\
+Feb. 2022 Ej. 2 & Falsable (fórmula en forma disyuntiva que se puede hacer falsa) & \npSAT \\
+Jul. 2022 Ej. 3 & Cocinero (ingredientes con disconformidad $\le d$) & \npIS\ ($d=0$) \\
+Dic. 2022 Ej. 3 & RF (relación cuya restricción es función parcial) & \npIS \\
+Dic. 2023 Ej. 3 & Cometa (clique de $d$ más camino de $d$) & \prob{Clique3} \\
+Jul. 2024 Ej. 3 & subgrafo isomorfo & \npCL \\
+Jul. 2025 Ej. 3 & Al menos $k$ (apostadores que aciertan) & \npSAT \\
+Dic. 2025 Ej. 1 & (e) certificado de SAT; (f) definición de $\NP$-completo y cómo usarla & conceptual \\
+Jul. 2026 Ej. 1 & (f) certificado de SAT & conceptual \\
+Jul. 2026 Ej. 3 & NTI4Sat (no todos iguales, 4 términos) & \npTSAT \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+Lo que se repite: el origen es \npIS, \npVC/\npSC\ o \npSAT/\npTSAT\ en 15 de los 18 ejercicios de reducción (los otros tres salen de \npCL\ o de camino hamiltoniano); la transformación es casi siempre una copia con otro nombre; y lo que más puntaje cuesta es la redacción completa del certificador y la vuelta de la equivalencia.

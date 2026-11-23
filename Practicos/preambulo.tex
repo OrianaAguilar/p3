@@ -1,0 +1,53 @@
+% Preámbulo común para las soluciones de los prácticos de Programación 3
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[spanish,es-noshorthands]{babel}
+\usepackage[margin=2.3cm]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,shapes,calc}
+\usepackage[noend]{algpseudocode}
+\usepackage{algorithm}
+\usepackage{booktabs}
+\usepackage{tcolorbox}
+\usepackage[hidelinks]{hyperref}
+
+\floatname{algorithm}{Algoritmo}
+\renewcommand{\algorithmicrequire}{\textbf{Entrada:}}
+\renewcommand{\algorithmicensure}{\textbf{Salida:}}
+\algrenewcommand\algorithmicwhile{\textbf{mientras}}
+\algrenewcommand\algorithmicdo{\textbf{hacer}}
+\algrenewcommand\algorithmicfor{\textbf{para}}
+\algrenewcommand\algorithmicforall{\textbf{para todo}}
+\algrenewcommand\algorithmicif{\textbf{si}}
+\algrenewcommand\algorithmicthen{\textbf{entonces}}
+\algrenewcommand\algorithmicelse{\textbf{sino}}
+\algrenewcommand\algorithmicreturn{\textbf{retornar}}
+\algrenewcommand\algorithmicfunction{\textbf{función}}
+\algrenewcommand\algorithmicprocedure{\textbf{procedimiento}}
+
+\theoremstyle{plain}
+\newtheorem{lema}{Lema}[section]
+\newtheorem{teorema}[lema]{Teorema}
+\newtheorem{proposicion}[lema]{Proposición}
+\theoremstyle{definition}
+\newtheorem{definicion}[lema]{Definición}
+\theoremstyle{remark}
+\newtheorem*{observacion}{Observación}
+
+% Caja para el enunciado de cada ejercicio
+\newtcolorbox{enunciado}{colback=gray!6,colframe=gray!50,boxrule=0.4pt,arc=2pt,left=6pt,right=6pt,top=4pt,bottom=4pt,fontupper=\small}
+% Nota que vincula el ejercicio con parciales/exámenes
+\newcommand{\examref}[1]{\par\noindent{\small\color{blue!50!black}\textbf{Relación con parciales/exámenes:} #1}\par\medskip}
+
+\newcommand{\NP}{\mathsf{NP}}
+\newcommand{\Pclass}{\mathsf{P}}
+\newcommand{\Oh}{\mathcal{O}}
+
+\setlength{\parskip}{0.4em}
+\setlength{\parindent}{0pt}

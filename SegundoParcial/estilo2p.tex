@@ -1,0 +1,165 @@
+% =====================================================================
+%  Estilo de la guía del segundo parcial — Programación 3
+%  Tokens de diseño:
+%    tinta      #1E2A4A   texto y títulos
+%    gris       #5B6375   texto secundario, notas al margen
+%    papel      #FFFFFF
+%    acento por parte (identifica la parte, no decora):
+%      dyc #2F6F8F  pd #7A4E9C  flujo #2E7D5B  np #A33B3B
+%  Tipografía: Libertinus Serif (cuerpo + matemática), Libertinus Sans (títulos)
+%  Layout: bloque de texto a la izquierda, margen derecho ancho para
+%          referencias a parciales/exámenes ("visto en").
+% =====================================================================
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[spanish,es-noshorthands,es-nodecimaldot]{babel}
+\usepackage{libertinus}
+\usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage{libertinust1math}
+\usepackage[a4paper,left=2.2cm,right=6.0cm,top=2.4cm,bottom=2.6cm,
+            marginparwidth=4.1cm,marginparsep=0.7cm]{geometry}
+\usepackage[dvipsnames]{xcolor}
+\usepackage{microtype}
+\usepackage{enumitem}
+\usepackage{booktabs,tabularx,array}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,shapes,calc,fit,backgrounds}
+\usepackage[noend]{algpseudocode}
+\usepackage{algorithm}
+\usepackage[most]{tcolorbox}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{marginnote}
+\usepackage[hidelinks]{hyperref}
+\usepackage{etoolbox}
+
+% ---------- color ----------
+\definecolor{tinta}{HTML}{1E2A4A}
+\definecolor{gris}{HTML}{5B6375}
+\definecolor{grisclaro}{HTML}{E6E8EE}
+\definecolor{grafos}{HTML}{9A6A0F}
+\definecolor{dyc}{HTML}{2F6F8F}
+\definecolor{pd}{HTML}{7A4E9C}
+\definecolor{flujo}{HTML}{2E7D5B}
+\definecolor{np}{HTML}{A33B3B}
+\colorlet{acento}{tinta}           % se redefine al abrir cada parte
+\color{tinta}
+
+% ---------- tipografía ----------
+\linespread{1.12}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.45em}
+\newcommand{\sans}{\sffamily}
+
+% ---------- títulos ----------
+\titleformat{\section}{\sans\Large\bfseries\color{acento}}{\thesection}{0.8em}{}
+\titleformat{\subsection}{\sans\large\bfseries\color{tinta}}{\thesubsection}{0.7em}{}
+\titleformat{\subsubsection}{\sans\normalsize\bfseries\color{tinta}}{}{0em}{}
+\titlespacing*{\section}{0pt}{1.6em}{0.6em}
+\titlespacing*{\subsection}{0pt}{1.2em}{0.4em}
+\titlespacing*{\subsubsection}{0pt}{0.9em}{0.25em}
+\renewcommand{\thesection}{\arabic{section}}
+
+% ---------- encabezado ----------
+\pagestyle{fancy}
+\fancyhf{}
+\fancyheadoffset[R]{4.8cm}
+\renewcommand{\headrulewidth}{0pt}
+\newcommand{\parteactual}{}
+\fancyhead[L]{\sans\footnotesize\color{gris}Programación 3 — guía del segundo parcial}
+\fancyhead[R]{\sans\footnotesize\color{acento}\parteactual}
+\fancyfoot[R]{\sans\footnotesize\color{gris}\thepage}
+\fancyfootoffset[R]{4.8cm}
+
+% ---------- portada de cada parte: la fórmula central es el protagonista ----------
+% \parte{nombre-color}{Título}{fórmula (modo matemático display)}{bajada de una o dos líneas}
+\newcommand{\parte}[4]{%
+  \clearpage
+  \colorlet{acento}{#1}%
+  \renewcommand{\parteactual}{#2}%
+  \thispagestyle{empty}%
+  \begin{tikzpicture}[remember picture,overlay]
+    \fill[#1] (current page.north west) rectangle ([xshift=0.9cm]current page.south west);
+  \end{tikzpicture}%
+  \vspace*{3.2cm}
+  {\sans\Huge\bfseries\color{#1}#2\par}
+  \vspace{2.2cm}
+  \noindent\makebox[\textwidth][l]{\begin{minipage}{\dimexpr\textwidth+4.8cm\relax}
+    \color{tinta}\fontsize{26}{34}\selectfont
+    \[ #3 \]
+  \end{minipage}}
+  \vspace{1.8cm}
+
+  \begin{minipage}{0.9\textwidth}\large\linespread{1.3}\selectfont\color{gris}#4\end{minipage}\par
+  \addcontentsline{toc}{part}{#2}%
+  \clearpage
+}
+
+% ---------- recuadros con significado ----------
+% receta: cómo se redacta la respuesta en el parcial
+\newtcolorbox{receta}[1][]{enhanced,breakable,sharp corners,boxrule=0pt,
+  frame hidden,colback=acento!6,borderline west={3pt}{0pt}{acento},
+  left=10pt,right=8pt,top=6pt,bottom=6pt,
+  title={\sans\bfseries Receta para el parcial\ifstrempty{#1}{}{: #1}},
+  coltitle=acento,colbacktitle=acento!6,attach title to upper={\par\smallskip}}
+% trampa: errores que se corrigen siempre
+\newtcolorbox{trampa}[1][]{enhanced,breakable,sharp corners,boxrule=0pt,
+  frame hidden,colback=white,borderline west={1.2pt}{0pt}{np},
+  left=10pt,right=8pt,top=4pt,bottom=4pt,
+  title={\sans\bfseries\color{np}Errores que restan puntos\ifstrempty{#1}{}{: #1}},
+  coltitle=np,colbacktitle=white,attach title to upper={\par\smallskip}}
+% problema: enunciado de un problema clásico o de examen
+\newtcolorbox{problema}[1]{enhanced,breakable,sharp corners,boxrule=0.4pt,
+  colframe=grisclaro,colback=white,left=8pt,right=8pt,top=5pt,bottom=5pt,
+  fontupper=\small,title={\sans\bfseries #1},coltitle=tinta,colbacktitle=grisclaro}
+% resultado: enunciado clave del teórico (lo que se cita "por (x.y)")
+\newtcolorbox{resultado}[1][]{enhanced,breakable,sharp corners,boxrule=0pt,frame hidden,
+  colback=grisclaro!45,left=10pt,right=8pt,top=6pt,bottom=6pt,
+  before upper={\ifstrempty{#1}{}{{\sans\bfseries #1}\par\smallskip}}}
+
+% ---------- notas al margen: dónde se preguntó ----------
+% \visto{2P 2019 Ej. 2: ladrón de casas contiguas}
+\newcommand{\visto}[1]{\marginnote{\raggedright\sans\footnotesize\color{gris}%
+  {\color{acento}\rule[0.15em]{0.9em}{1.4pt}}\hspace{0.35em}#1}}
+% nota al margen libre
+\newcommand{\margen}[1]{\marginnote{\raggedright\footnotesize\color{gris}#1}}
+
+% ---------- teoremas ----------
+\newtheoremstyle{guia}{0.6em}{0.6em}{\itshape}{}{\sans\bfseries}{.}{0.5em}{}
+\theoremstyle{guia}
+\newtheorem{teorema}{Teorema}[section]
+\newtheorem{lema}[teorema]{Lema}
+\newtheorem{proposicion}[teorema]{Proposición}
+\theoremstyle{definition}
+\newtheorem{definicion}[teorema]{Definición}
+\newtheorem*{ejemplo}{Ejemplo}
+\renewcommand{\qedsymbol}{\color{acento}$\blacksquare$}
+
+% ---------- pseudocódigo en español ----------
+\floatname{algorithm}{Algoritmo}
+\renewcommand{\algorithmicrequire}{\textbf{Entrada:}}
+\renewcommand{\algorithmicensure}{\textbf{Salida:}}
+\algrenewcommand\algorithmicwhile{\textbf{mientras}}
+\algrenewcommand\algorithmicdo{\textbf{hacer}}
+\algrenewcommand\algorithmicfor{\textbf{para}}
+\algrenewcommand\algorithmicforall{\textbf{para todo}}
+\algrenewcommand\algorithmicif{\textbf{si}}
+\algrenewcommand\algorithmicthen{\textbf{entonces}}
+\algrenewcommand\algorithmicelse{\textbf{sino}}
+\algrenewcommand\algorithmicreturn{\textbf{retornar}}
+\algrenewcommand\algorithmicfunction{\textbf{función}}
+\algrenewcommand\algorithmicprocedure{\textbf{procedimiento}}
+
+% ---------- macros ----------
+\newcommand{\Oh}{\mathcal{O}}
+\newcommand{\OPT}{\mathrm{OPT}}
+\newcommand{\NP}{\mathsf{NP}}
+\newcommand{\Pclass}{\mathsf{P}}
+\newcommand{\coNP}{\mathsf{co}\text{-}\mathsf{NP}}
+\newcommand{\redp}{\le_{p}}
+\newcommand{\prob}[1]{\textsc{#1}}
+
+\setlist{itemsep=0.15em,topsep=0.3em,leftmargin=1.4em}
+\setcounter{tocdepth}{1}

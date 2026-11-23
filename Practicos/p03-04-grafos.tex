@@ -1,0 +1,1255 @@
+\input{preambulo}
+
+\tikzset{
+  nodo/.style={circle,draw,minimum size=6.5mm,inner sep=1pt,font=\small},
+  dir/.style={-{Stealth[length=2.6mm]},thick},
+  arbol/.style={very thick},
+  noarbol/.style={dashed,gray}
+}
+\algrenewcommand\algorithmicloop{\textbf{repetir}}
+\newcommand{\Adj}{\mathrm{Adj}}
+\newcommand{\dist}{\mathrm{dist}}
+\newcommand{\Grev}{G^{\mathrm{rev}}}
+
+\title{Prácticos 3 y 4 --- Grafos}
+\author{Programación 3 --- Soluciones}
+\date{}
+
+\begin{document}
+\maketitle
+
+\paragraph{Convenciones.} Salvo que se diga lo contrario, $G=(V,E)$ tiene $n=|V|$ vértices y
+$m=|E|$ aristas, es simple (sin lazos ni aristas múltiples) y se representa mediante
+\emph{listas de adyacencia} $\Adj[v]$. Usamos los siguientes resultados del libro
+(Kleinberg--Tardos, cap.~3), que citamos sin volver a demostrar:
+\begin{itemize}[nosep]
+  \item \textbf{(3.3)} Las capas $L_0,L_1,\dots$ de BFS desde $s$ cumplen $L_i=\{v:\dist(s,v)=i\}$.
+  \item \textbf{(3.4)} En un grafo no dirigido, si $\{x,y\}\in E$, $x\in L_i$, $y\in L_j$, entonces $|i-j|\le 1$.
+  \item \textbf{(3.7)} Si $T$ es un árbol DFS y $\{x,y\}\in E\setminus T$, uno de $x,y$ es ancestro del otro en $T$.
+  \item \textbf{(3.11), (3.12)} BFS y DFS (y el cálculo de todas las componentes conexas) se implementan en $\Oh(n+m)$ con listas de adyacencia.
+\end{itemize}
+
+%======================================================================
+\section{Ejercicio 1}
+\begin{enunciado}
+Una empresa debe instalar $n$ antenas 5G y conectarlas entre sí mediante cables, de modo que haya
+conexión entre todas las antenas con la menor cantidad de conexiones.
+(a) ¿Cómo modelaría el problema con un grafo?
+(b) Alguien propone una solución con $n$ conexiones. ¿Es válida? ¿Es óptima?
+(c) Otra persona propone una solución con $n-2$ conexiones. ¿Es válida? ¿Es óptima?
+(d) Demuestre que la solución óptima tiene exactamente $n-1$ conexiones.
+\end{enunciado}
+
+\subsection*{(a) Modelo}
+Cada antena es un vértice: $V=\{1,\dots,n\}$. Cada cable posible entre dos antenas $u,v$ es una
+arista no dirigida $\{u,v\}$; como cualquier par de antenas puede cablearse, el conjunto de
+conexiones posibles es el de todas las aristas del grafo completo $K_n$. Una \emph{solución} es un
+conjunto de aristas $F$ tal que el grafo $H=(V,F)$ es \textbf{conexo} (entre dos antenas cualesquiera
+hay un camino de cables, y por lo tanto conexión). Una solución es \emph{óptima} si minimiza $|F|$.
+Es decir, buscamos un subgrafo de cubrimiento conexo con la menor cantidad de aristas.
+
+\subsection*{Un lema auxiliar}
+\begin{lema}\label{l:componentes}
+Todo grafo con $n$ vértices y $k$ aristas tiene al menos $n-k$ componentes conexas.
+\end{lema}
+\begin{proof}
+Inducción en $k$. Si $k=0$ hay exactamente $n$ componentes (vértices aislados).
+Sea $H$ con $k\ge1$ aristas, $e=\{u,v\}$ una de ellas y $H'=H-e$, que por hipótesis inductiva tiene
+$c'\ge n-(k-1)$ componentes. Al agregar $e$ a $H'$: si $u$ y $v$ están en la misma componente de
+$H'$, las componentes no cambian; si están en componentes distintas, esas dos se funden en una y
+las demás no cambian. En cualquier caso $H$ tiene $c\ge c'-1\ge n-k$ componentes.
+\end{proof}
+\begin{observacion}
+En consecuencia, un grafo conexo (una sola componente) con $n$ vértices tiene al menos $n-1$ aristas.
+\end{observacion}
+
+\subsection*{(b) Solución con $n$ conexiones}
+\textbf{Válida:} depende de cuáles sean las $n$ conexiones. Puede ser válida: por ejemplo (para
+$n\ge3$) el ciclo $1-2-\dots-n-1$ conecta todas las antenas con $n$ cables. Pero también puede no
+serlo: para $n\ge5$, el camino $1-2-\dots-(n-1)$ ($n-2$ aristas) más las aristas $\{1,3\}$ y $\{2,4\}$
+suman $n$ aristas distintas y dejan a la antena $n$ aislada. (Para $n\le 4$ cualesquiera $n$ aristas
+distintas conectan el grafo, porque un grafo no conexo con $n$ vértices tiene a lo sumo
+$\binom{n-1}{2}<n$ aristas; pero la respuesta general es ``no necesariamente''.)
+
+\textbf{Óptima:} nunca. Por la parte (d) existe una solución válida con $n-1<n$ conexiones. Más
+concretamente: si $H=(V,F)$ es conexo y $|F|=n$, entonces $H$ tiene un ciclo (un grafo conexo
+acíclico es un árbol y tiene $n-1$ aristas); al quitar una arista de un ciclo el grafo sigue siendo
+conexo (todo camino que la usaba puede desviarse por el resto del ciclo), y se obtiene una
+solución válida con $n-1$ conexiones.
+
+\subsection*{(c) Solución con $n-2$ conexiones}
+\textbf{No es válida}, cualesquiera sean las conexiones: por el Lema~\ref{l:componentes} un grafo con
+$n$ vértices y $n-2$ aristas tiene al menos $n-(n-2)=2$ componentes conexas, por lo que hay dos
+antenas sin conexión entre sí. Al no ser válida, \textbf{tampoco es óptima} (una solución óptima es,
+en particular, válida).
+
+\subsection*{(d) La solución óptima tiene exactamente $n-1$ conexiones}
+\begin{itemize}
+  \item \emph{Cota inferior:} toda solución válida es un grafo conexo con $n$ vértices, por lo que,
+  por el Lema~\ref{l:componentes}, tiene al menos $n-1$ aristas.
+  \item \emph{Se alcanza:} la estrella $F^*=\{\{1,v\}: 2\le v\le n\}$ tiene $n-1$ aristas y es conexa
+  (todo par $u,v$ se conecta por el camino $u-1-v$).
+\end{itemize}
+Por lo tanto el mínimo de $|F|$ sobre las soluciones válidas es exactamente $n-1$. Además, toda
+solución óptima es un árbol: si tuviera un ciclo podríamos quitar una arista de él y seguir conexos
+con $n-2$ aristas, contradiciendo la parte (c).
+
+%======================================================================
+\section{Ejercicio 2}
+\begin{enunciado}
+Consideramos el grafo de la figura 2.1.
+(a) Escriba 3 algoritmos distintos para recorrer un grafo.
+(b) Utilice BFS desde el nodo 8 y muestre el árbol BFS. ¿Es el único árbol BFS posible para este grafo y este nodo inicial?
+(c) Utilice DFS desde el nodo 6 y muestre el árbol DFS. ¿Es el único árbol DFS posible?
+(d) ¿Existe una recorrida DFS que dé como resultado el árbol de la parte (b)?
+(e) ¿Existe una recorrida BFS que dé como resultado el árbol de la parte (c)?
+\end{enunciado}
+
+\begin{center}
+\begin{tikzpicture}[scale=1.1]
+  \node[nodo] (1) at (2,3) {1};  \node[nodo] (7) at (3.5,3) {7};
+  \node[nodo] (2) at (1.2,2) {2}; \node[nodo] (3) at (2.8,2) {3};
+  \node[nodo] (4) at (0.4,1) {4}; \node[nodo] (5) at (2,1) {5}; \node[nodo] (8) at (3.5,1) {8};
+  \node[nodo] (6) at (2,0) {6};
+  \draw (1)--(2) (1)--(3) (2)--(3) (2)--(4) (2)--(5) (3)--(5) (3)--(7) (3)--(8) (4)--(5) (5)--(6) (7)--(8);
+\end{tikzpicture}
+
+\small Figura 2.1. Listas de adyacencia (en orden creciente):
+$1\!:\!2,3$;\; $2\!:\!1,3,4,5$;\; $3\!:\!1,2,5,7,8$;\; $4\!:\!2,5$;\; $5\!:\!2,3,4,6$;\; $6\!:\!5$;\; $7\!:\!3,8$;\; $8\!:\!3,7$.
+\end{center}
+
+\subsection*{(a) Tres algoritmos de recorrida}
+
+\begin{algorithm}[H]
+\caption{BFS (búsqueda en anchura, por capas)}
+\begin{algorithmic}[1]
+\Function{BFS}{$G,s$}
+  \State $Descubierto[v]\gets\textbf{false}$ para todo $v\in V$; \ $Descubierto[s]\gets\textbf{true}$
+  \State $L_0\gets\{s\}$; \ $i\gets 0$; \ $T\gets\emptyset$
+  \While{$L_i\neq\emptyset$}
+    \State $L_{i+1}\gets\emptyset$
+    \ForAll{$u\in L_i$}
+      \ForAll{$v\in\Adj[u]$}
+        \If{$\neg Descubierto[v]$}
+          \State $Descubierto[v]\gets\textbf{true}$; \ $T\gets T\cup\{\{u,v\}\}$; \ agregar $v$ a $L_{i+1}$
+        \EndIf
+      \EndFor
+    \EndFor
+    \State $i\gets i+1$
+  \EndWhile
+  \State \Return $T$
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[H]
+\caption{DFS recursivo (búsqueda en profundidad)}
+\begin{algorithmic}[1]
+\State Inicialmente $Explorado[v]\gets\textbf{false}$ para todo $v$; se invoca \Call{DFS}{$s$}.
+\Function{DFS}{$u$}
+  \State $Explorado[u]\gets\textbf{true}$
+  \ForAll{$v\in\Adj[u]$}
+    \If{$\neg Explorado[v]$}
+      \State $T\gets T\cup\{\{u,v\}\}$; \ \Call{DFS}{$v$}
+    \EndIf
+  \EndFor
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[H]
+\caption{Exploración genérica de la componente de $s$ (libro, sección 3.2)}
+\begin{algorithmic}[1]
+\Function{Componente}{$G,s$}
+  \State $R\gets\{s\}$; \ $T\gets\emptyset$
+  \While{existe una arista $\{u,v\}$ con $u\in R$, $v\notin R$}
+    \State $R\gets R\cup\{v\}$; \ $T\gets T\cup\{\{u,v\}\}$
+  \EndWhile
+  \State \Return $R$, $T$
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+Los tres recorren exactamente la componente conexa de $s$; BFS y DFS son dos maneras concretas de
+elegir la arista $\{u,v\}$ del algoritmo genérico (también vale como tercer algoritmo el DFS
+iterativo con pila del Ejercicio~3).
+
+\subsection*{(b) BFS desde 8}
+Usando las listas en orden creciente:
+\begin{itemize}[nosep]
+  \item $L_0=\{8\}$.
+  \item Se procesa 8: descubre 3 y 7. \ $L_1=\{3,7\}$.
+  \item Se procesa 3: descubre 1, 2, 5 (7 y 8 ya descubiertos). Se procesa 7: nada nuevo. \ $L_2=\{1,2,5\}$.
+  \item Se procesa 1: nada. Se procesa 2: descubre 4. Se procesa 5: descubre 6 (4 ya descubierto). \ $L_3=\{4,6\}$.
+  \item Se procesan 4 y 6: nada nuevo; $L_4=\emptyset$.
+\end{itemize}
+Árbol BFS $T_b=\{\{8,3\},\{8,7\},\{3,1\},\{3,2\},\{3,5\},\{2,4\},\{5,6\}\}$:
+\begin{center}
+\begin{tikzpicture}[level distance=11mm,
+  level 1/.style={sibling distance=30mm},
+  level 2/.style={sibling distance=14mm},
+  level 3/.style={sibling distance=10mm},
+  every node/.style={nodo}]
+\node {8}
+  child {node {3}
+    child {node {1}}
+    child {node {2} child {node {4}}}
+    child {node {5} child {node {6}}}}
+  child {node {7}};
+\end{tikzpicture}
+\end{center}
+\textbf{No es el único.} Las capas sí son únicas (por (3.3), $L_i$ es el conjunto de vértices a
+distancia $i$ de 8), pero el padre de un vértice $v\in L_{i+1}$ es el primer vértice de $L_i$
+procesado que es adyacente a $v$, y eso depende del orden de las listas. El vértice 4 tiene dos
+vecinos en $L_2$, el 2 y el 5: si en $L_2$ se procesa 5 antes que 2 (por ejemplo, si la lista de 3 es
+$5,2,1,7,8$), el padre de 4 es 5 y se obtiene el árbol
+$T_b'=(T_b\setminus\{\{2,4\}\})\cup\{\{5,4\}\}\neq T_b$. Los demás vértices tienen un único vecino en
+la capa anterior (1, 2 y 5 solo al 3; 3 y 7 solo al 8; 6 solo al 5), así que existen exactamente
+dos árboles BFS desde 8: $T_b$ y $T_b'$.
+
+\subsection*{(c) DFS desde 6}
+Con las listas en orden creciente: \textsc{DFS}(6) $\to$ \textsc{DFS}(5) (primer vecino de 5 no
+explorado: 2) $\to$ \textsc{DFS}(2) $\to$ \textsc{DFS}(1) $\to$ \textsc{DFS}(3) (1 y 2 explorados; el
+siguiente es 5, explorado; luego 7) $\to$ \textsc{DFS}(7) $\to$ \textsc{DFS}(8). Desde 8 no hay
+nada nuevo; se retrocede hasta 2, donde queda 4 sin explorar: \textsc{DFS}(4). Fin.
+
+Árbol DFS $T_c=\{\{6,5\},\{5,2\},\{2,1\},\{1,3\},\{3,7\},\{7,8\},\{2,4\}\}$:
+\begin{center}
+\begin{tikzpicture}[level distance=9mm,
+  level 3/.style={sibling distance=16mm},
+  every node/.style={nodo}]
+\node {6}
+  child {node {5}
+    child {node {2}
+      child {node {1} child {node {3} child {node {7} child {node {8}}}}}
+      child {node {4}}}};
+\end{tikzpicture}
+\end{center}
+\textbf{No es el único.} El árbol depende del orden en que se recorren las listas de adyacencia.
+Por ejemplo, si la lista de 5 empieza por 4, se obtiene \textsc{DFS}(6) $\to$ 5 $\to$ 4 $\to$ 2
+$\to$ 1 $\to$ 3 $\to$ 7 $\to$ 8, es decir el camino $6-5-4-2-1-3-7-8$, que es un árbol distinto
+de $T_c$ (contiene la arista $\{5,4\}\notin T_c$).
+
+\subsection*{(d) ¿Hay una recorrida DFS que produzca $T_b$?}
+\examref{Examen diciembre 2017, Pregunta 1: si DFS y BFS desde el mismo vértice $u$ producen el mismo árbol $T$, entonces $G=T$.}
+\textbf{Desde el mismo nodo inicial 8, no.} Las aristas de $G$ que no están en $T_b$ son
+$\{1,2\}$, $\{2,5\}$, $\{3,7\}$, $\{4,5\}$. En $T_b$ con raíz 8, los vértices 3 y 7 son hermanos (ninguno es
+ancestro del otro), y sin embargo $\{3,7\}\in E\setminus T_b$. Por (3.7) $T_b$ no puede ser un árbol
+DFS con raíz 8. (También se deduce del resultado del examen citado: como $G\neq T_b$, un DFS desde 8
+no puede producir el mismo árbol que el BFS desde 8.)
+
+\textbf{Si se permite empezar en otro nodo, sí.} Busquemos una raíz $r$ tal que, en $T_b$ enraizado en
+$r$, cada arista no arbórea una un ancestro con un descendiente. Para una arista no arbórea
+$\{x,y\}$ esto ocurre si y solo si $r$ está ``del lado de $x$'' o ``del lado de $y$'' del camino de
+$T_b$ entre $x$ e $y$:
+\begin{itemize}[nosep]
+  \item $\{1,2\}$ (camino $1-3-2$): $r\in\{1\}\cup\{2,4\}$.
+  \item $\{2,5\}$ (camino $2-3-5$): $r\in\{2,4\}\cup\{5,6\}$.
+  \item $\{4,5\}$ (camino $4-2-3-5$): $r\in\{4\}\cup\{5,6\}$.
+  \item $\{3,7\}$ (camino $3-8-7$): $r\in\{1,2,3,4,5,6\}\cup\{7\}$.
+\end{itemize}
+La única raíz posible es $r=4$, y efectivamente funciona: \textsc{DFS}(4) con listas
+$4\!:\!2,5$;\ $2\!:\!3,1,4,5$;\ $3\!:\!1,5,8,2,7$;\ $5\!:\!6,2,3,4$;\ $8\!:\!7,3$ recorre
+$4\to2\to3\to1$ (vuelve), $3\to5\to6$ (vuelve), $3\to8\to7$, y produce exactamente las aristas
+$\{4,2\},\{2,3\},\{3,1\},\{3,5\},\{5,6\},\{3,8\},\{8,7\}$, que son las de $T_b$.
+
+\subsection*{(e) ¿Hay una recorrida BFS que produzca $T_c$?}
+\textbf{No, desde ningún nodo inicial.} Si $T$ es un árbol BFS con raíz $r$, por (3.3) la
+profundidad de cada vértice en $T$ es su distancia a $r$ en $G$; y como dos vértices adyacentes
+están a distancias que difieren en a lo sumo 1, \emph{toda arista de $G$ une vértices cuyas
+profundidades en $T$ difieren en a lo sumo 1}.
+
+Desde 6 (el mismo inicio de la parte (c)) esto falla de inmediato: en $T_c$ el vértice 3 tiene
+profundidad 4 (camino $6-5-2-1-3$) pero $\dist(6,3)=2$ ($6-5-3$).
+
+Para una raíz $r$ cualquiera: la arista $\{3,8\}\notin T_c$ y el camino de $T_c$ entre 3 y 8 es
+$3-7-8$. Si $r\neq 7$, la raíz está del lado de 3 o del lado de 8 de ese camino, y entonces uno de
+3, 8 está a profundidad 2 más que el otro, absurdo. Luego $r=7$; pero con raíz 7 el vértice 2 tiene
+profundidad 3 en $T_c$ (camino $7-3-1-2$) mientras que $\dist(7,2)=2$ ($7-3-2$), absurdo. Por lo
+tanto ninguna recorrida BFS produce $T_c$.
+
+%======================================================================
+\section{Ejercicio 3}
+\begin{enunciado}
+(a) Implemente el algoritmo DFS de forma iterativa utilizando una pila.
+(b) ¿El árbol de recorrida DFS depende de la implementación? Justifique.
+(c) ¿Qué modificaciones se le deben realizar al algoritmo DFS para que retorne el árbol de recorrida?
+\end{enunciado}
+
+\subsection*{(a) DFS iterativo con pila}
+\begin{algorithm}[H]
+\caption{DFS iterativo (versión del libro)}
+\begin{algorithmic}[1]
+\Function{DFS-Iter}{$G,s$}
+  \State $Explorado[v]\gets\textbf{false}$ para todo $v\in V$
+  \State $S\gets$ pila vacía; \ \Call{Push}{$S,s$}
+  \While{$S$ no es vacía}
+    \State $u\gets$ \Call{Pop}{$S$}
+    \If{$\neg Explorado[u]$}
+      \State $Explorado[u]\gets\textbf{true}$
+      \ForAll{$v\in\Adj[u]$}
+        \State \Call{Push}{$S,v$}
+      \EndFor
+    \EndIf
+  \EndWhile
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+Cada vértice se marca a lo sumo una vez y, al marcarse $u$, se apilan sus $\deg(u)$ vecinos; en
+total se hacen $\sum_u\deg(u)=2m$ apilados (más el inicial), por lo que el algoritmo es $\Oh(n+m)$.
+
+\subsection*{(b) ¿El árbol depende de la implementación?}
+\textbf{Sí.} Tanto la versión recursiva como la iterativa producen \emph{algún} árbol DFS (ambos
+cumplen la propiedad (3.7)), pero no necesariamente el mismo: el árbol depende del orden en que se
+consideran los vecinos, y la pila invierte ese orden (el último vecino apilado es el primero en
+explorarse). Ejemplo: en el grafo de la figura 2.1 desde 6, con las listas en orden creciente, la
+versión recursiva produce $T_c$ (Ejercicio~2(c)). La versión iterativa hace: explora 6, apila 5;
+explora 5 (padre 6), apila $2,3,4,6$; desapila 6 (ya explorado) y explora 4 (padre 5), apila $2,5$;
+desapila 5 (explorado) y explora 2 (padre 4), apila $1,3,4,5$; descarta 5, 4 y explora 3 (padre 2),
+apila $1,2,5,7,8$; explora 8 (padre 3), apila $3,7$; explora 7 (padre 8); descarta y finalmente
+explora 1 (padre 3). Árbol: $\{6,5\},\{5,4\},\{4,2\},\{2,3\},\{3,8\},\{8,7\},\{3,1\}$, distinto de
+$T_c$ (por ejemplo $\{5,4\}\notin T_c$).
+
+\subsection*{(c) Modificaciones para retornar el árbol}
+Hay que recordar, para cada vértice $v\neq s$, desde qué vértice fue descubierto ($padre[v]$); el
+árbol es $T=\{\{padre[v],v\}: v\neq s \text{ explorado}\}$.
+\begin{itemize}
+  \item \emph{Versión recursiva:} al invocar \textsc{DFS}($v$) desde \textsc{DFS}($u$) se agrega
+  $\{u,v\}$ a $T$ (como en el Algoritmo~2 del Ejercicio~2).
+  \item \emph{Versión iterativa:} se apilan pares (vértice, quién lo apiló) y la arista se agrega
+  recién cuando el vértice se \emph{explora} (no cuando se apila, porque un vértice puede apilarse
+  muchas veces):
+\end{itemize}
+\begin{algorithm}[H]
+\caption{DFS iterativo que retorna el árbol}
+\begin{algorithmic}[1]
+\Function{DFS-Arbol}{$G,s$}
+  \State $Explorado[v]\gets\textbf{false}$ para todo $v$; \ $T\gets\emptyset$
+  \State $S\gets$ pila vacía; \ \Call{Push}{$S,(s,\textbf{nil})$}
+  \While{$S$ no es vacía}
+    \State $(u,p)\gets$ \Call{Pop}{$S$}
+    \If{$\neg Explorado[u]$}
+      \State $Explorado[u]\gets\textbf{true}$; \ $padre[u]\gets p$
+      \If{$p\neq\textbf{nil}$} $T\gets T\cup\{\{p,u\}\}$ \EndIf
+      \ForAll{$v\in\Adj[u]$}
+        \If{$\neg Explorado[v]$} \Call{Push}{$S,(v,u)$} \EndIf
+      \EndFor
+    \EndIf
+  \EndWhile
+  \State \Return $T$
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+El costo sigue siendo $\Oh(n+m)$: solo se agregan operaciones $\Oh(1)$ por apilado o exploración.
+
+%======================================================================
+\section{Ejercicio 4}
+\begin{enunciado}
+(K\&T 3.2) Dé un algoritmo para detectar si un grafo (no dirigido) $G$ contiene un ciclo; si la
+respuesta es afirmativa, debe mostrar un ciclo como evidencia. Debe admitir una implementación
+$\Oh(m+n)$.
+(a) Presente un algoritmo basado en DFS (reescriba los algoritmos del libro que utilice).
+(b) Demuestre su corrección: responde afirmativamente sii $G$ tiene un ciclo, y en ese caso la
+evidencia es un ciclo de $G$.
+(c) Demuestre que admite una implementación $\Oh(m+n)$.
+(d) Explique si es posible resolver el problema sin basarse en DFS.
+\end{enunciado}
+\examref{Examen julio 2015, Problema 2 (parte 1): obtener un ciclo de un grafo conexo con DFS y un arreglo de padres, reconstruyendo el ciclo subiendo por los padres. Aquí generalizamos a grafos no necesariamente conexos.}
+
+\subsection*{(a) Algoritmo}
+Idea: hacemos un DFS completo (sobre todas las componentes) guardando $padre$ y profundidad
+$prof$ de cada vértice. Una arista $\{x,y\}$ es \emph{de árbol} si $padre[x]=y$ o $padre[y]=x$. Si
+hay alguna arista que no es de árbol, por (3.7) uno de sus extremos es ancestro del otro y el camino
+del árbol entre ellos más esa arista es un ciclo.
+
+\begin{algorithm}[H]
+\caption{Detección de ciclo con evidencia}
+\begin{algorithmic}[1]
+\Function{BuscarCiclo}{$G$}
+  \State $Explorado[v]\gets\textbf{false}$, \ $padre[v]\gets\textbf{nil}$ para todo $v\in V$
+  \ForAll{$s\in V$}
+    \If{$\neg Explorado[s]$} \State $prof[s]\gets 0$; \ \Call{DFS}{$s$} \EndIf
+  \EndFor
+  \ForAll{$x\in V$} \Comment{recorre cada arista $\{x,y\}$ (dos veces)}
+    \ForAll{$y\in\Adj[x]$}
+      \If{$padre[x]\neq y$ \textbf{and} $padre[y]\neq x$} \Comment{arista no arbórea}
+        \If{$prof[x]>prof[y]$} intercambiar $x$ e $y$ \EndIf
+        \State $C\gets\langle y\rangle$; \ $w\gets y$
+        \While{$w\neq x$}
+          \State $w\gets padre[w]$; \ agregar $w$ al final de $C$
+        \EndWhile
+        \State \Return ``Sí'', $C$ \Comment{el ciclo es $C$ cerrado con la arista $\{x,y\}$}
+      \EndIf
+    \EndFor
+  \EndFor
+  \State \Return ``No''
+\EndFunction
+\Statex
+\Function{DFS}{$u$}
+  \State $Explorado[u]\gets\textbf{true}$
+  \ForAll{$v\in\Adj[u]$}
+    \If{$\neg Explorado[v]$}
+      \State $padre[v]\gets u$; \ $prof[v]\gets prof[u]+1$; \ \Call{DFS}{$v$}
+    \EndIf
+  \EndFor
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+\subsection*{(b) Corrección}
+Sea $F=\{\{v,padre[v]\}: padre[v]\neq\textbf{nil}\}$ el conjunto de aristas de árbol. Por
+construcción $F$ es la unión de los árboles DFS de cada componente (el bosque DFS), y
+$prof[v]=prof[padre[v]]+1$ para toda arista de $F$. Como $G$ es simple, una arista $\{x,y\}$ está en
+$F$ si y solo si $padre[x]=y$ o $padre[y]=x$, que es exactamente lo que testea la línea 8.
+
+\paragraph{Si responde ``Sí'', $C$ es un ciclo.} Se encontró $\{x,y\}\in E\setminus F$. Ambos
+extremos están en la misma componente, luego en el mismo árbol DFS $T$, y por (3.7) uno es ancestro
+del otro. Tras el intercambio $prof[x]\le prof[y]$; como $x\ne y$ (no hay lazos) y un ancestro
+propio tiene profundidad estrictamente menor, $x$ es ancestro propio de $y$ y $prof[x]<prof[y]$.
+Entonces subiendo por $padre$ desde $y$ se llega a $x$ en $k=prof[y]-prof[x]$ pasos (la profundidad
+baja de a 1 y el único ancestro de $y$ a profundidad $prof[x]$ es $x$); el ciclo \emph{while}
+termina y $C=\langle y=w_0,w_1,\dots,w_k=x\rangle$, donde cada $\{w_i,w_{i+1}\}\in F\subseteq E$. Los
+$w_i$ son distintos (tienen profundidades distintas). Además $k\ge 2$: si $k=1$ entonces $x=padre[y]$
+y $\{x,y\}\in F$, contradicción. Así, $C$ tiene al menos 3 vértices distintos, aristas consecutivas
+en $E$ y la arista de cierre $\{w_k,w_0\}=\{x,y\}\in E$: es un ciclo de $G$.
+
+\paragraph{Si $G$ tiene un ciclo, responde ``Sí''.} El algoritmo responde ``No'' solo si todas las
+aristas están en $F$, o sea $E=F$. Mostremos que $F$ no tiene ciclos, de donde si $G$ tiene un ciclo
+entonces $E\neq F$, se encuentra una arista no arbórea y la respuesta es ``Sí''. Supongamos que
+$v_1,\dots,v_k,v_1$ es un ciclo con aristas en $F$, y sea $v_j$ un vértice del ciclo de profundidad
+máxima. Sus dos vecinos en el ciclo, $v_{j-1}$ y $v_{j+1}$ (índices módulo $k$, distintos por ser
+$k\ge3$), están unidos a $v_j$ por aristas de $F$; cada arista de $F$ une un vértice con su padre, que
+tiene profundidad una unidad menor. Como ninguno de los dos vecinos tiene profundidad mayor que
+$v_j$, ninguno es hijo de $v_j$; luego ambos son $padre[v_j]$, es decir $v_{j-1}=v_{j+1}$, absurdo.
+
+\subsection*{(c) Tiempo de ejecución}
+Con listas de adyacencia:
+\begin{itemize}[nosep]
+  \item Inicialización: $\Oh(n)$.
+  \item Los DFS de las líneas 3--5: es el cálculo de todas las componentes conexas; cada \textsc{DFS}($u$)
+  se invoca una única vez por vértice (se invoca solo si $u$ no está explorado y lo marca enseguida) y
+  recorre $\Adj[u]$ con trabajo $\Oh(1)$ por elemento. Total $\Oh(\sum_u(1+\deg u))=\Oh(n+2m)=\Oh(n+m)$.
+  \item El doble \emph{para} de las líneas 6--7 recorre todas las listas: $\Oh(n+m)$, con test $\Oh(1)$.
+  \item La reconstrucción del ciclo se hace \emph{una sola vez} y sube a lo sumo $n-1$ niveles: $\Oh(n)$.
+\end{itemize}
+Por la regla de la suma, el total es $\Oh(n+m)$.
+
+\subsection*{(d) ¿Sin DFS?}
+Sí. Por ejemplo con BFS: se calcula el bosque BFS $F$ (BFS desde cada vértice no descubierto, guardando
+$padre$ y nivel), y se busca una arista $\{x,y\}\notin F$. El mismo argumento de (b) muestra que $F$
+es acíclico, así que $G$ tiene un ciclo si y solo si existe tal arista. En ese caso $x$ e $y$ están en
+el mismo árbol BFS, y por (3.4) sus niveles difieren en a lo sumo 1; subiendo por $padre$ desde el más
+profundo hasta igualar niveles y luego desde ambos simultáneamente hasta que coincidan, se halla su
+ancestro común más bajo $z$. Los caminos $x\leadsto z$ e $y\leadsto z$ en el árbol solo comparten $z$, y
+junto con $\{x,y\}$ forman un ciclo (de al menos 3 vértices, pues $\{x,y\}$ no es arista de árbol).
+Todo es $\Oh(n+m)$. (Para decidir solo la existencia, sin evidencia, alcanza con contar: $G$ es acíclico
+si y solo si $m=n-c$, donde $c$ es la cantidad de componentes conexas.)
+
+%======================================================================
+\section{Ejercicio 5}
+\begin{enunciado}
+(K\&T 3.9) $G=(V,E)$ conexo con $n$ vértices y $m$ aristas, y $s,t$ con $\dist(s,t)>n/2$.
+(a) Demuestre que existe un nodo $v$ tal que al eliminarlo $s$ y $t$ quedan en componentes conexas
+distintas. \emph{Sugerencia:} sea $L_i$ el conjunto de nodos a distancia $i$ de $s$; muestre que
+existe $i$, $1\le i\le n/2$, con $|L_i|=1$.
+(b) Presente un algoritmo que encuentra dicho nodo en $\Oh(m+n)$.
+(c) Muestre que su algoritmo admite una implementación $\Oh(m+n)$.
+\end{enunciado}
+
+\subsection*{(a) Existencia del nodo}
+Sea $d=\dist(s,t)\ge\lfloor n/2\rfloor+1$ y $L_i=\{v:\dist(s,v)=i\}$ (las capas de BFS desde $s$, por
+(3.3)). Sea $k=\lfloor n/2\rfloor$.
+
+\emph{Cada capa $L_i$ con $0\le i\le d$ es no vacía:} si $s=u_0,u_1,\dots,u_d=t$ es un camino mínimo,
+entonces $\dist(s,u_i)=i$ (el prefijo hasta $u_i$ es un camino mínimo, pues si hubiera uno más corto
+habría uno más corto hasta $t$), así que $u_i\in L_i$.
+
+\emph{Alguna capa intermedia tiene un solo nodo:} las capas $L_0=\{s\}$, $L_1,\dots,L_k$ y $L_d\ni t$
+son disjuntas, y $1\le i\le k<d$ para las intermedias. Si fuera $|L_i|\ge2$ para todo $1\le i\le k$,
+tendríamos
+\[ n\ \ge\ |L_0|+\sum_{i=1}^{k}|L_i|+|L_d|\ \ge\ 1+2k+1\ \ge\ 1+(n-1)+1\ =\ n+1, \]
+usando $2\lfloor n/2\rfloor\ge n-1$. Absurdo. Luego existe $i$ con $1\le i\le k\le n/2$ y $L_i=\{v\}$.
+Notar que $v\ne s$ (pues $i\ge1$) y $v\neq t$ (pues $i<d$).
+
+\emph{Eliminar $v$ separa a $s$ de $t$:} sea $P=x_0,x_1,\dots,x_r$ un camino de $s$ a $t$ en $G$ y sea
+$\ell(x)$ la capa de $x$. Por (3.4), $|\ell(x_{j+1})-\ell(x_j)|\le1$, con $\ell(x_0)=0<i<d=\ell(x_r)$.
+Como la capa avanza de a lo sumo una unidad por paso, algún $x_j$ cumple $\ell(x_j)=i$ (sea $j$ el
+primer índice con $\ell(x_j)\ge i$; entonces $\ell(x_{j-1})\le i-1$ y $\ell(x_j)\le\ell(x_{j-1})+1\le
+i$). Es decir $x_j\in L_i=\{v\}$: \emph{todo} camino de $s$ a $t$ pasa por $v$, así que en
+$G-v$ no hay camino de $s$ a $t$, y quedan en componentes conexas distintas.
+
+\subsection*{(b) Algoritmo}
+\begin{algorithm}[H]
+\caption{Vértice que separa $s$ de $t$}
+\begin{algorithmic}[1]
+\Function{Separador}{$G,s,t$}
+  \State $Descubierto[v]\gets\textbf{false}$ para todo $v$; \ $Descubierto[s]\gets\textbf{true}$
+  \State $L_0\gets\{s\}$; \ $i\gets0$; \ $cant[0]\gets1$
+  \While{$L_i\neq\emptyset$} \Comment{BFS del libro, guardando el tamaño de cada capa}
+    \State $L_{i+1}\gets\emptyset$; \ $cant[i+1]\gets 0$
+    \ForAll{$u\in L_i$}
+      \ForAll{$w\in\Adj[u]$}
+        \If{$\neg Descubierto[w]$}
+          \State $Descubierto[w]\gets\textbf{true}$; \ $capa[w]\gets i+1$
+          \State agregar $w$ a $L_{i+1}$; \ $cant[i+1]\gets cant[i+1]+1$
+        \EndIf
+      \EndFor
+    \EndFor
+    \State $i\gets i+1$
+  \EndWhile
+  \State $d\gets capa[t]$
+  \For{$i\gets1$ \textbf{hasta} $d-1$}
+    \If{$cant[i]=1$} \State \Return el único elemento de $L_i$ \EndIf
+  \EndFor
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+\emph{Corrección:} por (3.3) las listas $L_i$ calculadas son las capas de distancia y $capa[t]=d$. Por
+la parte (a) existe $i\in[1,d-1]$ con $|L_i|=1$, así que el \emph{para} de la línea 13 siempre retorna,
+y lo que retorna es un $v$ con $L_i=\{v\}$, $1\le i\le d-1$; la parte (a) muestra que para
+\emph{cualquier} tal $i$ (no solo para $i\le n/2$) el vértice $v$ separa a $s$ de $t$, pues el argumento
+del tercer párrafo solo usó $0<i<d$.
+
+\subsection*{(c) Tiempo de ejecución}
+Las líneas 2--12 son BFS con una operación $\Oh(1)$ extra por vértice descubierto: $\Oh(n+m)$ por
+(3.11) (cada vértice entra a una sola capa, y cada lista $\Adj[u]$ se recorre una sola vez, cuando $u$
+se procesa). Representando cada $L_i$ como lista enlazada y $cant$ como arreglo, el bucle final
+hace a lo sumo $d-1<n$ iteraciones de costo $\Oh(1)$. Total: $\Oh(n+m)$.
+
+%======================================================================
+\section{Ejercicio 6}
+\begin{enunciado}
+(K\&T 3.10) Dado un grafo $G$ y vértices $u,v$:
+(a) Presente un algoritmo que calcula la cantidad de caminos de largo mínimo entre $u$ y $v$, en
+$\Oh(m+n)$. \emph{Sugerencia:} calcule para cada $w$ la cantidad $N_w$ de caminos de largo mínimo de
+$u$ a $w$.
+(b) Demuestre la corrección. \emph{Sugerencia:} escriba una recurrencia para $N_w$ en función de los
+$N_t$ de los vértices $t$ que ocurren inmediatamente antes que $w$ en un camino mínimo.
+(c) Demuestre que admite una implementación $\Oh(m+n)$.
+\end{enunciado}
+\examref{Examen julio 2014, Problema 2(b) (mismo problema, resuelto con BFS acumulando cantidades); Examen julio 2019, Ej.~2 (cantidad de historias de largo mínimo: la misma recurrencia $N(w)=\sum N(t)$ sobre los $t$ del nivel BFS anterior).}
+
+\subsection*{(a) Algoritmo}
+Hacemos BFS desde $u$ por capas. Cuando se procesa $t\in L_i$ y se mira la arista $(t,w)$: si $w$ no
+estaba descubierto, entra a $L_{i+1}$ con $N[w]\gets N[t]$; si ya estaba descubierto y está en
+$L_{i+1}$, se suma $N[w]\gets N[w]+N[t]$; en otro caso no se hace nada.
+
+\begin{algorithm}[H]
+\caption{Cantidad de caminos mínimos de $u$ a $v$}
+\begin{algorithmic}[1]
+\Function{CantCaminosMin}{$G,u,v$}
+  \State $Descubierto[w]\gets\textbf{false}$, \ $N[w]\gets0$ para todo $w\in V$
+  \State $Descubierto[u]\gets\textbf{true}$; \ $capa[u]\gets0$; \ $N[u]\gets1$
+  \State $L_0\gets\{u\}$; \ $i\gets0$
+  \While{$L_i\neq\emptyset$}
+    \State $L_{i+1}\gets\emptyset$
+    \ForAll{$t\in L_i$}
+      \ForAll{$w\in\Adj[t]$}
+        \If{$\neg Descubierto[w]$}
+          \State $Descubierto[w]\gets\textbf{true}$; \ $capa[w]\gets i+1$; \ agregar $w$ a $L_{i+1}$
+        \EndIf
+        \If{$capa[w]=i+1$}
+          \State $N[w]\gets N[w]+N[t]$
+        \EndIf
+      \EndFor
+    \EndFor
+    \State $i\gets i+1$
+  \EndWhile
+  \State \Return $N[v]$ \Comment{$0$ si $v$ no es alcanzable desde $u$}
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+(La condición de la línea 11 se evalúa solo si $w$ está descubierto, por lo que $capa[w]$ está definida.) El algoritmo
+vale tanto para grafos no dirigidos como dirigidos (en ese caso $\Adj[t]$ son los sucesores de $t$).
+
+\subsection*{(b) Corrección}
+Sea $\delta(w)=\dist(u,w)$. \textbf{Recurrencia:}
+\[
+N_u=1,\qquad N_w=\sum_{\substack{t:\ (t,w)\in E\\ \delta(t)=\delta(w)-1}} N_t\quad\text{para } w\neq u \text{ alcanzable},
+\qquad N_w=0 \text{ si } w \text{ no es alcanzable.}
+\]
+\begin{lema}
+La recurrencia es correcta.
+\end{lema}
+\begin{proof}
+$N_u=1$: el único camino de largo $0$ de $u$ a $u$ es el trivial. Sea $w\ne u$ alcanzable, con
+$\delta(w)=d\ge1$, y sea $\mathcal{P}_w$ el conjunto de caminos mínimos de $u$ a $w$. Partimos
+$\mathcal{P}_w$ según el penúltimo vértice $t$ del camino. Para cada $t$ definimos la función
+$\varphi_t$ que a un camino mínimo $Q$ de $u$ a $t$ le asocia $Q$ seguido de la arista $(t,w)$.
+\begin{itemize}
+\item Si $P\in\mathcal{P}_w$ tiene penúltimo vértice $t$, entonces $(t,w)\in E$ y el prefijo $Q$ de $P$
+hasta $t$ tiene largo $d-1$. $Q$ es un camino mínimo a $t$ (si hubiera uno más corto, agregándole
+$(t,w)$ obtendríamos un recorrido de largo $<d$ de $u$ a $w$, absurdo), así que $\delta(t)=d-1$ y
+$P=\varphi_t(Q)$.
+\item Recíprocamente, si $(t,w)\in E$, $\delta(t)=d-1$ y $Q$ es un camino mínimo a $t$, entonces
+$\varphi_t(Q)$ es un camino (no repite vértices: los vértices de $Q$ están a distancia $\le d-1$ de $u$
+y $w$ a distancia $d$) de largo $d=\delta(w)$, o sea un camino mínimo a $w$ con penúltimo vértice $t$.
+\end{itemize}
+Cada $\varphi_t$ es inyectiva y caminos con distinto penúltimo vértice son distintos, así que
+$|\mathcal{P}_w|=\sum_t N_t$ sobre los $t$ indicados. Si $w$ no es alcanzable no hay caminos: $N_w=0$.
+\end{proof}
+
+\textbf{El algoritmo calcula la recurrencia.} Por (3.3), $L_i=\{w:\delta(w)=i\}$ y $capa[w]=\delta(w)$
+para todo $w$ descubierto. Probamos por inducción en $i$ el invariante: \emph{al comenzar la iteración $i$
+del \textbf{mientras}, $N[w]=N_w$ para todo $w\in L_0\cup\dots\cup L_i$.}
+\begin{itemize}
+\item $i=0$: $N[u]=1=N_u$.
+\item Paso: sea $w\in L_{i+1}$. Su valor $N[w]$ vale 0 hasta que se descubre, lo cual ocurre durante la
+iteración $i$ (no antes, pues entonces estaría en una capa $\le i$). Solo se modifica en la línea 12
+cuando se examina una arista $(t,w)$ con $t\in L_j$ y $capa[w]=j+1$, es decir con $j=i$. Durante la
+iteración $i$ se recorre cada $t\in L_i$ exactamente una vez, y cada arista $(t,w)$ aparece una sola
+vez en $\Adj[t]$; para cada una de ellas, $w$ queda descubierto (en esa misma vuelta si no lo estaba) con
+$capa[w]=i+1$, y se suma $N[t]=N_t$ (hipótesis inductiva). Así, al terminar la iteración $i$,
+\[N[w]=\sum_{t\in L_i,\ (t,w)\in E}N_t=\sum_{(t,w)\in E,\ \delta(t)=\delta(w)-1}N_t=N_w,\]
+y este valor ya no cambia en iteraciones posteriores (para $j>i$, $capa[w]=i+1\ne j+1$). Los vértices de
+capas $\le i$ tampoco cambian: para ellos $capa[w]\le i<j+1$ en toda iteración $j\ge i$.
+\end{itemize}
+Al terminar, los vértices descubiertos son exactamente los alcanzables y tienen $N[w]=N_w$; los no
+alcanzables mantienen $N[w]=0=N_w$. En particular se retorna $N[v]=N_v$.
+
+\subsection*{(c) Tiempo de ejecución}
+Es BFS (con listas de adyacencia y las capas como listas enlazadas) más un test y una suma $\Oh(1)$ por
+cada elemento de cada lista de adyacencia recorrida. Cada vértice está en una sola capa, por lo que
+cada $\Adj[t]$ se recorre una sola vez: el costo es $\Oh(n+\sum_t\deg(t))=\Oh(n+m)$, más la
+inicialización $\Oh(n)$. Total $\Oh(n+m)$, asumiendo (como es usual en el curso) que las sumas de
+enteros cuestan $\Oh(1)$.\footnote{Las cantidades $N_w$ pueden crecer exponencialmente en $n$; con
+aritmética de precisión arbitraria el costo de cada suma dejaría de ser constante.}
+
+%======================================================================
+\section{Ejercicio 7}
+\begin{enunciado}
+(a) Proponga un problema de la realidad que se modele con un grafo $G$ y cuya solución sea equivalente
+a determinar si $G$ es bipartito.
+(b) Demuestre que si $G$ tiene un ciclo con cantidad impar de aristas, entonces no es bipartito.
+(c) Escriba un algoritmo basado en DFS que determine si un grafo es bipartito.
+\end{enunciado}
+\examref{Examen julio 2025, Ej.~1 (determinar con DFS si se puede repartir $V$ en dos conjuntos sin aristas internas y si la repartición es única); Examen julio 2016, Problema B (paridad de distancias y aristas entre vértices de igual paridad).}
+
+\begin{definicion}
+$G=(V,E)$ es \emph{bipartito} si existe una partición $V=X\cup Y$, $X\cap Y=\emptyset$, tal que toda
+arista tiene un extremo en $X$ y otro en $Y$. Equivalentemente, existe una coloración $c:V\to\{0,1\}$
+con $c(x)\neq c(y)$ para toda $\{x,y\}\in E$.
+\end{definicion}
+
+\subsection*{(a) Un problema de la realidad}
+Un club quiere repartir a sus $n$ socios en dos turnos (mañana y tarde) para usar el gimnasio. Hay
+pares de socios que están peleados y no pueden coincidir en el mismo turno. Modelo: un vértice por
+socio, y una arista $\{x,y\}$ por cada par peleado. Un reparto válido es exactamente una partición de
+$V$ en dos conjuntos (los turnos) donde cada arista une socios de turnos distintos: existe reparto
+si y solo si $G$ es bipartito, y una bipartición es un reparto.
+
+\subsection*{(b) Ciclo impar $\Rightarrow$ no bipartito}
+Sea $C=v_1,v_2,\dots,v_k,v_1$ un ciclo con $k$ impar, y supongamos por absurdo que $c$ es una
+2-coloración válida. Probamos por inducción que $c(v_i)=c(v_1)$ si $i$ es impar y $c(v_i)\ne c(v_1)$ si
+$i$ es par: vale para $i=1$; y como $\{v_i,v_{i+1}\}\in E$, $c(v_{i+1})\ne c(v_i)$, es decir, el color
+alterna en cada paso, así que la propiedad pasa de $i$ a $i+1$. Como $k$ es impar, $c(v_k)=c(v_1)$;
+pero $\{v_k,v_1\}\in E$ exige $c(v_k)\neq c(v_1)$. Absurdo; $G$ no es bipartito.
+
+\subsection*{(c) Algoritmo basado en DFS}
+Coloreamos durante el DFS: la raíz de cada árbol recibe el color 0 y cada hijo el color opuesto al de
+su padre. Al examinar una arista hacia un vértice ya explorado se controla que los colores difieran.
+
+\begin{algorithm}[H]
+\caption{Test de bipartición con DFS}
+\begin{algorithmic}[1]
+\Function{EsBipartito}{$G$}
+  \State $color[v]\gets\textbf{nil}$ para todo $v\in V$
+  \ForAll{$s\in V$}
+    \If{$color[s]=\textbf{nil}$}
+      \State $color[s]\gets0$
+      \If{\textbf{not} \Call{DFS-Color}{$s$}} \State \Return \textbf{false} \EndIf
+    \EndIf
+  \EndFor
+  \State \Return \textbf{true} \Comment{$X=\{v:color[v]=0\}$, $Y=\{v:color[v]=1\}$}
+\EndFunction
+\Statex
+\Function{DFS-Color}{$u$}
+  \ForAll{$v\in\Adj[u]$}
+    \If{$color[v]=\textbf{nil}$}
+      \State $color[v]\gets1-color[u]$
+      \If{\textbf{not} \Call{DFS-Color}{$v$}} \State \Return \textbf{false} \EndIf
+    \ElsIf{$color[v]=color[u]$}
+      \State \Return \textbf{false} \Comment{hay un ciclo impar}
+    \EndIf
+  \EndFor
+  \State \Return \textbf{true}
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+($color[v]\neq\textbf{nil}$ cumple el papel de $Explorado[v]$; el algoritmo es el DFS del libro sobre
+todas las componentes.)
+
+\textbf{Corrección.} En todo momento, para cada vértice coloreado $v$, $color[v]\equiv prof(v)\pmod 2$,
+donde $prof$ es la profundidad en el árbol DFS de su componente (la raíz tiene color 0 y profundidad 0,
+y cada hijo tiene profundidad $+1$ y color opuesto).
+\begin{itemize}
+\item \emph{Si retorna \textbf{true}, $G$ es bipartito.} Cada vértice se colorea (el bucle de la línea
+3 lanza un DFS en cada componente), y cada \textsc{DFS-Color}($u$) se ejecuta una vez y examina todas
+las aristas $\{u,v\}$. En ese momento, o bien $v$ no tenía color y recibe $1-color[u]$, o bien tenía
+color y la línea 15 verifica que sea distinto del de $u$. Como no se retornó \textbf{false}, toda arista
+tiene extremos de colores distintos y los colores no se modifican después de asignados: $(X,Y)$ es una
+bipartición.
+\item \emph{Si retorna \textbf{false}, $G$ no es bipartito.} Se encontró $\{u,v\}\in E$ con
+$color[u]=color[v]$. No es arista de árbol (las de árbol unen padre e hijo, de colores distintos), así
+que por (3.7) uno es ancestro del otro, digamos $v$ ancestro de $u$. Como tienen igual color,
+$prof(u)-prof(v)$ es par y positivo, por lo que el camino del árbol de $v$ a $u$ tiene una cantidad par
+$\ge2$ de aristas; agregando $\{u,v\}$ se obtiene un ciclo con una cantidad impar de aristas, y por (b)
+$G$ no es bipartito.
+\end{itemize}
+
+\textbf{Orden.} Es un DFS completo con trabajo $\Oh(1)$ adicional por arista examinada: $\Oh(n+m)$.
+
+%======================================================================
+\section{Ejercicio 8}
+\begin{enunciado}
+(K\&T 3.4) Un coleccionista tiene $n$ mariposas de dos especies. Para algunos pares establece un juicio
+y etiqueta el par como \emph{iguales} o \emph{diferentes} ($m$ juicios en total). Quiere saber si los
+juicios son consistentes, es decir, si se puede asignar a cada mariposa una especie, $A$ o $B$, de
+modo que todo par \emph{iguales} quede en la misma especie y todo par \emph{diferentes} en especies
+distintas; y en ese caso obtener una clasificación.
+(a) Modele el problema con conceptos matemáticos.
+(b) Si todos los juicios son \emph{diferentes}, ¿es posible que sean inconsistentes? Si no, explique por
+qué; si sí, escriba un algoritmo que resuelva el problema.
+(c) Para el caso general escriba un algoritmo que resuelva el problema.
+Todos los algoritmos deben ser $\Oh(m+n)$; reescriba los algoritmos del libro que utilice.
+(d) Demuestre la corrección de sus algoritmos.
+(e) Demuestre que admiten una implementación $\Oh(m+n)$.
+\end{enunciado}
+\examref{Examen diciembre 2025, Ej.~2: mismo problema, resuelto con un ``BFS modificado'' que pone en la misma capa los vértices unidos por aristas \emph{iguales} y en la capa siguiente los unidos por \emph{diferentes}, coloreando por paridad de capa y verificando luego todas las aristas. Nuestra solución es equivalente (la paridad de la capa es nuestro color).}
+
+\subsection*{(a) Modelo}
+Grafo no dirigido $G=(V,E)$ con $V$ = las $n$ mariposas y una arista $\{x,y\}$ por cada juicio, con una
+etiqueta $\ell(x,y)\in\{\text{iguales},\text{diferentes}\}$; $|E|=m$. Codificamos las etiquetas con
+$\delta(x,y)=0$ si es \emph{iguales} y $\delta(x,y)=1$ si es \emph{diferentes}, y las especies con
+$A=0$, $B=1$. Una \emph{clasificación} es una función $c:V\to\{0,1\}$; la arista $\{x,y\}$ es
+\emph{válida} en $c$ si
+\[ c(x)\oplus c(y)=\delta(x,y)\qquad(\oplus=\text{suma módulo 2}), \]
+es decir, colores iguales para \emph{iguales} y distintos para \emph{diferentes}. Los juicios son
+\emph{consistentes} si existe una clasificación en la que todas las aristas son válidas
+(\emph{clasificación válida}). El problema: decidir si existe y, en caso afirmativo, exhibir una.
+
+\subsection*{(b) Todos los juicios \emph{diferentes}}
+\textbf{Sí, pueden ser inconsistentes.} Con tres mariposas $1,2,3$ y los juicios ``1 y 2 diferentes'',
+``2 y 3 diferentes'', ``1 y 3 diferentes'': si $c(1)=A$ entonces $c(2)=B$, $c(3)=A$, pero 1 y 3 deberían
+ser diferentes. En general, con todas las etiquetas \emph{diferentes}, una clasificación válida es
+exactamente una bipartición de $G$: los juicios son consistentes si y solo si $G$ es bipartito (y el
+ejemplo es un ciclo impar, ver Ejercicio~7(b)). Algoritmo: el test de bipartición del libro con BFS.
+
+\begin{algorithm}[H]
+\caption{Juicios todos \emph{diferentes}: test de bipartición con BFS}
+\begin{algorithmic}[1]
+\Function{Bipartito}{$G$}
+  \State $c[v]\gets\textbf{nil}$ para todo $v\in V$
+  \ForAll{$s\in V$ con $c[s]=\textbf{nil}$} \Comment{un BFS por componente conexa}
+    \State $c[s]\gets 0$; \ $L_0\gets\{s\}$; \ $i\gets0$
+    \While{$L_i\ne\emptyset$}
+      \State $L_{i+1}\gets\emptyset$
+      \ForAll{$t\in L_i$, \ $w\in\Adj[t]$ con $c[w]=\textbf{nil}$}
+        \State $c[w]\gets 1-c[t]$; \ agregar $w$ a $L_{i+1}$ \Comment{$c[w]$ = paridad de la capa}
+      \EndFor
+      \State $i\gets i+1$
+    \EndWhile
+  \EndFor
+  \ForAll{$\{x,y\}\in E$}
+    \If{$c[x]=c[y]$} \State \Return ``inconsistente'' \EndIf
+  \EndFor
+  \State \Return $c$ \Comment{especie $A$ si $c=0$, $B$ si $c=1$}
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+Es exactamente el caso particular $\delta\equiv1$ del algoritmo de la parte (c) (la línea 8 coincide con
+$c[w]\gets c[t]\oplus\delta(t,w)$), por lo que su corrección y su orden se deducen de (d) y (e).
+
+\subsection*{(c) Caso general}
+Idea: propagar la especie por un BFS (uno por componente): la raíz recibe $A$ y cada vértice
+descubierto por la arista $(t,w)$ recibe $c[w]=c[t]\oplus\delta(t,w)$, de modo que todas las aristas de
+árbol son válidas. Al final se verifica que todas las aristas sean válidas.
+
+\begin{algorithm}[H]
+\caption{Consistencia de los juicios (caso general)}
+\begin{algorithmic}[1]
+\Function{Clasificar}{$G,\delta$}
+  \State $c[v]\gets\textbf{nil}$ para todo $v\in V$
+  \ForAll{$s\in V$ con $c[s]=\textbf{nil}$} \Comment{un BFS por componente conexa}
+    \State $c[s]\gets0$; \ $L_0\gets\{s\}$; \ $i\gets0$
+    \While{$L_i\neq\emptyset$}
+      \State $L_{i+1}\gets\emptyset$
+      \ForAll{$t\in L_i$}
+        \ForAll{$w\in\Adj[t]$}
+          \If{$c[w]=\textbf{nil}$}
+            \State $c[w]\gets c[t]\oplus\delta(t,w)$; \ agregar $w$ a $L_{i+1}$
+          \EndIf
+        \EndFor
+      \EndFor
+      \State $i\gets i+1$
+    \EndWhile
+  \EndFor
+  \ForAll{$\{x,y\}\in E$}
+    \If{$c[x]\oplus c[y]\neq\delta(x,y)$} \State \Return ``inconsistente'' \EndIf
+  \EndFor
+  \State \Return $c$
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+La verificación se hace al final (y no al terminar cada componente) solo por simplicidad; como las
+aristas no cruzan componentes, daría igual.
+
+\subsection*{(d) Corrección}
+Sea $F$ el conjunto de aristas de árbol, es decir las aristas $\{t,w\}$ por las cuales se descubrió $w$
+en la línea 10. $F$ es un bosque con un árbol por componente conexa de $G$ (los árboles BFS).
+
+\begin{lema}\label{l:arbol-valido}
+Al terminar el bucle de la línea 3, todo vértice tiene $c[v]\in\{0,1\}$ y toda arista de $F$ es válida
+en $c$.
+\end{lema}
+\begin{proof}
+El bucle de la línea 3 lanza un BFS desde cada vértice aún sin color, y BFS colorea toda la componente
+de $s$; así todos quedan coloreados. Un color, una vez asignado, no cambia (solo se asigna si era
+\textbf{nil}). Si $\{t,w\}\in F$ con $w$ descubierto desde $t$, se asignó $c[w]=c[t]\oplus\delta(t,w)$,
+o sea $c[t]\oplus c[w]=\delta(t,w)$: la arista es válida.
+\end{proof}
+
+\begin{lema}\label{l:camino}
+Si $P=x_0,x_1,\dots,x_k$ es un camino y $g$ es una clasificación en la que todas las aristas de $P$
+son válidas, entonces $g(x_k)=g(x_0)\oplus\bigoplus_{j=0}^{k-1}\delta(x_j,x_{j+1})$.
+\end{lema}
+\begin{proof}
+Inducción en $k$: para $k=0$ es trivial, y $g(x_{k})=g(x_{k-1})\oplus\delta(x_{k-1},x_k)$ por validez de
+la última arista.
+\end{proof}
+
+\begin{teorema}
+\textsc{Clasificar} retorna una clasificación si y solo si los juicios son consistentes, y en ese caso
+la clasificación retornada es válida.
+\end{teorema}
+\begin{proof}
+\emph{Si retorna $c$:} por el Lema~\ref{l:arbol-valido} $c$ es una clasificación, y como pasó el control de
+las líneas 12--13, todas las aristas son válidas. Luego $c$ es válida y los juicios son consistentes.
+
+\emph{Si retorna ``inconsistente'':} hay una arista $\{x,y\}$ con $c[x]\oplus c[y]\neq\delta(x,y)$.
+Como $x,y$ son adyacentes están en la misma componente, por lo tanto en el mismo árbol de $F$ con raíz
+$r$; sean $P_x$, $P_y$ los caminos del árbol de $r$ a $x$ y a $y$, y $\Delta_x,\Delta_y$ la suma módulo
+2 de las etiquetas de sus aristas. Por el Lema~\ref{l:arbol-valido} esas aristas son válidas en $c$, y
+por el Lema~\ref{l:camino}: $c[x]=c[r]\oplus\Delta_x$ y $c[y]=c[r]\oplus\Delta_y$, de donde
+$c[x]\oplus c[y]=\Delta_x\oplus\Delta_y$.
+
+Supongamos por absurdo que existe una clasificación válida $g$. En $g$ todas las aristas son válidas,
+en particular las de $P_x$ y $P_y$; por el Lema~\ref{l:camino}, $g(x)\oplus g(y)=(g(r)\oplus\Delta_x)
+\oplus(g(r)\oplus\Delta_y)=\Delta_x\oplus\Delta_y=c[x]\oplus c[y]\neq\delta(x,y)$. Entonces $\{x,y\}$
+no es válida en $g$: absurdo. Por lo tanto los juicios son inconsistentes.
+\end{proof}
+Para la parte (b) ($\delta\equiv1$), el teorema dice que el algoritmo retorna una 2-coloración
+propia si y solo si $G$ es bipartito; además, en el caso inconsistente, $P_x$, $P_y$ y $\{x,y\}$
+contienen un ciclo impar (el resultado del libro (3.15)), aunque esto no es necesario para la
+corrección.
+
+\subsection*{(e) Tiempo de ejecución}
+Representamos $G$ con listas de adyacencia en las que cada entrada guarda el vecino y la etiqueta
+$\delta$ de la arista; se construyen a partir de los $m$ juicios en $\Oh(n+m)$ (crear $n$ listas vacías y
+agregar cada juicio a dos listas en $\Oh(1)$).
+\begin{itemize}[nosep]
+\item Inicialización: $\Oh(n)$.
+\item Bucle de la línea 3: es el cálculo de todas las componentes conexas con BFS (ver (3.11)): cada vértice
+recibe color, entra a una única capa y su lista se recorre una sola vez, con trabajo $\Oh(1)$ por
+entrada. Total $\Oh(n+\sum_t\deg t)=\Oh(n+m)$.
+\item Verificación final: recorriendo las listas de adyacencia se examina cada arista (dos veces) con
+costo $\Oh(1)$: $\Oh(n+m)$.
+\end{itemize}
+Por la regla de la suma el total es $\Oh(n+m)$, tanto para (b) como para (c).
+
+%======================================================================
+\section{Ejercicio 9}
+\begin{enunciado}
+Consideramos el grafo dirigido $G$ de la figura.
+(a) Ejecute BFS desde el nodo A.
+(b) Ejecute DFS desde el nodo B.
+(c) A partir de lo anterior, ¿qué puede decir de las componentes fuertemente conexas de A y B?
+(d) Ejecute DFS desde el nodo A en $\Grev$.
+(e) Encuentre todas las componentes fuertemente conexas de $G$. Justifique.
+\end{enunciado}
+\examref{Primer parcial 2013, Ej.~1(b) y Examen julio 2016, Ej.~3: la componente fuertemente conexa de $u$ se obtiene intersecando lo alcanzable desde $u$ en $G$ con lo alcanzable desde $u$ en el grafo transpuesto ($\Grev$).}
+
+\begin{center}
+\begin{tikzpicture}[scale=1.2]
+  \node[nodo] (H) at (0.6,3.4) {H};
+  \node[nodo] (A) at (2,2.6) {A};
+  \node[nodo] (F) at (0.3,1.9) {F};
+  \node[nodo] (E) at (1.8,1.1) {E};
+  \node[nodo] (B) at (0.2,0.3) {B};
+  \node[nodo] (C) at (3.3,1.6) {C};
+  \node[nodo] (D) at (2.8,0) {D};
+  \node[nodo] (G) at (4.1,0.3) {G};
+  \draw[dir] (H)--(A); \draw[dir] (A)--(F); \draw[dir] (A)--(E); \draw[dir] (A)--(C);
+  \draw[dir] (F)--(H); \draw[dir] (F)--(B); \draw[dir] (B)--(E); \draw[dir] (E)--(F);
+  \draw[dir] (C)--(D); \draw[dir] (D)--(G); \draw[dir] (G)--(C);
+\end{tikzpicture}
+
+\small Aristas: $H\!\to\!A$, $A\!\to\!F$, $A\!\to\!E$, $A\!\to\!C$, $F\!\to\!H$, $F\!\to\!B$,
+$B\!\to\!E$, $E\!\to\!F$, $C\!\to\!D$, $D\!\to\!G$, $G\!\to\!C$.
+\end{center}
+Usamos las listas de adyacencia (aristas salientes) en orden alfabético:
+$A\!:\!C,E,F$;\ $B\!:\!E$;\ $C\!:\!D$;\ $D\!:\!G$;\ $E\!:\!F$;\ $F\!:\!B,H$;\ $G\!:\!C$;\ $H\!:\!A$.
+
+\subsection*{(a) BFS desde A}
+\begin{itemize}[nosep]
+\item $L_0=\{A\}$.
+\item A descubre C, E, F: \ $L_1=\{C,E,F\}$.
+\item C descubre D; E nada nuevo (F ya descubierto); F descubre B y H: \ $L_2=\{D,B,H\}$.
+\item D descubre G; B nada (E descubierto); H nada (A descubierto): \ $L_3=\{G\}$.
+\item G nada (C descubierto): $L_4=\emptyset$.
+\end{itemize}
+Árbol BFS: $A\to C$, $A\to E$, $A\to F$, $C\to D$, $F\to B$, $F\to H$, $D\to G$. \textbf{Desde A se
+alcanzan los 8 vértices.}
+\begin{center}
+\begin{tikzpicture}[level distance=10mm,
+  level 1/.style={sibling distance=22mm},
+  level 2/.style={sibling distance=12mm},
+  every node/.style={nodo}, edge from parent/.style={draw,dir}]
+\node {A}
+  child {node {C} child {node {D} child {node {G}}}}
+  child {node {E}}
+  child {node {F} child {node {B}} child {node {H}}};
+\end{tikzpicture}
+\end{center}
+
+\subsection*{(b) DFS desde B}
+\textsc{DFS}(B) $\to$ E $\to$ F; en F: B explorado, sigue H $\to$ \textsc{DFS}(H) $\to$ A; en A: C
+$\to$ \textsc{DFS}(C) $\to$ D $\to$ G; G: C explorado, retorna. De vuelta en A: E y F explorados.
+Se retrocede hasta B sin nada nuevo.
+
+Árbol DFS: $B\to E\to F\to H\to A\to C\to D\to G$ (un camino). \textbf{Desde B se alcanzan los 8
+vértices.}
+
+\subsection*{(c) Componentes fuertemente conexas de A y B}
+Por (a), B es alcanzable desde A (hay camino $A\to F\to B$); por (b), A es alcanzable desde B (camino
+$B\to E\to F\to H\to A$). Luego A y B son \emph{mutuamente alcanzables} y, por definición,
+\textbf{pertenecen a la misma componente fuertemente conexa}. (Por (3.17) del libro las componentes
+fuertemente conexas forman una partición de $V$, así que la componente de A es la de B.) Además, como
+ambos alcanzan a todos los vértices, la componente de A está formada por los vértices que \emph{también}
+alcanzan a A, lo cual se calcula en la parte siguiente.
+
+\subsection*{(d) DFS desde A en $\Grev$}
+$\Grev$ tiene las aristas invertidas. Listas (alfabéticas): $A\!:\!H$;\ $B\!:\!F$;\ $C\!:\!A,G$;\
+$D\!:\!C$;\ $E\!:\!A,B$;\ $F\!:\!A,E$;\ $G\!:\!D$;\ $H\!:\!F$.
+
+\textsc{DFS}(A) $\to$ H $\to$ F; en F: A explorado, sigue E $\to$ \textsc{DFS}(E): A explorado, sigue B
+$\to$ \textsc{DFS}(B): F explorado. Se retrocede hasta A, sin nada nuevo.
+
+Árbol: $A\to H\to F\to E\to B$. En $\Grev$ desde A se alcanzan $\{A,H,F,E,B\}$, que son exactamente los
+vértices que \emph{alcanzan a A en $G$}.
+
+\subsection*{(e) Todas las componentes fuertemente conexas}
+La componente de A es el conjunto de vértices mutuamente alcanzables con A:
+\[ \mathrm{CFC}(A)=\{v: A\leadsto v\}\cap\{v: v\leadsto A\}
+=V\cap\{A,B,E,F,H\}=\{A,B,E,F,H\}. \]
+Los vértices restantes son C, D, G. Hay un ciclo $C\to D\to G\to C$, así que los tres son mutuamente
+alcanzables y están en la misma componente; esa componente no contiene a ningún otro vértice porque
+las únicas aristas que salen de $\{C,D,G\}$ son $C\to D$, $D\to G$, $G\to C$, así que desde C no se
+alcanza nada fuera de $\{C,D,G\}$. Como las componentes particionan $V$:
+\[ \textbf{CFC de } G:\quad \{A,B,E,F,H\}\quad\text{y}\quad\{C,D,G\}. \]
+
+%======================================================================
+\section{Ejercicio 10}
+\begin{enunciado}
+Consideramos el grafo $G$ de la figura.
+(a) ¿Qué nodos no tienen aristas entrantes?
+(b) ¿Qué nodos no tienen aristas entrantes luego de eliminar los nodos de la parte anterior?
+(c) Repita (a) y (b) en $\Grev$.
+(d) Usando lo anterior encuentre al menos cuatro órdenes topológicos distintos para $G$.
+(e) ¿Son todos los órdenes topológicos posibles?
+(f) Describa un algoritmo para encontrar un orden topológico y demuestre que existe una
+implementación $\Oh(m+n)$.
+\end{enunciado}
+\examref{Primer parcial 2022, Ej.~3(b) (análisis detallado en $\Oh(m+n)$ del algoritmo de orden topológico por eliminación de fuentes); Primer parcial 2009, Ej.~3 y Primer parcial 2015, Ej.~2 (orden topológico con DFS en postorden invertido).}
+
+\begin{center}
+\begin{tikzpicture}[scale=1.2]
+  \node[nodo] (A) at (2,3) {A};
+  \node[nodo] (F) at (0.5,2) {F};
+  \node[nodo] (C) at (3.5,2) {C};
+  \node[nodo] (E) at (2,1.4) {E};
+  \node[nodo] (B) at (0.6,0.3) {B};
+  \node[nodo] (D) at (3.4,0.3) {D};
+  \draw[dir] (A)--(F); \draw[dir] (A)--(E); \draw[dir] (A)--(C);
+  \draw[dir] (C)--(E); \draw[dir] (C)--(D); \draw[dir] (E)--(F);
+  \draw[dir] (B)--(F); \draw[dir] (B)--(E);
+\end{tikzpicture}
+
+\small Aristas: $A\!\to\!F$, $A\!\to\!E$, $A\!\to\!C$, $C\!\to\!E$, $C\!\to\!D$, $E\!\to\!F$, $B\!\to\!F$, $B\!\to\!E$.
+\end{center}
+
+\subsection*{(a) y (b)}
+Grados de entrada: $A\!:\!0$, $B\!:\!0$, $C\!:\!1$ (de A), $D\!:\!1$ (de C), $E\!:\!3$ (de A, B, C), $F\!:\!3$
+(de A, B, E).
+\begin{enumerate}[label=(\alph*)]
+\item Sin aristas entrantes: \textbf{A y B}.
+\item Eliminando A y B: C pierde su única entrante; E conserva $C\to E$; D conserva $C\to D$; F conserva
+$E\to F$. Sin entrantes: \textbf{C}. (Si se sigue el proceso: al eliminar C quedan sin entrantes D y E;
+luego F.)
+\end{enumerate}
+
+\subsection*{(c) Lo mismo en $\Grev$}
+En $\Grev$ las entrantes de un nodo son las salientes en $G$.
+\begin{itemize}[nosep]
+\item Sin entrantes en $\Grev$ (sumideros de $G$): \textbf{D y F}.
+\item Eliminando D y F: E solo tenía saliente hacia F, así que queda sin entrantes en $\Grev$; C conserva
+$C\to E$; A conserva $A\to C$, $A\to E$; B conserva $B\to E$. Sin entrantes: \textbf{E}. (Siguiendo: luego
+B y C; por último A.)
+\end{itemize}
+
+\subsection*{(d) Cuatro órdenes topológicos}
+Eliminando fuentes en $G$ (partes (a), (b)) el orden empieza con A y B en cualquier orden, sigue C, luego
+D y E en cualquier orden, y termina en F; eliminando fuentes en $\Grev$ y leyendo al revés (parte (c))
+se termina con D y F en cualquier orden, antes E, antes B y C en cualquier orden, y al principio A.
+Por ejemplo:
+\[
+\begin{array}{ll}
+1.\ A,B,C,D,E,F & 2.\ B,A,C,D,E,F\\
+3.\ A,B,C,E,D,F & 4.\ B,A,C,E,D,F\\
+5.\ A,C,B,E,F,D & 6.\ A,C,B,E,D,F
+\end{array}
+\]
+Cada uno respeta las 8 aristas (todas van de izquierda a derecha).
+
+\subsection*{(e) ¿Son todos?}
+\textbf{No.} Las aristas imponen $A<C<E<F$ (por $A\to C$, $C\to E$, $E\to F$), $B<E$ (y entonces
+$B<F$), y $C<D$ (y entonces $A<D$); $A\to E$, $A\to F$ y $B\to F$ son consecuencia de las anteriores. Un
+orden topológico es entonces la cadena $A,C,E,F$ con B insertado en uno de los 3 huecos anteriores a E
+(antes de A, entre A y C, o entre C y E) y D insertado en uno de los 3 huecos posteriores a C (entre C y
+E, entre E y F, o después de F). Son $3\cdot3=9$ elecciones de huecos, y cuando ambos caen en el hueco
+entre C y E hay 2 órdenes (B antes o después de D). En total \textbf{10 órdenes topológicos}:
+\[
+\begin{array}{lllll}
+BACDEF & BACEDF & BACEFD & ABCDEF & ABCEDF\\
+ABCEFD & ACBDEF & ACDBEF & ACBEDF & ACBEFD
+\end{array}
+\]
+(por ejemplo $A,C,D,B,E,F$ no aparece en la parte (d)).
+
+\subsection*{(f) Algoritmo y orden $\Oh(m+n)$}
+Algoritmo del libro: por (3.19) todo DAG tiene un nodo sin aristas entrantes; se lo pone primero, se lo
+elimina (el resto sigue siendo un DAG) y se repite. Para hacerlo eficiente mantenemos $cnt[w]$ = cantidad
+de aristas entrantes a $w$ desde nodos no eliminados, y el conjunto $S$ de nodos no eliminados con
+$cnt=0$.
+
+\begin{algorithm}[H]
+\caption{Orden topológico por eliminación de fuentes}
+\begin{algorithmic}[1]
+\Function{OrdenTopologico}{$G$} \Comment{$G$ dirigido acíclico}
+  \State $cnt[v]\gets0$ para todo $v$
+  \ForAll{$u\in V$, $w\in\Adj[u]$} \State $cnt[w]\gets cnt[w]+1$ \EndFor
+  \State $S\gets\{v: cnt[v]=0\}$ \Comment{pila o cola}
+  \State $orden\gets\langle\rangle$
+  \While{$S\neq\emptyset$}
+    \State sacar un $v$ de $S$; \ agregar $v$ al final de $orden$
+    \ForAll{$w\in\Adj[v]$} \Comment{eliminar $v$}
+      \State $cnt[w]\gets cnt[w]-1$
+      \If{$cnt[w]=0$} agregar $w$ a $S$ \EndIf
+    \EndFor
+  \EndWhile
+  \State \Return $orden$
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+\textbf{Corrección} (resumen; la demostración completa, que además trata grafos con ciclos, está en el
+Ejercicio~11): se mantiene el invariante ``$cnt[w]$ es la cantidad de predecesores de $w$ no
+eliminados''. Cuando $v$ se agrega a $orden$, $cnt[v]=0$, o sea todos sus predecesores ya están en
+$orden$: toda arista $(u,v)$ va de un nodo anterior a uno posterior. Y si $G$ es un DAG, mientras queden
+nodos no eliminados, el subgrafo que inducen es un DAG y por (3.19) tiene una fuente, que está en $S$;
+así se eliminan los $n$ nodos.
+
+\textbf{Orden.} Con listas de adyacencia:
+\begin{itemize}[nosep]
+\item Inicializar $cnt$ (líneas 2--4) recorre todas las listas: $\Oh(n+m)$; construir $S$: $\Oh(n)$.
+\item Con $S$ implementado como pila o cola (lista enlazada) insertar y sacar cuesta $\Oh(1)$. Cada nodo
+entra a $S$ a lo sumo una vez ($cnt[w]$ solo decrece, así que llega a 0 una sola vez; o era 0 desde el
+inicio y nunca se decrementa), por lo que el \textbf{mientras} itera a lo sumo $n$ veces.
+\item En la iteración que procesa $v$ el \textbf{para} interno recorre $\Adj[v]$ con trabajo $\Oh(1)$ por
+arista: en total $\sum_v|\Adj[v]|=m$.
+\end{itemize}
+Por la regla de la suma: $\Oh(n+m)$.
+
+%======================================================================
+\section{Ejercicio 11}
+\begin{enunciado}
+(K\&T 3.3) Dado un grafo dirigido arbitrario $G$ (no necesariamente un DAG) se quiere obtener un orden
+topológico de $G$ o un ciclo de $G$.
+(a) Presente un algoritmo que resuelve el problema en $\Oh(m+n)$ (reescriba los algoritmos del libro).
+\emph{Sugerencia:} use las ideas de la demostración de (3.19).
+(b) Demuestre la corrección.
+(c) Demuestre que admite una implementación $\Oh(m+n)$.
+\end{enunciado}
+\examref{Examen diciembre 2024, Ej.~1: se adapta el algoritmo de orden topológico para que, si en algún momento no hay vértices con grado de entrada 0, informe que no hay solución.}
+
+\subsection*{(a) Algoritmo}
+Primera fase: el algoritmo de eliminación de fuentes del Ejercicio~10(f). Si elimina todos los nodos,
+devuelve el orden. Si no, los nodos no eliminados forman un subgrafo $H$ en el que todo nodo tiene una
+arista entrante desde $H$. Segunda fase (idea de la prueba de (3.19)): desde cualquier nodo de $H$
+caminamos \emph{hacia atrás} por aristas entrantes dentro de $H$; como $H$ es finito, en algún momento
+repetimos un nodo, y el tramo entre las dos apariciones es un ciclo.
+
+\begin{algorithm}[H]
+\caption{Orden topológico o ciclo}
+\begin{algorithmic}[1]
+\Function{OrdenOCiclo}{$G$}
+  \State Construir las listas de entrantes $In[v]=\{u:(u,v)\in E\}$
+  \State $cnt[v]\gets|In[v]|$; \ $elim[v]\gets\textbf{false}$ para todo $v$
+  \State $S\gets\{v:cnt[v]=0\}$; \ $orden\gets\langle\rangle$
+  \While{$S\ne\emptyset$} \Comment{Fase 1}
+    \State sacar $v$ de $S$; \ agregar $v$ a $orden$; \ $elim[v]\gets\textbf{true}$
+    \ForAll{$w\in\Adj[v]$}
+      \State $cnt[w]\gets cnt[w]-1$
+      \If{$cnt[w]=0$} agregar $w$ a $S$ \EndIf
+    \EndFor
+  \EndWhile
+  \If{$|orden|=n$} \State \Return ``orden topológico'', $orden$ \EndIf
+  \Statex \Comment{Fase 2: caminata hacia atrás dentro de $H=\{v:\neg elim[v]\}$}
+  \State $pos[v]\gets-1$ para todo $v$
+  \State elegir $x$ con $\neg elim[x]$; \ $k\gets0$; \ $w_0\gets x$; \ $pos[x]\gets0$
+  \Loop
+    \State buscar en $In[w_k]$ un $u$ con $\neg elim[u]$
+    \If{$pos[u]\ne-1$} \Comment{$u$ ya fue visitado: $u=w_j$ con $j=pos[u]$}
+      \State $j\gets pos[u]$
+      \State \Return ``ciclo'', $\langle w_k, w_{k-1},\dots,w_{j}\rangle$ \Comment{cerrado por la arista $(w_j,w_k)$}
+    \EndIf
+    \State $k\gets k+1$; \ $w_k\gets u$; \ $pos[u]\gets k$
+  \EndLoop
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+\subsection*{(b) Corrección}
+\textbf{Invariante de la fase 1:} $cnt[w]=|\{u\in In[w]:\neg elim[u]\}|$ para todo $w$, y $S$ contiene
+exactamente a los nodos no eliminados con $cnt=0$ que aún no fueron sacados. Vale al inicio; al eliminar
+$v$ se decrementa $cnt[w]$ una vez por cada arista $(v,w)$, que es exactamente lo que $v$ aportaba; y un
+nodo se agrega a $S$ justo cuando su $cnt$ pasa a valer 0 (como $cnt$ solo decrece, eso ocurre a lo sumo
+una vez, y los nodos con $cnt=0$ inicial no se decrementan nunca), así que cada nodo entra a $S$ a lo
+sumo una vez.
+
+\textbf{Si retorna un orden, es topológico.} Si $v$ se agrega a $orden$ cuando $cnt[v]=0$, por el
+invariante todos sus predecesores $u$ ya estaban eliminados, es decir, ya estaban antes en $orden$. Luego
+para toda arista $(u,v)$, $u$ aparece antes que $v$; y como $|orden|=n$ y ningún nodo se repite, es un
+orden topológico de $G$.
+
+\textbf{Si se llega a la fase 2, la caminata está bien definida.} Al terminar la fase 1, $S=\emptyset$
+y $|orden|<n$, así que $H\ne\emptyset$ y todo $v\in H$ tiene $cnt[v]\ge1$ (si fuera 0 habría entrado a
+$S$ y habría sido eliminado). Por el invariante, cada $v\in H$ tiene un predecesor $u\in H$: la búsqueda
+de la línea 15 siempre encuentra uno, y la caminata permanece en $H$.
+
+\textbf{La fase 2 termina y retorna un ciclo.} Mientras no se repite un nodo, los $w_0,\dots,w_k$ son
+distintos, así que $k<|H|\le n$; por lo tanto en a lo sumo $|H|$ pasos el $u$ encontrado ya fue visitado
+($pos[u]\neq-1$), digamos $u=w_j$ con $j\le k$. Por construcción $(w_{i+1},w_i)\in E$ para $0\le i<k$
+(cada $w_{i+1}$ se eligió en $In[w_i]$) y además $(w_j,w_k)=(u,w_k)\in E$. Entonces la secuencia
+\[ w_k\to w_{k-1}\to\dots\to w_{j+1}\to w_j\to w_k \]
+usa solo aristas de $E$ y sus nodos $w_j,\dots,w_k$ son distintos: es un ciclo dirigido de $G$ (de
+largo $k-j+1\ge1$; si $G$ no tiene lazos, $u\ne w_k$ y el largo es $\ge2$).
+
+\textbf{Conclusión.} El algoritmo siempre termina con uno de los dos resultados y el resultado es
+correcto. (En particular, retorna un orden topológico si y solo si $G$ es un DAG: un grafo con ciclos no
+tiene orden topológico (3.18), y un DAG no tiene ciclos para devolver.)
+
+\subsection*{(c) Tiempo de ejecución}
+Con listas de adyacencia de salientes y de entrantes:
+\begin{itemize}[nosep]
+\item Construir $In$ recorriendo todas las listas $\Adj$: $\Oh(n+m)$. Inicializar $cnt$, $elim$, $S$, $pos$: $\Oh(n)$.
+\item Fase 1: como en el Ejercicio~10(f), cada nodo sale de $S$ a lo sumo una vez y su lista de salientes
+se recorre una vez con trabajo $\Oh(1)$ por arista: $\Oh(n+m)$.
+\item Fase 2: cada nodo aparece como $w_k$ a lo sumo una vez (los $w_i$ son distintos hasta la
+repetición, en cuyo momento se termina), y para $w_k$ la búsqueda de la línea 15 recorre a lo sumo
+$|In[w_k]|$ entradas con costo $\Oh(1)$. Total $\Oh(\sum_v(1+|In[v]|))=\Oh(n+m)$. Para devolver el
+ciclo guardamos los $w_i$ en un arreglo indexado por $i$; listar $w_k,\dots,w_j$ cuesta $\Oh(n)$.
+\end{itemize}
+Por la regla de la suma, el total es $\Oh(n+m)$.
+
+%======================================================================
+\section{Ejercicio 12}
+\begin{enunciado}
+(K\&T 3.12) Se tienen $n$ personas ya fallecidas $P_1,\dots,P_n$ y $m$ datos sobre pares $(P_i,P_j)$ de
+alguno de los tipos: (1) $P_i$ murió antes de que $P_j$ naciera; (2) las vidas de $P_i$ y $P_j$ se
+solaparon en el tiempo. Se quiere un algoritmo que devuelva una cronología de nacimientos y muertes de
+las $n$ personas consistente con todos los datos (respetando que cada persona nace antes de morir), o
+un mensaje indicando que los datos son inconsistentes. Por ejemplo, si $n=3$, $P_1$ murió antes de que
+$P_3$ naciera y las vidas de $P_2$ y $P_1$ se solaparon, una salida posible es: nace $P_2$, nace $P_1$,
+muere $P_1$, nace $P_3$, muere $P_2$, muere $P_3$.
+(a) Presente un algoritmo $\Oh(m+n)$; describa la representación de la entrada y formalice un modelo.
+(b) Demuestre la corrección.
+(c) Demuestre que admite una implementación $\Oh(m+n)$.
+\end{enunciado}
+\examref{Examen diciembre 2024, Ej.~1: problema prácticamente idéntico (tareas con restricciones ``$j$ empieza después de que termina $i$'' ($T_1$) y ``los lapsos de $i$ y $j$ tienen un instante común'' ($T_2$)); la solución oficial construye el mismo grafo de $2n$ vértices y busca un orden topológico. Seguimos esa solución.}
+
+\subsection*{(a) Entrada, modelo y algoritmo}
+\textbf{Entrada.} El entero $n$ y una lista de $m$ datos, cada uno una terna $(i,j,\tau)$ con
+$i,j\in\{1,\dots,n\}$ y $\tau\in\{\textsc{Antes},\textsc{Solapa}\}$: $(i,j,\textsc{Antes})$ significa
+``$P_i$ murió antes de que $P_j$ naciera'' y $(i,j,\textsc{Solapa})$ ``las vidas de $P_i$ y $P_j$ se
+solaparon''.
+
+\textbf{Modelo.} Cada persona tiene dos eventos: su nacimiento $b_i$ y su muerte $d_i$. Una
+\emph{cronología} es una secuencia de los $2n$ eventos (suponemos, como en el ejemplo, que no hay dos
+eventos simultáneos; la cronología es el orden en que ocurren). Una cronología es \emph{consistente} si:
+\begin{enumerate}[nosep,label=(R\arabic*)]
+\item $b_i$ precede a $d_i$ para todo $i$;
+\item para cada dato $(i,j,\textsc{Antes})$, $d_i$ precede a $b_j$;
+\item para cada dato $(i,j,\textsc{Solapa})$, los intervalos de vida $[b_i,d_i]$ y $[b_j,d_j]$ tienen un
+instante en común. Dado (R1), esto equivale a que \emph{$b_i$ preceda a $d_j$ y $b_j$ preceda a $d_i$}:
+si comparten un instante $x$, entonces $b_i\le x\le d_j$ y $b_j\le x\le d_i$ (y las desigualdades
+entre eventos distintos son estrictas); recíprocamente, si $b_i<d_j$ y $b_j<d_i$, el instante
+$\max(b_i,b_j)$ es menor que $d_i$ y que $d_j$ (usando además (R1)), así que pertenece a ambas vidas.
+\end{enumerate}
+Todas las condiciones son precedencias entre pares de eventos. Construimos el grafo dirigido $G=(V,E)$ con
+$V=\{b_1,d_1,\dots,b_n,d_n\}$ y las aristas:
+\begin{itemize}[nosep]
+\item $(b_i,d_i)$ para cada $i$;
+\item $(d_i,b_j)$ para cada dato $(i,j,\textsc{Antes})$;
+\item $(b_i,d_j)$ y $(b_j,d_i)$ para cada dato $(i,j,\textsc{Solapa})$.
+\end{itemize}
+Por construcción: \emph{una secuencia de los $2n$ eventos es una cronología consistente si y solo si es un
+orden topológico de $G$} (cada arista representa exactamente una de las precedencias exigidas, y cada
+precedencia exigida tiene su arista).
+
+\textbf{Algoritmo.}
+\begin{algorithm}[H]
+\caption{Cronología consistente}
+\begin{algorithmic}[1]
+\Function{Cronologia}{$n$, $D$}
+  \State crear $G$ con vértices $b_1,d_1,\dots,b_n,d_n$ y listas de adyacencia vacías
+  \For{$i\gets1$ \textbf{hasta} $n$} agregar la arista $(b_i,d_i)$ \EndFor
+  \ForAll{$(i,j,\tau)\in D$}
+    \If{$\tau=\textsc{Antes}$} agregar $(d_i,b_j)$
+    \Else\ agregar $(b_i,d_j)$ y $(b_j,d_i)$
+    \EndIf
+  \EndFor
+  \State $(res, sec)\gets$ \Call{OrdenOCiclo}{$G$} \Comment{Ejercicio 11}
+  \If{$res=$ ``orden topológico''}
+    \State \Return $sec$, leyendo $b_i$ como ``nace $P_i$'' y $d_i$ como ``muere $P_i$''
+  \Else
+    \State \Return ``los datos son inconsistentes''
+  \EndIf
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+En el ejemplo del enunciado las aristas son $(b_1,d_1)$, $(b_2,d_2)$, $(b_3,d_3)$, $(d_1,b_3)$, $(b_1,d_2)$, $(b_2,d_1)$,
+y $b_2,b_1,d_1,b_3,d_2,d_3$ es un orden topológico: es la salida mostrada.
+
+\subsection*{(b) Corrección}
+\begin{itemize}
+\item \textbf{Si el algoritmo devuelve una secuencia, es una cronología consistente.} Por el
+Ejercicio~11(b), la secuencia es un orden topológico de $G$; por la observación del modelo, cumple (R1),
+(R2) y (R3). Asignando a cada evento como instante su posición en la secuencia se obtienen $n$ personas
+(cada una nace antes de morir) que satisfacen todos los datos.
+\item \textbf{Si los datos son consistentes, el algoritmo devuelve una secuencia.} Si existió un conjunto
+de $n$ personas que satisface todos los datos, ordenando sus $2n$ eventos por instante de ocurrencia se
+obtiene una secuencia que cumple (R1)--(R3), es decir, un orden topológico de $G$. Por (3.18), $G$ es
+entonces un DAG, así que no tiene ciclos y \textsc{OrdenOCiclo} (que por el Ejercicio~11 siempre
+devuelve un orden topológico o un ciclo correcto) devuelve un orden topológico.
+\end{itemize}
+Equivalentemente: el algoritmo informa ``inconsistente'' exactamente cuando $G$ tiene un ciclo, y el ciclo
+hallado es incluso una justificación de la inconsistencia (una cadena circular de precedencias).
+
+\subsection*{(c) Tiempo de ejecución}
+$G$ tiene $|V|=2n$ vértices y $|E|=n+m_1+2m_2\le n+2m$ aristas, donde $m_1$ y $m_2$ son las
+cantidades de datos de cada tipo ($m_1+m_2=m$). Identificando $b_i$ con el entero $i$ y $d_i$ con $n+i$,
+la construcción de las listas de adyacencia cuesta $\Oh(n)$ para crearlas y $\Oh(1)$ por arista
+agregada: $\Oh(n+m)$. Por el Ejercicio~11(c), \textsc{OrdenOCiclo} cuesta $\Oh(|V|+|E|)=\Oh(2n+n+2m)=
+\Oh(n+m)$, y traducir la secuencia a texto es $\Oh(n)$. Por la regla de la suma, el total es $\Oh(n+m)$.
+
+\end{document}
